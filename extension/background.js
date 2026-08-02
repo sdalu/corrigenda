@@ -71,7 +71,7 @@ const capture = async (message, sender) => {
  * Pages that already carry the widget (MoXoW injects it for some
  * clients) are left alone: the client refuses to mount twice, but
  * fetching the file again for nothing is still a fetch. */
-const WIDGET = "/common/js/debug-feedback.js";
+const WIDGET = "/.debug-feedback/debug-feedback.js";
 
 const inject = async (tab) => {
     if (tab?.id === undefined) return;

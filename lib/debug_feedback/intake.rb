@@ -106,6 +106,39 @@ module DebugFeedback
             end
         end
 
+        # A site that does not mount this service posts to it from its
+        # own origin, which makes the request cross-origin and puts the
+        # browser in charge of whether it happens at all. Two things
+        # follow: the answer must name the origin it allows (a wildcard
+        # is refused outright once credentials are involved), and the
+        # preflight must be answered before the real request is sent.
+        #
+        # Vary matters here even though the list is small: a cache that
+        # kept one origin's answer for another would hand the browser a
+        # header naming the wrong site, and the report would be blocked
+        # with no way to see why.
+        before do
+            origin = request.env["HTTP_ORIGIN"]
+            headers "vary" => "Origin"
+            next unless config.origin_allowed?(origin)
+
+            headers "access-control-allow-origin" => origin,
+                    "access-control-allow-credentials" => "true"
+        end
+
+        # Content-Encoding is what makes this necessary: a gzipped body
+        # is not a simple request, so nothing is sent until this answers.
+        options "/" do
+            next 404 unless config.origin_allowed?(request.env["HTTP_ORIGIN"])
+
+            headers "access-control-allow-methods" => "POST, OPTIONS",
+                    "access-control-allow-headers" =>
+                        "Content-Type, Content-Encoding",
+                    "access-control-max-age" => "600"
+            status 204
+            body ""
+        end
+
         get "/health" do
             content_type :json
             JSON.generate(status: "ok")

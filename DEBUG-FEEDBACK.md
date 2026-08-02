@@ -6,7 +6,7 @@ Status: **spec; the endpoint is built, the client is not.** Written
 Phase 1 of §10 exists and is tested end to end: `lib/debug_feedback/` (intake,
 store, schema, config), `config.ru`, `views/`, 34 unit tests
 (`bundle exec rake test`), and the client at
-`/web/platform/Common/js/debug-feedback.js` — launcher, menu, element picker
+`client/debug-feedback.js` — launcher, menu, element picker
 with keyboard tree navigation, capture switches with live size
 estimates, payload preview, and the gzipped POST. A headless browser
 test (`test/browser/`) drives the real widget against the real endpoint.
@@ -68,7 +68,7 @@ review UI when we choose to. No mail, no XMPP.
 
 | Piece | Location | Role |
 |---|---|---|
-| `debug-feedback.js` | `Common/js/`, served at `/common/js/` | Whole client: UI, picker, capture, transport |
+| `debug-feedback.js` | `client/`, served by the service at `/.debug-feedback/debug-feedback.js` — the one path under it that needs no authentication | Whole client: UI, picker, capture, transport |
 | CSS | inlined in the JS | Adopted `CSSStyleSheet` in an open shadow root |
 | `debug-feedback` service | one Sinatra app, one Puma | Receives, validates, stores; serves review UI |
 | store | `<data>/debug-feedback/` | One directory per report, plus `index.jsonl` |
@@ -124,7 +124,7 @@ for "I am looking at something odd right now"; a testing pass wants (C).
 Configuration rides on the script tag:
 
 ```html
-<script src="/common/js/debug-feedback.js"
+<script src="/.debug-feedback/debug-feedback.js"
         data-endpoint="/.debug-feedback/report"
         data-site="www.alux.fr"
         data-build="2026-08-02.3"

@@ -97,3 +97,29 @@ real, so the only untested step is the permission dialog itself.
 Because the stub canvas is exactly viewport-sized, calibration succeeds
 and the redaction bars land on the fixture's two inputs; open the stored
 `screenshot.webp` to confirm it.
+
+## The cross-origin pass
+
+`cross-origin-check.js` needs a second server, because it tests the
+arrangement a site gets when it does *not* mount the endpoint: the page
+on one origin, the endpoint on another.
+
+```sh
+# the endpoint, on a second origin (0.0.0.0 so both names reach it)
+DEBUG_FEEDBACK_STORE=/var/tmp/debug-feedback-xorigin \
+    bundle exec puma -b tcp://0.0.0.0:9397 test/browser/config.ru
+
+node -r ./shim.js /web/ops/DebugFeedback/test/browser/cross-origin-check.js
+```
+
+The page is served from `127.0.0.1` and the endpoint answers on
+`localhost`: same machine, different origin as far as a browser is
+concerned. Both are overridable with `PAGE_ORIGIN` / `ENDPOINT_ORIGIN`.
+
+Chromium is launched with Local Network Access turned off. That rule
+refuses a request from one loopback origin to another without a
+permission a headless run cannot grant — it is about localhost, not
+about CORS, and no pair of public https hosts is subject to it. Firefox
+needs no such flag, which is worth remembering when one engine passes
+and the other does not: the first question is whether the failure is
+about the feature or about the address.

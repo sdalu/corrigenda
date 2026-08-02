@@ -58,4 +58,46 @@ class ConfigTest < Minitest::Test
         refute DebugFeedback::Config.new("sites" => ["a.test"])
                                     .site_allowed?("b.test")
     end
+
+    # The origins that may post from elsewhere are the sites that may be
+    # reported on: one list, so there is nothing to fall out of step.
+    def test_an_origin_is_allowed_when_its_site_is
+        config = DebugFeedback::Config.new("sites" => ["a.test"])
+
+        assert config.origin_allowed?("https://a.test")
+        refute config.origin_allowed?("https://b.test")
+    end
+
+    def test_only_https_origins_are_allowed
+        config = DebugFeedback::Config.new("sites" => ["a.test"])
+
+        refute config.origin_allowed?("http://a.test")
+        refute config.origin_allowed?("a.test")
+    end
+
+    # Loopback has no certificate to have, and a browser test must be
+    # able to prove the cross-origin path without inventing one.
+    def test_http_is_allowed_from_loopback_only
+        config = DebugFeedback::Config.new
+
+        assert config.origin_allowed?("http://localhost:9397")
+        assert config.origin_allowed?("http://127.0.0.1:9393")
+        refute config.origin_allowed?("http://not-localhost.test")
+    end
+
+    def test_a_missing_origin_is_not_an_allowed_one
+        config = DebugFeedback::Config.new
+
+        refute config.origin_allowed?(nil)
+        refute config.origin_allowed?("")
+    end
+
+    # No allowlist means development, where any site is accepted and any
+    # https origin with it — the two answers stay the same answer.
+    def test_no_allowlist_allows_any_https_origin
+        config = DebugFeedback::Config.new
+
+        assert config.origin_allowed?("https://anything.test")
+        refute config.origin_allowed?("http://anything.test")
+    end
 end

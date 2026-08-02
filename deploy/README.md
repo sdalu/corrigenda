@@ -80,7 +80,7 @@ out gid 80.
 
 One line, kept as a file so it can be edited rather than retyped:
 `bookmarklet.js`. It injects the client from whichever host serves
-`/common/js/debug-feedback.js`; the widget then defaults its endpoint to
+`/.debug-feedback/debug-feedback.js`; the widget then defaults its endpoint to
 `/.debug-feedback/report/` **relative to the page**, which keeps the
 POST same-origin and inside that vhost's auth.
 

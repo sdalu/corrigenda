@@ -26,6 +26,13 @@ module DebugFeedback
         # download.
         PACKAGES = File.expand_path("../../extension/dist", __dir__)
 
+        # The widget itself. It used to live in Common/js and be served
+        # as a static file by every vhost; serving it from here keeps
+        # the client and the endpoint that receives its reports in one
+        # repository, versioned together, so a client can never be newer
+        # than the service reading its payloads.
+        CLIENT = File.expand_path("../../client/debug-feedback.js", __dir__)
+
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
@@ -44,6 +51,23 @@ module DebugFeedback
                 sites: config.sites,
                 packages: %w[firefox chrome].to_h { [it, package(it)&.then { File.size(it) }] }
             }
+        end
+
+        # The one route on this service that is not staff-only: every
+        # page that injects the widget fetches it, and those pages are
+        # public. Apache lets this path through unauthenticated (see
+        # deploy/macro-debug-feedback.conf); nothing here is a secret —
+        # the same file was world-readable under /common/js for months.
+        #
+        # Cached, but briefly: a stale widget is a widget whose report
+        # format the endpoint may no longer read, and five minutes is
+        # long enough to spare a busy site the requests while short
+        # enough that a fix is everywhere by the time you have finished
+        # telling someone about it. send_file adds Last-Modified, so
+        # most of those requests answer 304 anyway.
+        get "/debug-feedback.js" do
+            cache_control :public, max_age: 300
+            send_file CLIENT, type: "application/javascript; charset=utf-8"
         end
 
         # The package itself. Named for the browser rather than for the

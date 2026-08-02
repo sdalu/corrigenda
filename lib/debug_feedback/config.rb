@@ -67,6 +67,33 @@ module DebugFeedback
             sites.include?(site)
         end
 
+        # Which origins may post from another host. Derived from the site
+        # list rather than configured beside it: a second list is a list
+        # that falls out of step, and the answer to "may this page send
+        # reports" was never going to differ from "may a report say it
+        # came from that site".
+        #
+        # https only, with one exception: loopback, where there is no
+        # certificate to have and a test would otherwise have to invent
+        # one. A page served over http on this estate is a page being
+        # redirected, and a credentialed cross-origin POST is not
+        # something to accept from a scheme that cannot keep it.
+        LOOPBACK = %w[localhost 127.0.0.1 [::1]].freeze
+
+        def origin_allowed?(origin)
+            return false if origin.nil? || origin.empty?
+
+            scheme, rest = origin.split("://", 2)
+            return false if rest.nil? || rest.empty?
+
+            host = rest.sub(/:\d+\z/, "")
+            return false unless scheme == "https" ||
+                                (scheme == "http" && LOOPBACK.include?(host))
+
+            sites = @values.fetch("sites")
+            sites.nil? ? true : sites.include?(host)
+        end
+
         def max_for(part)
             case part
             when :report     then max_report

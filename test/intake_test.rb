@@ -118,4 +118,77 @@ class IntakeTest < DebugFeedbackTest
             assert_includes store.files(id), "screenshot.webp"
         end
     end
+
+    # ----------------------------------------------------------------
+    # Cross-origin: a site that does not mount this service posts to it
+    # from its own origin, and the browser decides whether that happens.
+    # ----------------------------------------------------------------
+    def setup_allowlist
+        TestSupport.configure("sites" => ["www.alux.fr", "tools.sdalu.com"])
+    end
+
+    def test_a_preflight_from_a_listed_site_is_answered
+        setup_allowlist
+        options "/", {}, { "HTTP_ORIGIN" => "https://www.alux.fr" }
+
+        assert_equal 204, last_response.status
+        assert_equal "https://www.alux.fr",
+                     last_response.headers["access-control-allow-origin"]
+        assert_equal "true",
+                     last_response.headers["access-control-allow-credentials"]
+        # gzip is why a preflight happens at all
+        assert_includes last_response.headers["access-control-allow-headers"],
+                        "Content-Encoding"
+    end
+
+    # A wildcard is refused by browsers once credentials are involved, so
+    # the answer has to name the one origin — which means the answer
+    # cannot be cached across origins.
+    def test_the_answer_varies_by_origin
+        setup_allowlist
+        options "/", {}, { "HTTP_ORIGIN" => "https://www.alux.fr" }
+
+        assert_includes last_response.headers["vary"].to_s, "Origin"
+        refute_equal "*", last_response.headers["access-control-allow-origin"]
+    end
+
+    def test_a_preflight_from_an_unlisted_site_is_refused
+        setup_allowlist
+        options "/", {}, { "HTTP_ORIGIN" => "https://elsewhere.example" }
+
+        assert_equal 404, last_response.status
+        assert_nil last_response.headers["access-control-allow-origin"]
+    end
+
+    # http is not a scheme to hand credentials to, listed or not.
+    def test_an_insecure_origin_is_refused
+        setup_allowlist
+        options "/", {}, { "HTTP_ORIGIN" => "http://www.alux.fr" }
+
+        assert_equal 404, last_response.status
+    end
+
+    def test_a_cross_origin_report_carries_the_header_it_needs
+        setup_allowlist
+        post "/", JSON.generate(TestSupport.document),
+             { "CONTENT_TYPE" => "application/json",
+               "HTTP_ORIGIN" => "https://www.alux.fr" }
+
+        assert_equal 201, last_response.status
+        assert_equal "https://www.alux.fr",
+                     last_response.headers["access-control-allow-origin"]
+    end
+
+    # Same-origin posts have no Origin to allow and must not be given
+    # one: the header is for the browser's benefit, and inventing it
+    # says something untrue about who may read the answer.
+    def test_a_same_origin_report_gets_no_cors_header
+        setup_allowlist
+        post_json(TestSupport.document)
+
+        assert_equal 201, last_response.status
+        assert_nil last_response.headers["access-control-allow-origin"]
+    ensure
+        TestSupport.configure
+    end
 end

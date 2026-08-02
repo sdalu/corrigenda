@@ -194,7 +194,7 @@
     /* The app is behind a proxy and is not told its public URL. The
        browser knows it: this page came from it. */
     (function () {
-        var src = location.origin + "/common/js/debug-feedback.js";
+        var src = location.origin + "<%= mount("/debug-feedback.js") %>";
         var code = "javascript:(function(){var s=document.createElement('script');" +
                    "s.src='" + src + "';document.body.appendChild(s);})();";
         document.querySelector(".bookmarklet").href = code;
