@@ -37,7 +37,7 @@
 
 <% if files.include?("screenshot.webp") %>
     <h2>Screenshot</h2>
-    <img class="shot" src="<%= to("/#{id}/file/screenshot.webp") %>"
+    <img class="shot" src="<%= to("/#{id}/file/screenshot.webp", false) %>"
          alt="Screenshot submitted with this report">
 <% end %>
 
@@ -67,10 +67,10 @@
         <li><%= name %></li>
     <% end %>
 </ul>
-<p><a href="<%= to("/#{id}/file/report.json") %>">report.json</a></p>
+<p><a href="<%= to("/#{id}/file/report.json", false) %>">report.json</a></p>
 
 <h2>State</h2>
-<form class="states" method="post" action="<%= to("/#{id}/state") %>">
+<form class="states" method="post" action="<%= to("/#{id}/state", false) %>">
     <% DebugFeedback::Store::STATES.each do |value| %>
         <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
     <% end %>

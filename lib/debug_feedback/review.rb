@@ -71,7 +71,7 @@ module DebugFeedback
             id = params[:id]
             find(id)
             store.mark(id, params[:state])
-            redirect to("/#{id}")
+            redirect to("/#{id}", false)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
         end

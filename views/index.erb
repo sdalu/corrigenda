@@ -14,7 +14,7 @@
             <tbody>
                 <% entries.each do |entry| %>
                     <tr>
-                        <td><a href="<%= to("/#{entry['id']}") %>"><%= entry["at"] %></a></td>
+                        <td><a href="<%= to("/#{entry['id']}", false) %>"><%= entry["at"] %></a></td>
                         <td><%= entry["type"] %></td>
                         <td><%= entry["url"] %></td>
                         <td><%= summarise(entry) %></td>

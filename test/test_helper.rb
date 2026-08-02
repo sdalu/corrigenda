@@ -11,6 +11,7 @@ require "zlib"
 
 require "debug_feedback"
 require "debug_feedback/intake"
+require "debug_feedback/prefix"
 require "debug_feedback/review"
 
 # One store per process, pointed at a temporary directory. Both apps read
