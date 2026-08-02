@@ -16,17 +16,33 @@ module DebugFeedback
             "sites"          => nil    # nil means "accept any site"
         }.freeze
 
-        # DEBUG_FEEDBACK_STORE wins over the file, so a caller can point
-        # one config at a different store without writing a second one.
         def self.load(path = ENV["DEBUG_FEEDBACK_CONFIG"])
-            values = if path.nil? || !File.exist?(path)
-                         {}
-                     else
-                         YAML.safe_load_file(path) || {}
-                     end
+            new(from_file(path).merge(from_env))
+        end
+
+        def self.from_file(path)
+            return {} if path.nil? || !File.exist?(path)
+
+            YAML.safe_load_file(path) || {}
+        end
+
+        # So one config file serves both the installed service and a run
+        # from the working copy: the two keys that cannot be shared are
+        # the store (a local run must not write the real one) and the
+        # allowlist (a local run has no vhost to be on).
+        def self.from_env
+            values = {}
             store = ENV["DEBUG_FEEDBACK_STORE"]
-            values = values.merge("store" => store) unless store.nil?
-            new(values)
+            sites = ENV["DEBUG_FEEDBACK_SITES"]
+            values["store"] = store unless store.nil?
+            values["sites"] = parse_sites(sites) unless sites.nil?
+            values
+        end
+
+        # Empty means "no allowlist", which is not the same as unset.
+        def self.parse_sites(value)
+            list = value.split(",").map(&:strip).reject(&:empty?)
+            list.empty? ? nil : list
         end
 
         def initialize(values = {})

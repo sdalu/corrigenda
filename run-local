@@ -4,7 +4,8 @@
 # nothing under /usr/local/etc, no Apache, nothing to uninstall.
 # deploy/ is the real installation; this is for trying things.
 #
-# Defaults come from deploy/local.yml; flags override them.
+# Defaults come from deploy/debug-feedback.yml — the same file the
+# installed service uses — and flags override them.
 
 set -e
 
@@ -12,7 +13,7 @@ usage() {
     cat <<'EOF'
 usage: run-local [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
 
-  -c CONFIG  defaults and endpoint config (default deploy/local.yml)
+  -c CONFIG  defaults and endpoint config (default deploy/debug-feedback.yml)
   -p PORT    listen on 127.0.0.1:PORT
   -s SOCKET  listen on a unix socket instead, as the deployed service does
   -d STORE   where reports are written
@@ -20,10 +21,16 @@ usage: run-local [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
   -h         this text
 
 Anything not given falls back to CONFIG, then to the built-in defaults
-(port 9393, store ./store, no fixture). With -f, open the fixture URL
-printed at startup and drive the widget for real -- including the
-screenshot channel, which asks for the genuine screen-capture permission
-rather than the stub the browser test injects.
+(port 9393, store ./store, no fixture).
+
+CONFIG defaults to the file the installed service uses, so its store is
+the real one: pass -d unless you mean to write there. -f additionally
+drops the `sites` allowlist for the run, because the fixture page reports
+itself as fixture.test and would otherwise be refused.
+
+With -f, open the fixture URL printed at startup and drive the widget for
+real -- including the screenshot channel, which asks for the genuine
+screen-capture permission rather than the stub the browser test injects.
 EOF
 }
 
@@ -47,7 +54,7 @@ done
 
 cd "$(dirname "$0")"
 
-: "${conf:=deploy/local.yml}"
+: "${conf:=deploy/debug-feedback.yml}"
 
 if ! bundle check >/dev/null 2>&1; then
     echo "run-local: gems are not installed -- run: bundle install" >&2
@@ -82,6 +89,14 @@ ruby -e 'require "fileutils" ; FileUtils.mkdir_p(ARGV[0])' "$store"
 DEBUG_FEEDBACK_CONFIG="$conf"
 DEBUG_FEEDBACK_STORE="$store"
 export DEBUG_FEEDBACK_CONFIG DEBUG_FEEDBACK_STORE
+
+# The fixture reports itself as fixture.test, which a production
+# allowlist does not contain. Empty means "no allowlist" rather than
+# "unset", so this only relaxes the run that asked for the fixture.
+if [ -n "$fixture" ]; then
+    DEBUG_FEEDBACK_SITES=""
+    export DEBUG_FEEDBACK_SITES
+fi
 
 if [ -n "$socket" ]; then
     bind="unix://${socket}?umask=0117"
