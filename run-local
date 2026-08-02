@@ -4,7 +4,7 @@
 # nothing under /usr/local/etc, no Apache, nothing to uninstall.
 # deploy/ is the real installation; this is for trying things.
 #
-# Defaults come from config/local.yml; flags override them.
+# Defaults come from deploy/local.yml; flags override them.
 
 set -e
 
@@ -12,7 +12,7 @@ usage() {
     cat <<'EOF'
 usage: run-local [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
 
-  -c CONFIG  defaults and endpoint config (default config/local.yml)
+  -c CONFIG  defaults and endpoint config (default deploy/local.yml)
   -p PORT    listen on 127.0.0.1:PORT
   -s SOCKET  listen on a unix socket instead, as the deployed service does
   -d STORE   where reports are written
@@ -47,7 +47,7 @@ done
 
 cd "$(dirname "$0")"
 
-: "${conf:=config/local.yml}"
+: "${conf:=deploy/local.yml}"
 
 if ! bundle check >/dev/null 2>&1; then
     echo "run-local: gems are not installed -- run: bundle install" >&2

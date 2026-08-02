@@ -27,8 +27,10 @@ account, nothing in /usr/local/etc and nothing to uninstall:
     ./run-local -f               # fixture page + client + endpoint
     ./run-local -s /tmp/x.sock   # over a unix socket, as deployed
 
-Its defaults live in `config/local.yml`, which doubles as the endpoint
-config it runs with.
+Its defaults live in `local.yml` beside this file, which doubles as the
+endpoint config it runs with. `debug-feedback.yml` is the same thing for
+the installed service; the two differ only in where they put the store
+and whether they carry a `sites` allowlist.
 
 Nothing below is needed for that.
 

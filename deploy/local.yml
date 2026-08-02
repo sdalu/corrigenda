@@ -1,5 +1,9 @@
-# Defaults for ./run-local. Every key can be overridden by a flag; see
-# ./run-local -h.
+# Defaults for ../run-local. Every key can be overridden by a flag; see
+# ../run-local -h.
+#
+# debug-feedback.yml beside this is the same file for the installed
+# service: it stores under /var/db and carries a `sites` allowlist,
+# neither of which makes sense from a working copy.
 #
 # The same file is handed to the endpoint as DEBUG_FEEDBACK_CONFIG, so it
 # also takes the endpoint's own keys (max_body, max_report, sites, ...
