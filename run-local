@@ -1,0 +1,87 @@
+#!/bin/sh
+#
+# Run the endpoint straight out of the working copy: no service account,
+# nothing under /usr/local/etc, no Apache, nothing to uninstall. The
+# store and the config it generates live under the store directory,
+# which is gitignored.
+#
+# deploy/ is the real installation; this is for trying things.
+
+set -e
+
+usage() {
+    cat <<'EOF'
+usage: run-local [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
+
+  -p PORT    listen on 127.0.0.1:PORT (default 9393)
+  -s SOCKET  listen on a unix socket instead, as the deployed service does
+  -d STORE   where reports are written (default ./store, gitignored)
+  -f         also serve the test fixture page and the client, so the
+             widget can be driven in a real browser
+  -h         this text
+
+With -f, open the fixture URL printed at startup and use the widget for
+real -- including the screenshot channel, which asks for the genuine
+screen-capture permission rather than the stub the browser test uses.
+EOF
+}
+
+port=9393
+socket=""
+store=""
+rackup="config.ru"
+fixture=""
+
+while getopts "p:s:d:fh" opt; do
+    case "$opt" in
+        p) port="$OPTARG"   ;;
+        s) socket="$OPTARG" ;;
+        d) store="$OPTARG"  ;;
+        f) rackup="test/browser/config.ru" ; fixture=1 ;;
+        h) usage ; exit 0 ;;
+        *) usage >&2 ; exit 2 ;;
+    esac
+done
+
+cd "$(dirname "$0")"
+
+if ! bundle check >/dev/null 2>&1; then
+    echo "run-local: gems are not installed -- run: bundle install" >&2
+    exit 1
+fi
+
+: "${store:=$PWD/store}"
+
+# Create the store and write the config with ruby rather than with the
+# shell. On this host a shell mkdir or redirect can land in a
+# /compat/linux shadow; puma is a native build and would then not see the
+# config at all, silently using the defaults instead of the -d you asked
+# for. The check afterwards is native too, for the same reason.
+#
+# No `sites` key, so any site is accepted: an allowlist is a production
+# concern and would only get in the way of a local fixture.
+config="$store/config.yml"
+ruby -e 'require "fileutils"
+         FileUtils.mkdir_p(ARGV[0])
+         File.write(ARGV[1], "store: #{ARGV[0]}\n")' "$store" "$config"
+ruby -e 'abort "run-local: #{ARGV[0]} was not written" unless File.exist?(ARGV[0])' \
+     "$config"
+DEBUG_FEEDBACK_CONFIG="$config"
+export DEBUG_FEEDBACK_CONFIG
+
+if [ -n "$socket" ]; then
+    bind="unix://${socket}?umask=0117"
+    echo "listening  ${socket}"
+    echo "review     curl --unix-socket ${socket} http://localhost/review/"
+    [ -n "$fixture" ] && echo "note       -f serves pages over HTTP; use -p to reach them"
+else
+    bind="tcp://127.0.0.1:${port}"
+    echo "listening  127.0.0.1:${port}"
+    [ -n "$fixture" ] && echo "fixture    http://127.0.0.1:${port}/fixture.html"
+    echo "review     http://127.0.0.1:${port}/review/"
+fi
+
+echo "store      ${store}"
+echo
+
+exec bundle exec puma -b "$bind" "$rackup"

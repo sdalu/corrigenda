@@ -19,6 +19,16 @@ by a login step rather than on `REMOTE_USER`, and give injected
 responses `Cache-Control: no-store` — the same URL then serves two
 different bodies depending on something no `Vary` header mentions.
 
+## Just trying it?
+
+`../run-local` runs the endpoint from the working copy with no service
+account, nothing in /usr/local/etc and nothing to uninstall:
+
+    ./run-local -f          # fixture page + client + endpoint, port 9393
+    ./run-local -s /tmp/x.sock   # over a unix socket, as deployed
+
+Nothing below is needed for that.
+
 ## Install (needs root; nothing here does it for you)
 
     # 1. service account and directories
