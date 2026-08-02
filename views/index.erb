@@ -1,14 +1,18 @@
-<h1>Debug feedback</h1>
+<h1>Reports</h1>
 
 <% if entries.empty? %>
-    <p>Nothing reported yet.</p>
+    <p class="empty">
+        Nothing reported yet. Take the
+        <a href="<%= mount("/") %>">bookmarklet</a> to a page and pick
+        something.
+    </p>
 <% else %>
     <div class="scroller">
         <table class="listing">
             <thead>
                 <tr>
-                    <th>When</th><th>Type</th><th>Page</th>
-                    <th>Summary</th><th>By</th><th>State</th>
+                    <th>When</th><th>Kind</th><th>Page</th>
+                    <th>Summary</th><th>Sent</th><th>By</th><th>State</th>
                 </tr>
             </thead>
             <tbody>
@@ -18,6 +22,7 @@
                         <td><%= entry["type"] %></td>
                         <td><%= entry["url"] %></td>
                         <td><%= summarise(entry) %></td>
+                        <td><%== channels(entry["channels"]) %></td>
                         <td><%= entry["reporter"] %></td>
                         <td><span class="badge is-<%= entry["state"] %>"><%= entry["state"] %></span></td>
                     </tr>
@@ -25,4 +30,11 @@
             </tbody>
         </table>
     </div>
+
+    <dl class="legend">
+        <% DebugFeedback::CHANNELS.each do |key, mark| %>
+            <dt><span class="chip"><%= mark %></span></dt>
+            <dd><%= key %></dd>
+        <% end %>
+    </dl>
 <% end %>

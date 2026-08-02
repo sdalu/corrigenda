@@ -5,6 +5,17 @@ require "dry-schema"
 module DebugFeedback
     TYPES = %w[visual content broken idea question].freeze
 
+    # One letter each: six glyphs in a table column have to be told
+    # apart at a glance, and a legend has to be able to name them.
+    CHANNELS = {
+        "fragment"    => "E",
+        "rules"       => "R",
+        "computed"    => "C",
+        "diagnostics" => "D",
+        "audit"       => "A",
+        "screenshot"  => "S"
+    }.freeze
+
     # Structural validation of the report document. Deliberately
     # permissive about the INSIDE of target/environment/diagnostics:
     # dry-schema ignores unknown keys, so a client that learns to send a

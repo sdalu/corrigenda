@@ -12,9 +12,10 @@ class ReviewTest < DebugFeedbackTest
                 "target" => {
                     "selector" => "#gallery .caption",
                     "html"     => "<p>caption</p>",
-                    "matched_rules" => [
-                        { "href" => "/Common/style/exhibition-standard.css",
-                          "selector" => ".caption" }
+                    "rules" => [
+                        { "href" => "/common/style/exhibition-standard.css",
+                          "selector" => ".caption",
+                          "context" => "@layer components / @media (width > 20rem)" }
                     ]
                 },
                 "environment" => { "viewport" => "390x844" }
@@ -44,6 +45,16 @@ class ReviewTest < DebugFeedbackTest
         assert_includes last_response.body, "#gallery .caption"
     end
 
+    # The cascade context is the point of the field: which layer and
+    # which media query had to hold for the rule to apply.
+    def test_the_detail_shows_the_cascade_context
+        get "/#{@id}"
+
+        assert_includes last_response.body, "<li>@layer components</li>"
+        assert_includes last_response.body, "<li>@media (width &gt; 20rem)</li>"
+        assert_includes last_response.body, %(<li class="is-selector">.caption)
+    end
+
     # The review UI renders strings a browser sent us. escape_html only
     # works if Tilt picked Erubi, so assert the outcome, not the setting.
     def test_reported_text_is_escaped_not_executed
@@ -55,6 +66,17 @@ class ReviewTest < DebugFeedbackTest
         refute_includes last_response.body, "<script>alert(1)</script>"
         assert_includes last_response.body, "&lt;script&gt;"
     end
+
+def test_the_listing_marks_which_channels_were_sent
+    store.save(TestSupport.document(
+                   "capture" => { "fragment" => true, "rules" => true,
+                                  "computed" => false }))
+    get "/"
+
+    assert_includes last_response.body, %(<span class="chip" title="fragment">E</span>)
+    assert_includes last_response.body, %(<span class="chip" title="rules">R</span>)
+    refute_includes last_response.body, %(title="computed")
+end
 
     def test_an_unknown_report_is_a_404
         get "/20260101T000000Z-deadbeef"

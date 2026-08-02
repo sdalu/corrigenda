@@ -97,7 +97,8 @@ module DebugFeedback
                 "site"     => page["site"],
                 "url"      => page["url"],
                 "summary"  => document["message"].to_s.lines.first.to_s.strip,
-                "reporter" => reporter
+                "reporter" => reporter,
+                "channels" => document.fetch("capture", {}).select { |_, on| on }.keys
             }
         end
 

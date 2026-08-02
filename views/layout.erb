@@ -5,89 +5,324 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Debug feedback</title>
 <style>
-@layer tokens, base, layout, components;
+/* The estate's own faces, served by the same vhost. Absent (a local run
+   with no /common alias) the stacks below fall back and nothing breaks. */
+@font-face {
+    font-family: "PT Sans Narrow";
+    src: url("/common/fonts/PT_Sans-Narrow-Web-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Alegreya Sans";
+    src: url("/common/fonts/AlegreyaSans-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Alegreya Sans";
+    src: url("/common/fonts/AlegreyaSans-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-display: swap;
+}
+
+@layer reset, tokens, base, layout, components, utilities;
+
+@layer reset {
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body, h1, h2, h3, p, dl, dd, ol, ul, figure { margin: 0; }
+    ol, ul { padding: 0; list-style: none; }
+}
 
 @layer tokens {
     :root {
         color-scheme: light dark;
-        --surface: light-dark(oklch(99% 0 0),       oklch(21% 0.01 260));
-        --raised:  light-dark(oklch(96% 0.004 260), oklch(26% 0.01 260));
-        --ink:     light-dark(oklch(24% 0.01 260),  oklch(94% 0.01 260));
-        --muted:   light-dark(oklch(44% 0.015 260), oklch(74% 0.02 260));
-        --line:    light-dark(oklch(84% 0.01 260),  oklch(40% 0.015 260));
-        --accent:  light-dark(oklch(45% 0.16 255),  oklch(80% 0.12 255));
-        --space:   1rem;
+
+        /* Paper and graphite: an instrument reads as a measurement, not
+           as a brand. Amber is the only saturated colour and it is
+           reserved for state and for the one action worth taking. */
+        --paper:  light-dark(oklch(98.5% 0.004 95), oklch(18% 0.012 265));
+        --panel:  light-dark(oklch(96%   0.006 95), oklch(22% 0.014 265));
+        --ink:    light-dark(oklch(24%   0.012 265), oklch(93% 0.008 95));
+        --muted:  light-dark(oklch(45%   0.014 265), oklch(72% 0.012 95));
+        --rule:   light-dark(oklch(87%   0.008 95),  oklch(33% 0.014 265));
+        --signal: light-dark(oklch(72%   0.15  70),  oklch(78% 0.14  70));
+        --link:   light-dark(oklch(45%   0.12 250),  oklch(80% 0.10 250));
+
+        --display: "PT Sans Narrow", "PT Sans", ui-sans-serif, sans-serif;
+        --body:    "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
+        --mono:    ui-monospace, "SFMono-Regular", "Consolas", monospace;
+
+        --space: 1rem;
+        --measure: 68ch;
     }
 }
 
 @layer base {
-    *, *::before, *::after { box-sizing: border-box; }
-
     body {
-        margin: 0;
-        padding-block: var(--space);
-        font-family: system-ui, sans-serif;
-        line-height: 1.5;
+        padding-block-end: 4rem;
+        font-family: var(--body);
+        font-size: 1.0625rem;
+        line-height: 1.55;
         color: var(--ink);
-        background: var(--surface);
+        background: var(--paper);
         overflow-wrap: break-word;
     }
 
-    h1, h2 {
-        margin-block: 1.5rem 0.5rem;
-        line-height: 1.2;
-        text-wrap: balance;
+    h1, h2, h3 { line-height: 1.15; text-wrap: balance; }
+
+    h1 {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: clamp(2rem, 1.4rem + 2.6vw, 3.2rem);
+        letter-spacing: 0.01em;
     }
 
-    a { color: var(--accent); }
+    h2 {
+        margin-block: 2.5rem 0.75rem;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 1.4rem;
+        letter-spacing: 0.02em;
+    }
+
+    p { max-inline-size: var(--measure); }
+
+    a {
+        color: var(--link);
+        text-underline-offset: 0.15em;
+    }
+
+    code, pre, kbd { font-family: var(--mono); font-size: 0.9em; }
 
     :focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
+        outline: 2px solid var(--signal);
+        outline-offset: 3px;
     }
 
-    code, pre { font-family: ui-monospace, monospace; }
+    strong { font-weight: 500; }
 }
 
 @layer layout {
     .page {
         container-type: inline-size;
-        inline-size: min(100% - 2 * var(--space), 78rem);
+        inline-size: min(100% - 2 * var(--space), 60rem);
         margin-inline: auto;
     }
 
-    /* Wide content scrolls inside its own box; the page never does. */
+    /* Structural labels live in the margin at width, above at narrow —
+       the label is a marginal note, not a heading. */
+    .railed {
+        display: grid;
+        gap: 0.35rem var(--space);
+
+        @container (inline-size > 44rem) {
+            grid-template-columns: 9rem 1fr;
+            gap: 1.1rem var(--space);
+        }
+    }
+
     .scroller { overflow-x: auto; }
 }
 
 @layer components {
+    .masthead {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem var(--space);
+        align-items: baseline;
+        justify-content: space-between;
+        padding-block: 1.25rem;
+        margin-block-end: 2rem;
+        border-block-end: 1px solid var(--rule);
+    }
+
+    .eyebrow {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 0.8125rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .masthead nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space);
+
+        a {
+            font-family: var(--display);
+            font-size: 0.9375rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+    }
+
+    /* The signature: a matched rule is not a row in a table, it is a
+       position in the cascade. Each band is one step of the context that
+       had to be true for the rule to apply, the selector last. */
+    .cascade {
+        display: grid;
+        gap: 2px;
+        max-inline-size: var(--measure);
+        font-family: var(--mono);
+        font-size: 0.875rem;
+
+        li {
+            padding: 0.4rem 0.7rem;
+            background: var(--panel);
+            border-inline-start: 2px solid var(--rule);
+        }
+
+        li:nth-child(2) { margin-inline-start: 0.9rem; }
+        li:nth-child(3) { margin-inline-start: 1.8rem; }
+
+        .is-selector {
+            border-inline-start-color: var(--signal);
+            font-weight: 500;
+        }
+
+        .where {
+            display: block;
+            font-family: var(--body);
+            font-size: 0.8125rem;
+            color: var(--muted);
+        }
+    }
+
+    .cascade + .cascade { margin-block-start: 0.9rem; }
+
+    .specimen {
+        padding: var(--space);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        background: color-mix(in oklab, var(--signal) 5%, var(--paper));
+
+        figcaption {
+            margin-block-end: 0.6rem;
+            font-family: var(--display);
+            font-size: 0.8125rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+    }
+
+    .lede {
+        max-inline-size: 46ch;
+        margin-block: 0.75rem 2rem;
+        font-size: 1.25rem;
+        line-height: 1.4;
+        color: var(--muted);
+    }
+
+    .bookmarklet {
+        display: inline-block;
+        min-block-size: 2.75rem;
+        padding: 0.65rem 1.1rem;
+        font-family: var(--display);
+        font-size: 1.0625rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: oklch(24% 0.012 265);
+        background: var(--signal);
+        border: 1px solid transparent;
+        border-radius: 2px;
+        text-decoration: none;
+        cursor: grab;
+
+        &:hover { border-color: var(--ink); }
+    }
+
+    .railed {
+        dt, .term {
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 0.9375rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        dd { max-inline-size: var(--measure); }
+    }
+
     .listing {
         border-collapse: collapse;
         inline-size: 100%;
+        font-size: 0.9375rem;
 
-        th, td {
-            padding: 0.5rem;
-            border-block-end: 1px solid var(--line);
-            text-align: start;
-            vertical-align: top;
+        th {
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 0.8125rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
         }
 
-        th { color: var(--muted); font-weight: 600; }
+        th, td {
+            padding: 0.55rem 0.7rem 0.55rem 0;
+            border-block-end: 1px solid var(--rule);
+            text-align: start;
+            vertical-align: baseline;
+        }
 
-        td code { font-size: 0.875em; }
+        tbody tr:hover { background: var(--panel); }
+
+        /* Inside .scroller, so refusing to wrap costs nothing. */
+        td:first-child, .badge { white-space: nowrap; }
     }
 
+    /* The word carries the state; the mark only seconds it. */
     .badge {
-        display: inline-block;
-        padding-inline: 0.5em;
-        border: 1px solid var(--line);
-        border-radius: 0.25em;
-        font-size: 0.875rem;
+        font-family: var(--display);
+        font-size: 0.8125rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
 
-        /* The word is the state; the colour only seconds it. */
-        &.is-open    { border-color: var(--accent); }
-        &.is-fixed   { color: var(--muted); }
-        &.is-wontfix { color: var(--muted); font-style: italic; }
+        &::before {
+            content: "";
+            display: inline-block;
+            inline-size: 0.5em;
+            block-size: 0.5em;
+            margin-inline-end: 0.4em;
+            border: 1px solid var(--muted);
+            border-radius: 50%;
+        }
+
+        &.is-open { color: var(--ink); }
+        &.is-open::before { background: var(--signal); border-color: var(--signal); }
+        &.is-wontfix { font-style: italic; }
+    }
+
+    .chip {
+        display: inline-block;
+        min-inline-size: 1.35em;
+        padding-inline: 0.2em;
+        margin-inline-end: 0.15em;
+        font-family: var(--display);
+        font-size: 0.8125rem;
+        letter-spacing: 0.04em;
+        text-align: center;
+        color: var(--ink);
+        background: color-mix(in oklab, var(--signal) 30%, var(--panel));
+        border-radius: 2px;
+    }
+
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 1.1rem;
+        align-items: baseline;
+        margin-block-start: var(--space);
+        font-size: 0.875rem;
+        color: var(--muted);
+
+        dt, dd { margin: 0; }
     }
 
     .states {
@@ -97,22 +332,28 @@
 
         button {
             min-block-size: 2.75rem;
-            min-inline-size: 2.75rem;
+            min-inline-size: 3.5rem;
             padding-inline: var(--space);
-            font: inherit;
+            font-family: var(--display);
+            font-size: 0.9375rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
             color: var(--ink);
-            background: var(--raised);
-            border: 1px solid var(--line);
-            border-radius: 0.25em;
+            background: var(--panel);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            cursor: pointer;
 
-            &:disabled { color: var(--muted); }
+            &:hover { border-color: var(--ink); }
+            &:disabled { color: var(--muted); cursor: default; }
         }
     }
 
     pre, .fragment {
         padding: var(--space);
-        background: var(--raised);
-        border: 1px solid var(--line);
+        background: var(--panel);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
     }
 
     pre { overflow-x: auto; }
@@ -122,58 +363,64 @@
         min-block-size: 14rem;
     }
 
-    .lede { font-size: 1.125rem; color: var(--muted); max-inline-size: 60ch; }
-
-    dl {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.5rem var(--space);
-        align-items: baseline;
-
-        dt { font-weight: 600; }
-        dd { margin: 0; }
-
-        /* One column when the terms and their prose cannot share a row. */
-        @container (inline-size < 34rem) {
-            grid-template-columns: 1fr;
-
-            dd { margin-block-end: var(--space); }
-        }
+    .shot {
+        max-inline-size: 100%;
+        block-size: auto;
+        border: 1px solid var(--rule);
     }
 
     kbd {
         padding-inline: 0.35em;
-        font-family: ui-monospace, monospace;
-        font-size: 0.875em;
-        border: 1px solid var(--line);
-        border-radius: 0.25em;
-    }
-
-    .bookmarklet {
-        display: inline-block;
-        min-block-size: 2.75rem;
-        padding: 0.6rem var(--space);
-        color: light-dark(white, black);
-        background: var(--accent);
-        border-radius: 0.4rem;
-        text-decoration: none;
-        font-weight: 600;
-        cursor: grab;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
     }
 
     .bookmarklet-source { white-space: pre-wrap; word-break: break-all; }
 
-    .shot {
-        max-inline-size: 100%;
-        block-size: auto;
-        border: 1px solid var(--line);
+    .empty {
+        padding: 2rem 0;
+        font-size: 1.125rem;
+        color: var(--muted);
+    }
+}
+
+@layer utilities {
+    .visually-hidden {
+        position: absolute;
+        clip-path: inset(50%);
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    @layer components {
+        .bookmarklet, .states button, .listing tbody tr { transition: 120ms ease-out; }
+    }
+}
+
+@media (forced-colors: active) {
+    @layer components {
+        .cascade .is-selector { border-inline-start-color: Highlight; }
+        .badge.is-open::before { background: Highlight; }
     }
 }
 </style>
 </head>
 <body>
-<main class="page">
-<%== yield %>
-</main>
+<div class="page">
+    <header class="masthead">
+        <p class="eyebrow">Debug feedback</p>
+        <nav>
+            <a href="<%= mount("/") %>">Bookmarklet</a>
+            <a href="<%= mount("/review/") %>">Reports</a>
+        </nav>
+    </header>
+
+    <main>
+        <%== yield %>
+    </main>
+</div>
 </body>
 </html>

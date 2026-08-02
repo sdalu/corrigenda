@@ -3,6 +3,7 @@
 require "sinatra/base"
 
 require_relative "../debug_feedback"
+require_relative "prefix"
 
 module DebugFeedback
     # What you get when you open the mount point itself: the bookmarklet
@@ -17,6 +18,10 @@ module DebugFeedback
             set :host_authorization, { permitted_hosts: [] }
             set :absolute_redirects, false
         end
+
+        helpers MountPath
+
+        helpers MountPath
 
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)

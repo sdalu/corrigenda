@@ -1,9 +1,12 @@
-<% target = document["target"] || {} %>
-<% rules  = target["matched_rules"] || [] %>
+<% target      = document["target"] || {} %>
+<% rules       = target["rules"] || [] %>
+<% audit       = target["audit"] %>
+<% diagnostics = document["diagnostics"] || {} %>
+<% environment = document["environment"] || {} %>
 
 <h1><%= document["type"] %> report</h1>
 
-<p>
+<p class="lede">
     <span class="badge is-<%= state %>"><%= state %></span>
     <a href="<%= document.dig("page", "url") %>"><%= document.dig("page", "url") %></a>
 </p>
@@ -19,20 +22,33 @@
 <% end %>
 
 <% unless rules.empty? %>
-    <h2>Matched CSS rules</h2>
-    <div class="scroller">
-        <table class="listing">
-            <thead><tr><th>Stylesheet</th><th>Selector</th></tr></thead>
-            <tbody>
-                <% rules.each do |rule| %>
-                    <tr>
-                        <td><%= rule["href"] %></td>
-                        <td><code><%= rule["selector"] %></code></td>
-                    </tr>
-                <% end %>
-            </tbody>
-        </table>
-    </div>
+    <h2>What styled it</h2>
+    <% rules.each do |rule| %>
+        <ol class="cascade">
+            <% rule["context"].to_s.split(" / ").reject(&:empty?).each do |band| %>
+                <li><%= band %></li>
+            <% end %>
+            <li class="is-selector"><%= rule["selector"] %>
+                <span class="where"><%= rule["href"] %></span>
+            </li>
+        </ol>
+    <% end %>
+    <% if (unreadable = target["unreadable"]) && !unreadable.empty? %>
+        <p class="empty">
+            Not readable from the page, so not searched:
+            <%= unreadable.join(", ") %>.
+        </p>
+    <% end %>
+<% end %>
+
+<% if audit %>
+    <h2>Accessibility</h2>
+    <dl class="railed">
+        <% audit.each do |key, value| %>
+            <dt><%= key %></dt>
+            <dd><%= value %></dd>
+        <% end %>
+    </dl>
 <% end %>
 
 <% if files.include?("screenshot.webp") %>
@@ -47,31 +63,68 @@
             title="The reported fragment, rendered in isolation"></iframe>
 <% end %>
 
-<% environment = document["environment"] || {} %>
-<% unless environment.empty? %>
-    <h2>Environment</h2>
-    <div class="scroller">
-        <table class="listing">
-            <tbody>
-                <% environment.each do |key, value| %>
-                    <tr><th><%= key %></th><td><%= value %></td></tr>
+<% unless diagnostics.empty? %>
+    <h2>What else went wrong</h2>
+    <dl class="railed">
+        <% errors = diagnostics["errors"] || [] %>
+        <dt>Errors</dt>
+        <dd>
+            <% if errors.empty? %>None<% else %>
+                <% errors.each do |error| %>
+                    <code><%= error["message"] %></code>
+                    <% if error["source"] %>
+                        <span class="where"><%= error["source"] %>:<%= error["line"] %></span>
+                    <% end %>
+                    <br>
                 <% end %>
-            </tbody>
-        </table>
-    </div>
+            <% end %>
+        </dd>
+
+        <% resources = diagnostics["resources"] || [] %>
+        <dt>Failed loads</dt>
+        <dd>
+            <% if resources.empty? %>None<% else %>
+                <% resources.each do |resource| %>
+                    <code><%= resource["url"] %></code><br>
+                <% end %>
+            <% end %>
+        </dd>
+
+        <% overflow = diagnostics["overflow"] || {} %>
+        <dt>Sideways overflow</dt>
+        <dd>
+            <% if overflow["overflows"] %>
+                <%= overflow["scrollWidth"] %>px in a
+                <%= overflow["clientWidth"] %>px viewport —
+                <% (overflow["offenders"] || []).each do |offender| %>
+                    <code><%= offender %></code>
+                <% end %>
+            <% else %>
+                None
+            <% end %>
+        </dd>
+    </dl>
 <% end %>
 
-<h2>Files</h2>
-<ul>
-    <% files.each do |name| %>
-        <li><%= name %></li>
-    <% end %>
-</ul>
-<p><a href="<%= to("/#{id}/file/report.json", false) %>">report.json</a></p>
+<% unless environment.empty? %>
+    <h2>Environment</h2>
+    <dl class="railed">
+        <% environment.each do |key, value| %>
+            <dt><%= key %></dt>
+            <dd><%= value %></dd>
+        <% end %>
+    </dl>
+<% end %>
 
 <h2>State</h2>
+
 <form class="states" method="post" action="<%= to("/#{id}/state", false) %>">
     <% DebugFeedback::Store::STATES.each do |value| %>
         <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
     <% end %>
 </form>
+
+<p class="empty">
+    <a href="<%= to("/#{id}/file/report.json", false) %>">report.json</a>
+    — everything above, as it was received.
+</p>

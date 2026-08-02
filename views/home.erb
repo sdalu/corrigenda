@@ -1,143 +1,150 @@
-<h1>Debug feedback</h1>
+<h1>What the page actually did</h1>
 
 <p class="lede">
-    Reports what a page actually did: the element you picked, the CSS
-    rules that matched it, the browser it happened in, and whatever
-    failed to load along the way.
+    Not a description of the problem — the element, the rule that styled
+    it, and the browser it happened in.
 </p>
 
-<h2>Install the bookmarklet</h2>
+<figure class="specimen">
+    <figcaption>Every visual report carries this</figcaption>
+    <ol class="cascade">
+        <li>@layer components</li>
+        <li>@media (width &gt; 20rem)</li>
+        <li class="is-selector">.caption
+            <span class="where">/common/style/exhibition-standard.css</span>
+        </li>
+    </ol>
+</figure>
+
+<h2>Take it with you</h2>
 
 <p>
-    Drag this to your bookmarks toolbar, or right-click it and choose
+    Drag this to your bookmarks toolbar, or right-click and choose
     <em>Bookmark link</em>. Pasting a <code>javascript:</code> URL into
-    the address bar will not work — both browsers strip it.
+    the address bar will not work — browsers strip it.
 </p>
 
 <p><a class="bookmarklet" href="#">Debug feedback</a></p>
 
 <details>
-    <summary>Or copy the URL by hand</summary>
+    <summary>Copy the URL instead</summary>
     <pre class="bookmarklet-source"></pre>
 </details>
 
-<h2>The four kinds of report</h2>
+<h2>Four kinds of report</h2>
 
 <p>
-    The choice sets what gets collected and how you point at the problem.
-    Every switch is still yours to change before sending — this is only
-    where each one starts.
+    The kind sets what gets collected and how you point at the problem.
+    Every switch is still yours to change before sending.
 </p>
 
-<dl>
+<dl class="railed">
     <dt>Visual</dt>
     <dd>
-        The full set: the element, the CSS rules that matched it and the
-        layer or media query they came from, its computed styles and
-        geometry, plus the accessibility check and the screenshot
-        control. Use it for anything about how the page <em>renders</em>
-        — overlap, spacing, colour, alignment, a layout that breaks at a
+        The element, the rules that matched it and the layer or media
+        query they came from, computed styles, geometry, the
+        accessibility check, and the screenshot control. For how the page
+        renders: overlap, spacing, colour, a layout that breaks at a
         width.
     </dd>
 
     <dt>Content</dt>
     <dd>
-        For wording, typos, a stale fact. <strong>Select the text
-        first</strong> and this skips the picker entirely: the selection
-        is quoted into the message and the element containing it is
-        recorded. It sends the element and nothing else — computed styles
-        and matching rules say nothing about a spelling mistake.
+        Wording, typos, a stale fact. <strong>Select the text first</strong>
+        and the picker is skipped: the words are quoted into the message
+        and the element holding them is recorded. Sends the element and
+        nothing else — computed styles say nothing about a spelling
+        mistake.
     </dd>
 
     <dt>Broken</dt>
     <dd>
-        For behaviour rather than appearance: a control that does
-        nothing, an image that never arrives, a script that threw. Sends
-        the element plus the diagnostics — the JavaScript errors and
-        failed resource loads collected since the page loaded, and
-        whether the page overflows sideways.
+        Behaviour rather than appearance: a control that does nothing, an
+        image that never arrives, a script that threw. Adds the
+        diagnostics — JavaScript errors and failed loads collected since
+        the page opened, and whether it overflows sideways.
     </dd>
 
     <dt>Idea</dt>
     <dd>
-        No element, no picker, no capture: just the message and which
-        page you were on. For anything not anchored to one thing on the
-        screen.
+        No element, no picker, no capture. The message and the page you
+        were on.
     </dd>
 </dl>
 
-<h2>Using it</h2>
+<h2>Driving it</h2>
 
-<dl>
-    <dt>Pick an element</dt>
+<dl class="railed">
+    <dt>Picking</dt>
     <dd>
-        Choose what kind of problem it is, then click the element. The
-        arrow keys walk the tree — <kbd>↑</kbd> to the parent,
-        <kbd>↓</kbd> to the first child, <kbd>←</kbd> <kbd>→</kbd>
-        between siblings — because the element worth reporting is usually
-        the container, not the leaf the mouse can reach.
-        <kbd>Enter</kbd> locks it, <kbd>Esc</kbd> cancels.
+        Click the element. The arrow keys walk the tree — <kbd>↑</kbd>
+        parent, <kbd>↓</kbd> first child, <kbd>←</kbd> <kbd>→</kbd>
+        siblings — because what you want is usually the container, not
+        the leaf the mouse can reach. <kbd>Enter</kbd> locks it,
+        <kbd>Esc</kbd> cancels.
     </dd>
 
-    <dt>Choose what to send</dt>
+    <dt>Sending</dt>
     <dd>
-        Each channel is a switch with its own size, and
+        Each channel is a switch showing its own size, and
         <em>Show exactly what will be sent</em> renders the payload
-        before it goes. Form values, password fields and anything marked
+        first. Form values, password fields and anything marked
         <code>data-debug-feedback-redact</code> never leave the page.
     </dd>
 
     <dt>Screenshots</dt>
     <dd>
-        Optional, and captured by the browser's own screen-capture
-        permission so the image shows your real rendering. Share
-        <strong>this tab</strong> rather than a window or a screen:
-        cropping and the black bars over form fields only work when the
-        frame can be mapped to the page, and the widget will say so if it
-        cannot.
+        Captured through the browser's own screen-capture permission, so
+        the image is your real rendering. Share <strong>this tab</strong>
+        rather than a window or a screen: cropping and the bars over form
+        fields only work when the frame maps to the page, and the widget
+        says so when it cannot.
     </dd>
 </dl>
 
 <h2>Where it works</h2>
 
-<% if sites.nil? %>
-    <p>No allowlist configured: reports are accepted from any site.</p>
-<% else %>
-    <p>Reports are accepted from these hosts only:</p>
-    <ul>
-        <% sites.each do |site| %>
-            <li><code><%= site %></code></li>
+<dl class="railed">
+    <dt>Accepted from</dt>
+    <dd>
+        <% if sites.nil? %>
+            Any site — no allowlist configured.
+        <% else %>
+            <% sites.each do |site| %>
+                <code><%= site %></code><br>
+            <% end %>
         <% end %>
-    </ul>
-<% end %>
+    </dd>
 
-<p>
-    The bookmarklet loads on any page, but a report is posted to
-    <code>/.debug-feedback/report/</code> on <em>that page's own host</em>.
-    On a site without the endpoint mounted it will fail at the moment you
-    press send, with the report already written. Mounting it elsewhere is
-    one line in that vhost's config.
-</p>
+    <dt>Everywhere else</dt>
+    <dd>
+        The bookmarklet loads on any page, but a report posts to
+        <code>/.debug-feedback/report/</code> on that page's own host. On
+        a site without the endpoint mounted it fails when you press send,
+        with the report already written. Mounting it elsewhere is one
+        line in that vhost's config.
+    </dd>
+</dl>
 
 <h2>State</h2>
 
-<dl class="state">
+<dl class="railed">
     <dt>Reports</dt>
-    <dd><a href="review/"><%= count %> stored</a></dd>
+    <dd><a href="<%= mount("/review/") %>"><%= count %> stored</a></dd>
 
     <dt>Latest</dt>
-    <dd><%= latest ? "#{latest["at"]} — #{latest["url"]}" : "none yet" %></dd>
+    <dd><%= latest ? "#{latest["at"]} — #{latest["url"]}" : "Nothing reported yet." %></dd>
 
     <dt>Store</dt>
     <dd><code><%= store_path %></code></dd>
 
     <dt>Endpoint</dt>
-    <dd><a href="report/health">health</a></dd>
+    <dd><a href="<%= mount("/report/health") %>">health</a></dd>
 </dl>
 
 <script>
-    /* The app is behind a proxy and is not told its public URL, but the
-       browser knows it: this page is being served from it. */
+    /* The app is behind a proxy and is not told its public URL. The
+       browser knows it: this page came from it. */
     (function () {
         var src = location.origin + "/common/js/debug-feedback.js";
         var code = "javascript:(function(){var s=document.createElement('script');" +

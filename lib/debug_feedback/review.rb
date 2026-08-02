@@ -4,6 +4,7 @@ require "json"
 require "sinatra/base"
 
 require_relative "../debug_feedback"
+require_relative "prefix"
 
 module DebugFeedback
     # Read-mostly listing of what has been reported. Behind the same
@@ -33,6 +34,10 @@ module DebugFeedback
             set :absolute_redirects, false
         end
 
+        helpers MountPath
+
+        helpers MountPath
+
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
@@ -41,6 +46,19 @@ module DebugFeedback
                 halt 404, "no such report\n" if document.nil?
 
                 document
+            end
+
+            # Marks for what a report carried. Each chip is titled and
+            # the legend under the table names them in full: the letter
+            # is a reminder, not the only way to read it.
+            def channels(keys)
+                return "—" if keys.nil? || keys.empty?
+
+                CHANNELS.filter_map { |key, mark|
+                    next unless keys.include?(key)
+
+                    %(<span class="chip" title="#{key}">#{mark}</span>)
+                }.join
             end
 
             def summarise(entry)

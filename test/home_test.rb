@@ -25,10 +25,12 @@ class HomeTest < DebugFeedbackTest
         assert_includes last_response.body, "/common/js/debug-feedback.js"
     end
 
-    def test_it_links_to_the_review_ui_relatively
-        get "/"
+    # Built from the mount root, so the same masthead works from Home
+    # (mounted at /) and Review (mounted at /review).
+    def test_it_links_to_the_review_ui_from_the_mount_root
+        get "/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback" }
 
-        assert_includes last_response.body, %(href="review/")
+        assert_includes last_response.body, %(href="/.debug-feedback/review/")
     end
 
     # The suite shares one store, so a count is only meaningful relative
