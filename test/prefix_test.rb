@@ -33,6 +33,17 @@ class PrefixTest < DebugFeedbackTest
         refute_includes last_response.body, "http://example.org"
     end
 
+# The redirect after a state change is what sent a browser to
+# http://<vhost>/... : Sinatra re-absolutises Location against the
+# host it believes it has, which is the backend, over http.
+def test_the_state_redirect_is_a_path_not_an_absolute_url
+    post "/review/#{@id}/state", { "state" => "wontfix" },
+         { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback" }
+
+    assert_equal "/.debug-feedback/review/#{@id}",
+                 last_response.headers["location"]
+end
+
     def test_without_the_header_nothing_changes
         get "/review/"
 

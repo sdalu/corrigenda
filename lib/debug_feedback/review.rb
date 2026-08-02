@@ -25,6 +25,12 @@ module DebugFeedback
             # would answer "Host not permitted" to everything Apache
             # proxies here.
             set :host_authorization, { permitted_hosts: [] }
+
+            # Sinatra re-absolutises every redirect against the host
+            # it thinks it has, which behind the proxy is the backend
+            # and http, not the vhost and https. A path-only Location
+            # keeps the browser on the scheme and host it came from.
+            set :absolute_redirects, false
         end
 
         helpers do
