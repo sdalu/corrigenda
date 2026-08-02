@@ -161,6 +161,23 @@ const ok   = (message) => console.log('ok   ' + message);
     await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
     ok('report 6 accepted (content, from a selection)');
 
+// --- injected from <head>, as MoXoW emits it ---------------------
+// Undeferred and before <body> exists: the widget has to survive
+// having no document.body when it runs, or the MoXoW path is dead
+// while the bookmarklet keeps working.
+{
+    const headPage = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    const errors = [];
+    headPage.on("pageerror", (e) => errors.push(e.message));
+    await headPage.goto("http://127.0.0.1:9393/in-head.html", { waitUntil: "load" });
+    const mounted = await headPage.evaluate(() =>
+        !!document.querySelector("#debug-feedback-widget"));
+    if (!mounted) fail("head-injected widget never mounted: " + errors.join("; "));
+    else if (errors.length) fail("head-injected widget threw: " + errors.join("; "));
+    else ok("mounts when injected from <head>, before <body> exists");
+    await headPage.close();
+}
+
     // --- the widget must not disturb the page it measures ------------
     const stray = await page.evaluate(() =>
         document.body.querySelectorAll('div#debug-feedback-widget').length);

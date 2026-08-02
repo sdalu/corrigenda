@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Injected from the head</title>
+<!-- Exactly how MoXoW emits it: first in <head>, NOT deferred, so the
+     error listeners are installed before anything can fail. There is no
+     document.body at this point, which is what this fixture is for. -->
+<script src="/common/js/debug-feedback.js"></script>
+</head>
+<body>
+<h1>Injected from the head</h1>
+<p class="caption">Something to pick.</p>
+<img src="/missing-on-purpose.png" alt="A photograph that fails to load">
+</body>
+</html>
