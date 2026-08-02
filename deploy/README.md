@@ -27,30 +27,35 @@ by a login step rather than on `REMOTE_USER`, and give injected
 responses `Cache-Control: no-store` — the same URL then serves two
 different bodies depending on something no `Vary` header mentions.
 
-## Install (root, once)
+## How it is wired here
 
-    # the store, owned by whoever will start ../run
-    install -d -m 0750 /var/db/debug-feedback
+As deployed on this host (pilot: **tools.sdalu.com**), httpd.conf
+includes this repo's macro file directly rather than a copy of it:
 
-    # the config, so the file and the installed copy do not drift
-    install -m 0644 deploy/debug-feedback.yml /usr/local/etc/debug-feedback.yml
+    Include /web/ops/DebugFeedback/deploy/macro-debug-feedback.conf
 
-    # the apache macros
-    install -m 0644 deploy/macro-debug-feedback.conf \
-        /usr/local/etc/apache24/Includes/macro-debug-feedback.conf
-
-Then add ONE line inside the pilot vhost, in
-`/web/sites/<name>/conf/apache.conf`:
+and the vhost carries one line:
 
     Use DebugFeedbackEndpoint
 
-and check before reloading:
+That means **no copy to drift** — editing `macro-debug-feedback.conf`
+here changes the live config at the next reload. It also means this repo
+is production configuration: a bad edit, a rename of the directory, or a
+checkout that removes the file breaks *every* vhost the next time httpd
+reloads, not just this one. `httpd -t` before every reload.
 
-    httpd -t && /usr/local/etc/rc.d/apache24 reload
+The ordering constraint is unchanged: the macro must be loaded before a
+vhost may `Use` it. The include above sits at httpd.conf:553 and the
+vhosts are read at 559, so one reload does both in the right order.
 
-The macro file has to be loaded before a vhost may `Use` it;
-`Includes/*.conf` is read at httpd.conf:513 and the vhosts at 553, so
-one reload does both in the right order.
+The store is the remaining root step:
+
+    install -d -m 0750 /var/db/debug-feedback
+
+owned by whoever starts `../run`. Installing the config to
+/usr/local/etc/debug-feedback.yml is optional and, on this host,
+skipped: `../run` reads `debug-feedback.yml` from here, which is the
+same file.
 
 ## Starting it
 

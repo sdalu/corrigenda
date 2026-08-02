@@ -14,4 +14,4 @@ socket: /var/run/debug-feedback/debug-feedback.sock
 # cannot be used as free storage. Remove the key to accept any site;
 # ../run -f drops it for that run, since the fixture is on no vhost.
 sites:
-    - www.alux.fr
+    - tools.sdalu.com
