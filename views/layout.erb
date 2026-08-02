@@ -111,6 +111,19 @@
         margin-inline: auto;
     }
 
+    /* The landing page is a workbench — a bookmarklet to drag, a state
+       readout, a specimen — not an essay, so it takes far more of the
+       window than a column of prose would. What it holds is uncapped
+       with it, in the utilities layer: a capped paragraph inside an
+       uncapped page reads as a mistake.
+
+       Bounded all the same: past this the page stops being wide and
+       starts being sparse, with the eye travelling further than the
+       content is worth. */
+    .page.is-wide {
+        inline-size: min(100% - 2 * var(--space), 72rem);
+    }
+
     /* Structural labels live in the margin at width, above at narrow —
        the label is a marginal note, not a heading. */
     .railed {
@@ -426,6 +439,12 @@
         block-size: 1px;
         overflow: hidden;
     }
+
+    /* Last layer, so it beats the measure each of these sets for itself
+       — that is what the layer is for, and why no !important is needed. */
+    .page.is-wide :is(p, dd, .lede, .cascade, .covers, .specimen) {
+        max-inline-size: none;
+    }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -443,7 +462,7 @@
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page<%= " is-wide" if @wide %>">
     <header class="masthead">
         <p class="eyebrow">Debug feedback</p>
         <nav>

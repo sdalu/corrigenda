@@ -105,7 +105,7 @@ const check = async (name, browser, executablePath) => {
     const payload = JSON.parse(await page.textContent(
         '#debug-feedback-widget .preview'));
     const covers = payload.target && payload.target.covers;
-    const hint = await page.textContent('#debug-feedback-widget .hint');
+    const hint = await page.textContent('#debug-feedback-widget .target');
     if (!covers || covers.length !== 2)
         fail(`${name}: text report does not name its elements: ` +
              JSON.stringify(covers));
@@ -113,7 +113,7 @@ const check = async (name, browser, executablePath) => {
              !covers.some((s) => s.includes('p')))
         fail(`${name}: wrong elements named: ${JSON.stringify(covers)}`);
     else if (!/2 elements/.test(hint))
-        fail(`${name}: the form does not say how many elements: ${hint}`);
+        fail(`${name}: the header does not say how many elements: ${hint}`);
     else ok(`${name}: a selection across two elements names both ` +
             `(${covers.join(', ')})`);
 
@@ -156,14 +156,17 @@ const check = async (name, browser, executablePath) => {
         fail(`${name}: dragged off the top-left ${JSON.stringify(origin)}`);
     else ok(`${name}: stays on screen when dragged past the origin`);
 
-    // Parked on the bottom edge, then given more to show: the form is
-    // taller than the menu it replaces, and it must not grow off-screen.
+    // Parked on the bottom edge, then given more to show. The payload
+    // preview is the biggest thing this window can open, and opening it
+    // must not push the buttons that send the report off the screen.
+    await page.click('#debug-feedback-widget .a-type[value="idea"]');
+    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])');
     await page.mouse.move(origin.left + 60, origin.top + 10);
     await page.mouse.down();
     await page.mouse.move(500, 2000, { steps: 10 });
     await page.mouse.up();
     const before = await panelBox(page);
-    await page.click('#debug-feedback-widget .a-type[value="idea"]');
+    await page.click('#debug-feedback-widget .a-preview');
     await page.waitForTimeout(300);
     const grown = await panelBox(page);
     if (grown.height <= before.height)
