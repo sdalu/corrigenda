@@ -194,6 +194,26 @@
 
     .cascade + .cascade { margin-block-start: 0.9rem; }
 
+    /* Siblings, not strata: these elements are a flat list of what one
+       report is about, so nothing here steps to the right the way the
+       cascade does. */
+    .covers {
+        display: grid;
+        gap: 2px;
+        max-inline-size: var(--measure);
+        margin-block-start: 0.4rem;
+        font-family: var(--mono);
+        font-size: 0.875rem;
+        list-style: none;
+
+        li {
+            padding: 0.3rem 0.7rem;
+            background: var(--panel);
+            border-inline-start: 2px solid var(--rule);
+            overflow-wrap: anywhere;
+        }
+    }
+
     .specimen {
         padding: var(--space);
         border: 1px solid var(--rule);

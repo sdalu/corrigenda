@@ -25,10 +25,34 @@ export LD_LIBRARY_PATH="$PWD/libs/usr/lib64:$PWD/libs/lib64"
 export NODE_PATH="$TOOLS/node_modules"
 export CHROMIUM="$TOOLS"
 node -r ./shim.js /web/ops/DebugFeedback/test/browser/widget-check.js
+node -r ./shim.js /web/ops/DebugFeedback/test/browser/selection-check.js
 
 # 3. read what landed
 ls /var/tmp/debug-feedback-browser-store/*/*/*/report.json
 ```
+
+## Two files, and why one of them runs twice
+
+`widget-check.js` is the end-to-end pass: the picker, the CSSOM walk,
+the sanitiser, the gzipped POST. Chromium only — it is about the
+widget's own logic, which does not vary by engine.
+
+`selection-check.js` runs the **same assertions in Chromium and in
+Firefox**, because everything it covers is exactly where the two
+engines disagree. It was written after a bug that was invisible for as
+long as the suite ran in Chromium alone: words inside a link could not
+be selected in Firefox at all. Firefox decides at mousedown that a
+gesture on a link is a drag, and once it has decided, cancelling
+`dragstart` stops the drag and still leaves the selection empty —
+measured. Only the `draggable` attribute, set before the gesture
+begins, gives the words back; `-webkit-user-drag` is ignored there.
+A second Firefox-only failure surfaced the same day: the window's
+clamp read a `getBoundingClientRect` that was still mid-transition, so
+a fast drag escaped the viewport.
+
+The Firefox build sits beside the Chromium one under `browsers/`.
+Adding a case here costs nothing; adding one to `widget-check.js`
+tests one engine.
 
 The fixture is built to be broken on purpose: a stylesheet with a
 layered and media-nested `.caption` rule (so the CSSOM walk has

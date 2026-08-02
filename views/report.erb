@@ -19,6 +19,26 @@
 <% if target["selector"] %>
     <h2>Target</h2>
     <p><code><%= target["selector"] %></code></p>
+    <%# A region report and a text report both name more than one
+        element: what the rectangle covered, what held the words. The
+        selector above is where to open the page; this is what the
+        report is actually about. %>
+    <% unless (covers = target["covers"] || []).empty? %>
+        <p class="empty">
+            <% if target["region"] %>
+                Covering <%= covers.length %>
+                element<%= "s" unless covers.length == 1 %>:
+            <% else %>
+                The words are in <%= covers.length %>
+                element<%= "s" unless covers.length == 1 %>:
+            <% end %>
+        </p>
+        <ul class="covers">
+            <% covers.each do |selector| %>
+                <li><code><%= selector %></code></li>
+            <% end %>
+        </ul>
+    <% end %>
 <% end %>
 
 <% unless rules.empty? %>
