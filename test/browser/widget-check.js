@@ -123,6 +123,44 @@ const ok   = (message) => console.log('ok   ' + message);
     if (!/Sent\. Reference:/.test(fifth)) fail('multipart send failed: ' + fifth);
     else ok('report 5 accepted (multipart with screenshot)');
 
+    // --- report 6: "the text is wrong" uses the selection -------------
+    await page.click('#debug-feedback-widget .a-close');
+    await page.evaluate(() => {
+        const node = document.querySelector('figcaption.caption').firstChild;
+        const range = document.createRange();
+        range.setStart(node, 0);
+        range.setEnd(node, node.length);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+    });
+    await page.click('#debug-feedback-widget .launcher');
+    await page.click('#debug-feedback-widget .a-type[value="content"]');
+
+    // the picker must have been skipped: the form is already showing
+    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])');
+    const prefilled = await page.inputValue('#debug-feedback-widget textarea');
+    if (!/Venetian carnival, 2019/.test(prefilled)) {
+        fail('selection not quoted into the message: ' + prefilled);
+    } else {
+        ok('text report quotes the selection and skips the picker');
+    }
+
+    // and it must collect the element only, not styles or rules
+    const contentChannels = await page.evaluate(() =>
+        [...document.querySelector('#debug-feedback-widget').shadowRoot
+            .querySelectorAll('.channels input')]
+            .filter(i => i.checked).map(i => i.value));
+    if (contentChannels.join(',') !== 'fragment') {
+        fail('content defaults are ' + contentChannels.join(','));
+    } else {
+        ok('text report collects the element only');
+    }
+
+    await page.fill('#debug-feedback-widget textarea', 'Wrong year');
+    await page.click('#debug-feedback-widget .a-send');
+    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    ok('report 6 accepted (content, from a selection)');
+
     // --- the widget must not disturb the page it measures ------------
     const stray = await page.evaluate(() =>
         document.body.querySelectorAll('div#debug-feedback-widget').length);
