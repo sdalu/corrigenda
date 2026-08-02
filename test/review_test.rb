@@ -73,9 +73,16 @@ def test_the_listing_marks_which_channels_were_sent
                                   "computed" => false }))
     get "/"
 
-    assert_includes last_response.body, %(<span class="chip" title="fragment">E</span>)
-    assert_includes last_response.body, %(<span class="chip" title="rules">R</span>)
-    refute_includes last_response.body, %(title="computed")
+    # The letter stands for the word the legend prints, not for the
+    # payload key: "fragment" is the element you picked.
+    assert_includes last_response.body,
+                    %(<span class="chip" data-channel="fragment" title="element">E</span>)
+    assert_includes last_response.body,
+                    %(<span class="chip" data-channel="rules" title="css rules">R</span>)
+    # The legend prints a chip for every channel, so absence has to
+    # be asserted on a ROW chip -- those carry the title.
+    refute_includes last_response.body,
+                    %(data-channel="computed" title=)
 end
 
     def test_an_unknown_report_is_a_404

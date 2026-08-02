@@ -54,10 +54,11 @@ module DebugFeedback
             def channels(keys)
                 return "—" if keys.nil? || keys.empty?
 
-                CHANNELS.filter_map { |key, mark|
+                CHANNELS.filter_map { |key, (mark, label)|
                     next unless keys.include?(key)
 
-                    %(<span class="chip" title="#{key}">#{mark}</span>)
+                    %(<span class="chip" data-channel="#{key}" ) +
+                        %(title="#{label}">#{mark}</span>)
                 }.join
             end
 

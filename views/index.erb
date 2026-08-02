@@ -32,9 +32,9 @@
     </div>
 
     <dl class="legend">
-        <% DebugFeedback::CHANNELS.each do |key, mark| %>
-            <dt><span class="chip"><%= mark %></span></dt>
-            <dd><%= key %></dd>
+        <% DebugFeedback::CHANNELS.each do |key, (mark, label)| %>
+            <dt><span class="chip" data-channel="<%= key %>"><%= mark %></span></dt>
+            <dd><%= label %></dd>
         <% end %>
     </dl>
 <% end %>

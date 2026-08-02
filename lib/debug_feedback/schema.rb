@@ -5,15 +5,17 @@ require "dry-schema"
 module DebugFeedback
     TYPES = %w[visual content broken idea question].freeze
 
-    # One letter each: six glyphs in a table column have to be told
-    # apart at a glance, and a legend has to be able to name them.
+    # Letter, then the word it stands for. The keys are the payload's
+    # own, which is why "fragment" is shown as element: that is what the
+    # reporter picked and what the widget calls it, and a legend reading
+    # "fragment" next to an E explained nothing.
     CHANNELS = {
-        "fragment"    => "E",
-        "rules"       => "R",
-        "computed"    => "C",
-        "diagnostics" => "D",
-        "audit"       => "A",
-        "screenshot"  => "S"
+        "fragment"    => ["E", "element"],
+        "rules"       => ["R", "css rules"],
+        "computed"    => ["C", "computed styles"],
+        "diagnostics" => ["D", "diagnostics"],
+        "audit"       => ["A", "accessibility"],
+        "screenshot"  => ["S", "screenshot"]
     }.freeze
 
     # Structural validation of the report document. Deliberately

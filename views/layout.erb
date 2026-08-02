@@ -299,7 +299,13 @@
         &.is-wontfix { font-style: italic; }
     }
 
+    /* One hue per channel, so a row of chips is scannable as a shape
+       before it is read. The letter still carries the meaning: colour
+       alone would fail anyone who cannot separate these six, and fails
+       everyone under forced-colors. */
     .chip {
+        --hue: 260;
+
         display: inline-block;
         min-inline-size: 1.35em;
         padding-inline: 0.2em;
@@ -308,9 +314,17 @@
         font-size: 0.8125rem;
         letter-spacing: 0.04em;
         text-align: center;
-        color: var(--ink);
-        background: color-mix(in oklab, var(--signal) 30%, var(--panel));
+        color: light-dark(oklch(25% 0.03 var(--hue)), oklch(95% 0.02 var(--hue)));
+        background: light-dark(oklch(90% 0.055 var(--hue)),
+                               oklch(34% 0.05 var(--hue)));
         border-radius: 2px;
+
+        &[data-channel="fragment"]    { --hue: 250; }
+        &[data-channel="rules"]       { --hue: 305; }
+        &[data-channel="computed"]    { --hue: 195; }
+        &[data-channel="diagnostics"] { --hue: 45;  }
+        &[data-channel="audit"]       { --hue: 150; }
+        &[data-channel="screenshot"]  { --hue: 355; }
     }
 
     .legend {
