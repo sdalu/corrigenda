@@ -269,6 +269,56 @@
         &:hover { border-color: var(--ink); }
     }
 
+    /* Two packages side by side while there is room for two: the choice
+       is which browser you use, so they are read against each other. */
+    .packages {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+        gap: var(--space);
+        margin-block-start: 0.75rem;
+
+        > div {
+            padding: 0.9rem 1rem;
+            background: var(--panel);
+            border: 1px solid var(--rule);
+        }
+
+        dt {
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 1.0625rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        dd { margin: 0.4rem 0 0; }
+
+        p + p { margin-block-start: 0.5rem; }
+
+        .how, .weight {
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+    }
+
+    /* The same signal as the bookmarklet, hollow: both are ways to get
+       the widget, and neither is the more important one. */
+    .package {
+        display: inline-block;
+        min-block-size: 2.25rem;
+        padding: 0.45rem 0.9rem;
+        font-family: var(--display);
+        font-size: 0.9375rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink);
+        border: 1px solid var(--signal);
+        border-radius: 2px;
+        text-decoration: none;
+
+        &:hover { background: color-mix(in oklab, var(--signal) 18%, transparent); }
+    }
+
     .railed {
         dt, .term {
             font-family: var(--display);

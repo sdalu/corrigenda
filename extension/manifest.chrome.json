@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Debug feedback capture",
+  "version": "0.1.0",
+  "description": "Gives the debug-feedback widget a screenshot the browser can crop: the tab itself, in page coordinates, with no share dialog.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.alux.fr/*",
+    "https://www.sdalu.com/*",
+    "https://tools.sdalu.com/*",
+    "https://kuiristo.eu/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.alux.fr/*",
+        "https://www.sdalu.com/*",
+        "https://tools.sdalu.com/*",
+        "https://kuiristo.eu/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_title": "Report a page defect",
+    "default_icon": "icon-48.png"
+  }
+}

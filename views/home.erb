@@ -32,6 +32,53 @@
     <pre class="bookmarklet-source"></pre>
 </details>
 
+<h2>Or install the add-on</h2>
+
+<p>
+    The add-on does two things the bookmarklet cannot. Its toolbar
+    button puts the widget on any page of the estate, so there is
+    nothing to drag anywhere. And it photographs the tab through the
+    browser's own capture API: no share dialog, no picking the right
+    window, and a frame that is already in page coordinates — which is
+    what lets a screenshot be cropped to the element and masked over
+    form fields.
+</p>
+
+<dl class="packages">
+    <% [["firefox", "Firefox",
+         "Captures any rectangle of the page, including the part " \
+         "below the fold, so “no crop” really is the whole page.",
+         "about:debugging → This Firefox → Load Temporary Add-on, and " \
+         "pick manifest.json inside the unzipped folder. A permanent " \
+         "install needs the package signed."],
+        ["chrome", "Chrome",
+         "Captures the visible page only — Chrome has no API for the " \
+         "part below the fold — but the crop to the element and the " \
+         "masking both work.",
+         "chrome://extensions → Developer mode → Load unpacked, and " \
+         "pick the unzipped folder."]].each do |target, name, what, how| %>
+        <div>
+            <dt><%= name %></dt>
+            <dd>
+                <p><%= what %></p>
+                <% if (bytes = packages[target]) %>
+                    <p>
+                        <a class="package" href="<%= mount("/extension/#{target}") %>"
+                           download>Download for <%= name %></a>
+                        <span class="weight"><%= (bytes / 1024.0).round %> kB</span>
+                    </p>
+                    <p class="how"><%= how %></p>
+                <% else %>
+                    <p class="empty">
+                        Not built yet. Run <code>extension/build <%= target %></code>
+                        where this service lives.
+                    </p>
+                <% end %>
+            </dd>
+        </div>
+    <% end %>
+</dl>
+
 <h2>Four kinds of report</h2>
 
 <p>

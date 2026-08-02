@@ -1,0 +1,61 @@
+#!/bin/sh
+# Build the two packages from one set of sources.
+#
+# The halves that differ are exactly two: the manifest (Firefox keeps
+# event pages and takes an SVG icon; Chrome wants a service worker and a
+# PNG) and nothing else. background.js and content.js branch on the API
+# they find, not on the browser they think they are in.
+#
+#   ./build            both, into dist/
+#   ./build firefox    one of them
+#
+# The result is a directory you can load unpacked (about:debugging ->
+# This Firefox -> Load Temporary Add-on -> dist/firefox/manifest.json,
+# or chrome://extensions -> Developer mode -> Load unpacked), and a zip
+# beside it for signing or upload.
+
+set -eu
+
+here=$(dirname "$0")
+cd "$here"
+
+targets=${*:-firefox chrome}
+
+for target in $targets; do
+    case "$target" in
+        firefox|chrome) ;;
+        *) echo "build: unknown target: $target" >&2; exit 2 ;;
+    esac
+
+    out="dist/$target"
+    rm -rf "$out"
+    mkdir -p "$out"
+
+    cp background.js content.js "$out/"
+    cp "manifest.$target.json" "$out/manifest.json"
+
+    if [ "$target" = firefox ]; then
+        cp icon.svg "$out/"
+    else
+        # Chrome takes no SVG icon. These are rendered from icon.svg by
+        # ./icons, which needs a headless browser; they are committed so
+        # a build never does.
+        cp icon-48.png icon-128.png "$out/"
+    fi
+
+    # Whatever this host has. A .xpi is a zip with another name, and an
+    # unpacked directory needs no archive at all -- the zip is for
+    # signing and for handing to someone else.
+    if   command -v zip >/dev/null 2>&1; then
+        ( cd "$out" && zip -qr "../$target.zip" . )
+    elif command -v 7z  >/dev/null 2>&1; then
+        ( cd "$out" && 7z a -tzip -bso0 -bsp0 "../$target.zip" . >/dev/null )
+    elif command -v jar >/dev/null 2>&1; then
+        ( cd "$out" && jar --create --file "../$target.zip" . )
+    else
+        echo "build: no zip, 7z or jar here; $out is loadable unpacked" >&2
+        continue
+    fi
+
+    echo "built $out (and dist/$target.zip)"
+done

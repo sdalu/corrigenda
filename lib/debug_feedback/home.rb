@@ -21,10 +21,18 @@ module DebugFeedback
 
         helpers MountPath
 
-        helpers MountPath
+        # Built by extension/build, which is not run on deploy: an
+        # absent package is a page that says so rather than a broken
+        # download.
+        PACKAGES = File.expand_path("../../extension/dist", __dir__)
 
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
+
+            def package(target)
+                path = File.join(PACKAGES, "#{target}.zip")
+                File.exist?(path) ? path : nil
+            end
         end
 
         get "/" do
@@ -33,8 +41,20 @@ module DebugFeedback
                 count: store.count,
                 latest: store.entries(limit: 1).first,
                 store_path: config.store_path,
-                sites: config.sites
+                sites: config.sites,
+                packages: %w[firefox chrome].to_h { [it, package(it)&.then { File.size(it) }] }
             }
+        end
+
+        # The package itself. Named for the browser rather than for the
+        # file inside, because that is what the person clicking knows.
+        get "/extension/:target" do
+            target = params[:target].to_s.sub(/\.(zip|xpi)\z/, "")
+            path   = package(target)
+            halt 404, "no package built for #{target}" if path.nil?
+
+            send_file path, filename: "debug-feedback-#{target}.zip",
+                            type: "application/zip"
         end
     end
 end

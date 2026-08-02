@@ -15,3 +15,7 @@ socket: /var/run/debug-feedback/debug-feedback.sock
 # ../run -f drops it for that run, since the fixture is on no vhost.
 sites:
     - tools.sdalu.com
+    # Every site that mounts the endpoint (Use DebugFeedbackEndpoint in
+    # its vhost) has to be listed here too: the vhost decides who may
+    # post, this decides what the report may claim to be about.
+    - www.alux.fr

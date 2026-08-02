@@ -26,6 +26,7 @@ export NODE_PATH="$TOOLS/node_modules"
 export CHROMIUM="$TOOLS"
 node -r ./shim.js /web/ops/DebugFeedback/test/browser/widget-check.js
 node -r ./shim.js /web/ops/DebugFeedback/test/browser/selection-check.js
+node -r ./shim.js /web/ops/DebugFeedback/test/browser/extension-check.js
 
 # 3. read what landed
 ls /var/tmp/debug-feedback-browser-store/*/*/*/report.json
@@ -53,6 +54,23 @@ a fast drag escaped the viewport.
 The Firefox build sits beside the Chromium one under `browsers/`.
 Adding a case here costs nothing; adding one to `widget-check.js`
 tests one engine.
+
+`extension-check.js` runs in both too, and tests the widget's half of
+the add-on bridge with a **stub content script** — an add-on cannot be
+loaded into these runs, but the client's side is where the interesting
+questions are: does it use the bridge instead of the share dialog, ask
+for the whole document when "no crop" is chosen, crop from the
+rectangle it was *given* rather than the one it asked for (Chrome
+answers with the viewport whatever you request), and fall back to
+`getDisplayMedia` when the bridge fails? The stub answers exactly as
+`extension/content.js` does, in three moods: grant the rectangle, grant
+only the viewport, refuse.
+
+It also found a real fragility: the client used to read the add-on's
+marker once at load, so a marker set a moment later was invisible
+forever. A `document_start` content script always wins that race, but
+depending on an ordering you cannot see is not the same as being
+correct — detection is live now.
 
 The fixture is built to be broken on purpose: a stylesheet with a
 layered and media-nested `.caption` rule (so the CSSOM walk has

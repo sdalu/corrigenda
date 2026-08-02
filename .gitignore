@@ -1,0 +1,5 @@
+# Build output. `extension/build` remakes it from committed sources in a
+# second, and the landing page says "not built yet" rather than offering
+# a download that is not there — so a checkout is never wrong, only
+# unbuilt.
+extension/dist/
