@@ -39,7 +39,7 @@ Nothing below is needed for that.
     install -d -o debugfeedback -g debugfeedback -m 0750 /var/db/debug-feedback
 
     # 2. configuration
-    install -o root -g wheel -m 0644 deploy/debug-feedback.yml /usr/local/etc/debug-debug-feedback.yml
+    install -o root -g wheel -m 0644 deploy/debug-feedback.yml /usr/local/etc/debug-feedback.yml
 
     # 3. service
     install -o root -g wheel -m 0755 deploy/debug-feedback.rc /usr/local/etc/rc.d/debug_feedback
