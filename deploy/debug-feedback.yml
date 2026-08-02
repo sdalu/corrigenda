@@ -1,0 +1,10 @@
+# Install as /usr/local/etc/debug-debug-feedback.yml, readable by the service user.
+# Every key has a default (lib/debug_feedback/config.rb); this file only needs
+# the ones that differ.
+
+store: /var/db/debug-feedback
+
+# A report naming a site outside this list is refused, so the endpoint
+# cannot be used as free storage. Remove the key to accept any site.
+sites:
+    - www.alux.fr

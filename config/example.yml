@@ -1,0 +1,17 @@
+# Copy somewhere outside the repo and point DEBUG_FEEDBACK_CONFIG at it.
+# Every key has a default (see lib/debug_feedback/config.rb); an absent file
+# is a valid development config.
+
+store: /var/db/debug-feedback
+
+# Reports naming a site outside this list are refused, so a stray
+# endpoint cannot be used as free storage. Remove the key entirely to
+# accept any site.
+sites:
+    - www.alux.fr
+    - www.sdalu.com
+
+max_body:       8388608
+max_report:      524288
+max_screenshot: 2097152
+max_snapshot:   4194304

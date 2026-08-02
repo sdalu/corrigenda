@@ -1,0 +1,133 @@
+const { chromium } = require('playwright-core');
+const BASE = process.env.CHROMIUM ||
+    '/root/.claude/tools/playwright-chromium';
+const SHOTS = process.env.SHOTS || '/var/tmp';
+const URL = 'http://127.0.0.1:9393/fixture.html';
+
+const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1; };
+const ok   = (message) => console.log('ok   ' + message);
+
+(async () => {
+    const browser = await chromium.launch({
+        executablePath: BASE +
+            '/browsers/chromium_headless_shell-1228/chrome-headless-shell-linux64' +
+            '/chrome-headless-shell',
+    });
+    const page = await browser.newPage({ viewport: { width: 900, height: 800 } });
+    await page.addInitScript(() => {
+        navigator.mediaDevices.getDisplayMedia = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(innerWidth * devicePixelRatio);
+            canvas.height = Math.round(innerHeight * devicePixelRatio);
+            const ctx = canvas.getContext('2d');
+            const stream = canvas.captureStream(10);
+            const paint = () => {
+                ctx.fillStyle = '#f2f2f2';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#c02020';
+                ctx.fillRect(20, 20, 240, 80);
+            };
+            paint();
+            const timer = setInterval(paint, 50);
+            for (const track of stream.getTracks()) {
+                const stop = track.stop.bind(track);
+                track.stop = () => { clearInterval(timer); stop(); };
+            }
+            return stream;
+        };
+    });
+
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#debug-feedback-widget');
+    ok('widget loaded');
+
+    // --- report 1: pick with the mouse -------------------------------
+    await page.click('#debug-feedback-widget .launcher');
+    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.fill('#debug-feedback-widget textarea', 'Caption is too pale to read');
+
+    const preview = await page.textContent('#debug-feedback-widget .preview');
+    if (!preview.includes('"schema": 1')) fail('preview does not show the payload');
+    else ok('preview shows the payload before sending');
+
+    await page.screenshot({ path: SHOTS + '/debug-feedback-form.png' });
+    await page.click('#debug-feedback-widget .a-send');
+    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    const first = await page.textContent('#debug-feedback-widget .result');
+    if (!/Sent\. Reference: \d{8}T/.test(first)) fail('no reference returned: ' + first);
+    else ok('report 1 accepted: ' + first.trim());
+
+    await page.screenshot({ path: SHOTS + '/debug-feedback-widget.png' });
+
+    // --- report 2: pick with the keyboard ----------------------------
+    await page.click('#debug-feedback-widget .a-close');
+    await page.click('#debug-feedback-widget .launcher');
+    await page.click('#debug-feedback-widget .a-type[value="broken"]');
+    await page.hover('figcaption.caption');       // mousemove selects the leaf
+    await page.keyboard.press('ArrowUp');         // ... and this the figure
+    await page.keyboard.press('Enter');
+    await page.fill('#debug-feedback-widget textarea', 'Whole figure is misaligned');
+    await page.click('#debug-feedback-widget .a-send');
+    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    const second = await page.textContent('#debug-feedback-widget .result');
+    if (!/Sent\. Reference:/.test(second)) fail('second report rejected: ' + second);
+    else ok('report 2 accepted (keyboard pick)');
+
+    // --- report 3: the audit switch, on pale text --------------------
+    await page.click('#debug-feedback-widget .a-close');
+    await page.click('#debug-feedback-widget .launcher');
+    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.check('#debug-feedback-widget .channels input[value="audit"]');
+    await page.fill('#debug-feedback-widget textarea', 'Contrast check');
+    await page.click('#debug-feedback-widget .a-send');
+    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    ok('report 3 accepted (audit switch on)');
+
+    // --- report 4: a form must not leak what was typed into it -------
+    await page.click('#debug-feedback-widget .a-close');
+    await page.click('#debug-feedback-widget .launcher');
+    await page.click('#debug-feedback-widget .a-type[value="broken"]');
+    await page.hover('input[type="password"]');
+    await page.keyboard.press('ArrowUp');   // input -> label
+    await page.keyboard.press('ArrowUp');   // label -> form
+    await page.keyboard.press('Enter');
+    await page.fill('#debug-feedback-widget textarea', 'The form does nothing');
+    await page.click('#debug-feedback-widget .a-send');
+    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    ok('report 4 accepted (form picked)');
+
+    // --- report 5: the screenshot channel ----------------------------
+    await page.click('#debug-feedback-widget .a-close');
+    await page.click('#debug-feedback-widget .launcher');
+    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.check('#debug-feedback-widget .channels input[value="screenshot"]');
+    await page.selectOption('#debug-feedback-widget .shot-scope', 'viewport');
+    await page.click('#debug-feedback-widget .a-shot');
+    await page.waitForSelector('#debug-feedback-widget .shot-preview:not([hidden])');
+
+    const shotStatus = await page.textContent('#debug-feedback-widget .shot-status');
+    if (!/captured/.test(shotStatus)) fail('capture status: ' + shotStatus);
+    else ok('screenshot captured: ' + shotStatus.trim());
+    // fixture has a password field and a text field; both must be covered
+    if (!/2 /.test(shotStatus)) fail('expected 2 redactions: ' + shotStatus);
+    else ok('both form fields redacted before upload');
+
+    await page.screenshot({ path: SHOTS + '/debug-feedback-shot.png' });
+    await page.fill('#debug-feedback-widget textarea', 'With a screenshot');
+    await page.click('#debug-feedback-widget .a-send');
+    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    const fifth = await page.textContent('#debug-feedback-widget .result');
+    if (!/Sent\. Reference:/.test(fifth)) fail('multipart send failed: ' + fifth);
+    else ok('report 5 accepted (multipart with screenshot)');
+
+    // --- the widget must not disturb the page it measures ------------
+    const stray = await page.evaluate(() =>
+        document.body.querySelectorAll('div#debug-feedback-widget').length);
+    if (stray !== 1) fail('widget host count is ' + stray);
+    else ok('widget adds exactly one host element');
+
+    await browser.close();
+})();

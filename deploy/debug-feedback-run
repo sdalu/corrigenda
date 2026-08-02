@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# Launcher for rc.d/debug_feedback. Exists so the quoting lives in a shell
+# script instead of inside an rc.d command_args string.
+
+set -e
+
+: "${DEBUG_FEEDBACK_DIR:=/web/ops/DebugFeedback}"
+: "${DEBUG_FEEDBACK_CONFIG:=/usr/local/etc/debug-debug-feedback.yml}"
+: "${DEBUG_FEEDBACK_SOCKET:=/var/run/debug-feedback/debug-feedback.sock}"
+
+export DEBUG_FEEDBACK_CONFIG
+
+cd "${DEBUG_FEEDBACK_DIR}"
+
+# umask 0117 leaves the socket 0660: the service user writes it, group
+# www (Apache) connects, nobody else sees it.
+exec bundle exec puma -b "unix://${DEBUG_FEEDBACK_SOCKET}?umask=0117" config.ru

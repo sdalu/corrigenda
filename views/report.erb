@@ -1,0 +1,77 @@
+<% target = document["target"] || {} %>
+<% rules  = target["matched_rules"] || [] %>
+
+<h1><%= document["type"] %> report</h1>
+
+<p>
+    <span class="badge is-<%= state %>"><%= state %></span>
+    <a href="<%= document.dig("page", "url") %>"><%= document.dig("page", "url") %></a>
+</p>
+
+<% unless document["message"].to_s.empty? %>
+    <h2>Message</h2>
+    <p><%= document["message"] %></p>
+<% end %>
+
+<% if target["selector"] %>
+    <h2>Target</h2>
+    <p><code><%= target["selector"] %></code></p>
+<% end %>
+
+<% unless rules.empty? %>
+    <h2>Matched CSS rules</h2>
+    <div class="scroller">
+        <table class="listing">
+            <thead><tr><th>Stylesheet</th><th>Selector</th></tr></thead>
+            <tbody>
+                <% rules.each do |rule| %>
+                    <tr>
+                        <td><%= rule["href"] %></td>
+                        <td><code><%= rule["selector"] %></code></td>
+                    </tr>
+                <% end %>
+            </tbody>
+        </table>
+    </div>
+<% end %>
+
+<% if files.include?("screenshot.webp") %>
+    <h2>Screenshot</h2>
+    <img class="shot" src="<%= to("/#{id}/file/screenshot.webp") %>"
+         alt="Screenshot submitted with this report">
+<% end %>
+
+<% if target["html"] %>
+    <h2>Fragment</h2>
+    <iframe class="fragment" sandbox srcdoc="<%= target["html"] %>"
+            title="The reported fragment, rendered in isolation"></iframe>
+<% end %>
+
+<% environment = document["environment"] || {} %>
+<% unless environment.empty? %>
+    <h2>Environment</h2>
+    <div class="scroller">
+        <table class="listing">
+            <tbody>
+                <% environment.each do |key, value| %>
+                    <tr><th><%= key %></th><td><%= value %></td></tr>
+                <% end %>
+            </tbody>
+        </table>
+    </div>
+<% end %>
+
+<h2>Files</h2>
+<ul>
+    <% files.each do |name| %>
+        <li><%= name %></li>
+    <% end %>
+</ul>
+<p><a href="<%= to("/#{id}/file/report.json") %>">report.json</a></p>
+
+<h2>State</h2>
+<form class="states" method="post" action="<%= to("/#{id}/state") %>">
+    <% DebugFeedback::Store::STATES.each do |value| %>
+        <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
+    <% end %>
+</form>

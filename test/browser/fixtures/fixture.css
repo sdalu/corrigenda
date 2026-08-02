@@ -1,0 +1,19 @@
+@layer components;
+
+body { font-family: system-ui, sans-serif; margin: 2rem; }
+
+@layer components {
+    #gallery figure { display: grid; gap: 0.5rem; }
+
+    .caption {
+        color: #8a8a8a;
+        font-size: 0.75rem;
+    }
+
+    @media (width > 20rem) {
+        .caption { letter-spacing: 0.01em; }
+    }
+}
+
+/* Deliberate: proves the overflow diagnostic fires. */
+.too-wide { inline-size: 2400px; block-size: 1rem; background: #eee; }

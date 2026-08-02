@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="build" content="test-build-1">
+<title>Fixture</title>
+<link rel="stylesheet" href="/fixture.css">
+</head>
+<body>
+<h1>Fixture page</h1>
+
+<section id="gallery">
+    <figure>
+        <img src="/missing-on-purpose.png" alt="A photograph that fails to load">
+        <figcaption class="caption">Venetian carnival, 2019</figcaption>
+    </figure>
+</section>
+
+<div class="too-wide"></div>
+
+<form>
+    <label>Secret <input type="password" name="secret" value="hunter2"></label>
+    <label>Name <input type="text" name="name" value="Stephane"></label>
+</form>
+
+<script src="/common/js/debug-feedback.js"
+        data-endpoint="/report/" data-site="fixture.test" defer></script>
+</body>
+</html>

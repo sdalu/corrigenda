@@ -1,0 +1,74 @@
+# frozen_string_literal: true
+
+require "json"
+require "sinatra/base"
+
+require_relative "../debug_feedback"
+
+module DebugFeedback
+    # Read-mostly listing of what has been reported. Behind the same
+    # Apache auth as the intake; the only write is the state marker.
+    class Review < Sinatra::Base
+        SERVABLE = {
+            "screenshot.webp" => "image/webp",
+            "snapshot.html"   => "text/html",
+            "report.json"     => "application/json"
+        }.freeze
+
+        configure do
+            set :views, File.expand_path("../../views", __dir__)
+            set :erb, escape_html: true
+            set :feedback_config, Config.load
+            set :show_exceptions, false
+        end
+
+        helpers do
+            def store = @store ||= Store.new(settings.feedback_config.store_path)
+
+            def find(id)
+                document = store.read(id)
+                halt 404, "no such report\n" if document.nil?
+
+                document
+            end
+
+            def summarise(entry)
+                text = entry["summary"].to_s
+                text.empty? ? "(no message)" : text
+            end
+        end
+
+        get "/" do
+            erb :index, locals: { entries: store.entries }
+        end
+
+        get "/:id" do
+            id = params[:id]
+            erb :report, locals: { id:, document: find(id),
+                                   files: store.files(id),
+                                   state: store.state(id) }
+        end
+
+        # Whitelisted, because the name is a path component.
+        get "/:id/file/:name" do
+            id, name = params.values_at(:id, :name)
+            type     = SERVABLE[name]
+            halt 404, "not servable\n" if type.nil?
+
+            path = store.dir_for(id) / name
+            halt 404, "no such file\n" unless path.exist?
+
+            content_type type
+            path.binread
+        end
+
+        post "/:id/state" do
+            id = params[:id]
+            find(id)
+            store.mark(id, params[:state])
+            redirect to("/#{id}")
+        rescue StorageError => e
+            halt 400, "#{e.message}\n"
+        end
+    end
+end

@@ -1,0 +1,28 @@
+<h1>Debug feedback</h1>
+
+<% if entries.empty? %>
+    <p>Nothing reported yet.</p>
+<% else %>
+    <div class="scroller">
+        <table class="listing">
+            <thead>
+                <tr>
+                    <th>When</th><th>Type</th><th>Page</th>
+                    <th>Summary</th><th>By</th><th>State</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% entries.each do |entry| %>
+                    <tr>
+                        <td><a href="<%= to("/#{entry['id']}") %>"><%= entry["at"] %></a></td>
+                        <td><%= entry["type"] %></td>
+                        <td><%= entry["url"] %></td>
+                        <td><%= summarise(entry) %></td>
+                        <td><%= entry["reporter"] %></td>
+                        <td><span class="badge is-<%= entry["state"] %>"><%= entry["state"] %></span></td>
+                    </tr>
+                <% end %>
+            </tbody>
+        </table>
+    </div>
+<% end %>
