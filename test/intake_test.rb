@@ -15,6 +15,23 @@ class IntakeTest < DebugFeedbackTest
         assert_predicate last_response, :ok?
     end
 
+    # Apache proxies with the vhost's Host header. Sinatra's development
+    # default permits only localhost and friends, which made every real
+    # request 403 "Host not permitted" until host_authorization was set.
+    def test_a_vhost_host_header_is_accepted
+        get "/health", {}, { "HTTP_HOST" => "tools.sdalu.com" }
+
+        assert_predicate last_response, :ok?
+    end
+
+    def test_a_vhost_host_header_is_accepted_on_a_report
+        post "/", JSON.generate(TestSupport.document),
+             { "CONTENT_TYPE" => "application/json",
+               "HTTP_HOST" => "tools.sdalu.com" }
+
+        assert_equal 201, last_response.status
+    end
+
     def test_a_json_report_is_accepted_and_stored
         post_json(TestSupport.document)
 

@@ -31,6 +31,12 @@ class ReviewTest < DebugFeedbackTest
         assert_includes last_response.body, "www.alux.fr"
     end
 
+    def test_the_listing_is_reachable_under_a_vhost_host_header
+        get "/", {}, { "HTTP_HOST" => "tools.sdalu.com" }
+
+        assert_predicate last_response, :ok?
+    end
+
     def test_the_detail_names_the_stylesheet_that_matched
         get "/#{@id}"
 

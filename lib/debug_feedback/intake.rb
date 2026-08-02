@@ -21,6 +21,19 @@ module DebugFeedback
         configure do
             set :feedback_config, Config.load
             set :show_exceptions, false
+
+            # Sinatra restricts Host to localhost and friends whenever the
+            # environment is development, which is what it is here: there
+            # is no RACK_ENV to set it otherwise. Apache proxies with the
+            # vhost's own Host header, so every real request would be
+            # answered "Host not permitted".
+            #
+            # An empty list disables the check. That is right for this
+            # deployment rather than lazy: the only way in is a unix socket
+            # readable by Apache's group, so Apache -- not this app --
+            # decides which vhosts may reach it, and nothing here routes or
+            # builds absolute URLs from Host.
+            set :host_authorization, { permitted_hosts: [] }
         end
 
         helpers do

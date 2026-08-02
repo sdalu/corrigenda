@@ -20,6 +20,11 @@ module DebugFeedback
             set :erb, escape_html: true
             set :feedback_config, Config.load
             set :show_exceptions, false
+
+            # See the note in intake.rb: Sinatra's development default
+            # would answer "Host not permitted" to everything Apache
+            # proxies here.
+            set :host_authorization, { permitted_hosts: [] }
         end
 
         helpers do
