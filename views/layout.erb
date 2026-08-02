@@ -51,6 +51,7 @@
 
 @layer layout {
     .page {
+        container-type: inline-size;
         inline-size: min(100% - 2 * var(--space), 78rem);
         margin-inline: auto;
     }
@@ -120,6 +121,47 @@
         inline-size: 100%;
         min-block-size: 14rem;
     }
+
+    .lede { font-size: 1.125rem; color: var(--muted); max-inline-size: 60ch; }
+
+    dl {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.5rem var(--space);
+        align-items: baseline;
+
+        dt { font-weight: 600; }
+        dd { margin: 0; }
+
+        /* One column when the terms and their prose cannot share a row. */
+        @container (inline-size < 34rem) {
+            grid-template-columns: 1fr;
+
+            dd { margin-block-end: var(--space); }
+        }
+    }
+
+    kbd {
+        padding-inline: 0.35em;
+        font-family: ui-monospace, monospace;
+        font-size: 0.875em;
+        border: 1px solid var(--line);
+        border-radius: 0.25em;
+    }
+
+    .bookmarklet {
+        display: inline-block;
+        min-block-size: 2.75rem;
+        padding: 0.6rem var(--space);
+        color: light-dark(white, black);
+        background: var(--accent);
+        border-radius: 0.4rem;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: grab;
+    }
+
+    .bookmarklet-source { white-space: pre-wrap; word-break: break-all; }
 
     .shot {
         max-inline-size: 100%;

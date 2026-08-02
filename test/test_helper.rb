@@ -10,6 +10,7 @@ require "tmpdir"
 require "zlib"
 
 require "debug_feedback"
+require "debug_feedback/home"
 require "debug_feedback/intake"
 require "debug_feedback/prefix"
 require "debug_feedback/review"
@@ -21,7 +22,7 @@ module TestSupport
 
     def self.configure(**overrides)
         config = DebugFeedback::Config.new({ "store" => ROOT }.merge(overrides))
-        [DebugFeedback::Intake, DebugFeedback::Review].each do |app|
+        [DebugFeedback::Home, DebugFeedback::Intake, DebugFeedback::Review].each do |app|
             app.set(:feedback_config, config)
         end
         config

@@ -69,6 +69,11 @@ module DebugFeedback
             (dir_for(id) / "state").write("#{value}\n")
         end
 
+        def count
+            index = @root / INDEX
+            index.exist? ? index.readlines.size : 0
+        end
+
         # Newest first. Reads the state file per entry, which is cheap at
         # this volume and keeps the index immutable.
         def entries(limit: 100)

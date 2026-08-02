@@ -55,6 +55,9 @@ module DebugFeedback
         def max_screenshot = Integer(@values.fetch("max_screenshot"))
         def max_snapshot   = Integer(@values.fetch("max_snapshot"))
 
+        # nil means no allowlist: every site is accepted.
+        def sites = @values.fetch("sites")
+
         # An unlisted site is refused, so a stray endpoint cannot be used
         # as free storage. A nil list disables the check for development.
         def site_allowed?(site)

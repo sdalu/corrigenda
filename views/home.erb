@@ -1,0 +1,103 @@
+<h1>Debug feedback</h1>
+
+<p class="lede">
+    Reports what a page actually did: the element you picked, the CSS
+    rules that matched it, the browser it happened in, and whatever
+    failed to load along the way.
+</p>
+
+<h2>Install the bookmarklet</h2>
+
+<p>
+    Drag this to your bookmarks toolbar, or right-click it and choose
+    <em>Bookmark link</em>. Pasting a <code>javascript:</code> URL into
+    the address bar will not work — both browsers strip it.
+</p>
+
+<p><a class="bookmarklet" href="#">Debug feedback</a></p>
+
+<details>
+    <summary>Or copy the URL by hand</summary>
+    <pre class="bookmarklet-source"></pre>
+</details>
+
+<h2>Using it</h2>
+
+<dl>
+    <dt>Pick an element</dt>
+    <dd>
+        Choose what kind of problem it is, then click the element. The
+        arrow keys walk the tree — <kbd>↑</kbd> to the parent,
+        <kbd>↓</kbd> to the first child, <kbd>←</kbd> <kbd>→</kbd>
+        between siblings — because the element worth reporting is usually
+        the container, not the leaf the mouse can reach.
+        <kbd>Enter</kbd> locks it, <kbd>Esc</kbd> cancels.
+    </dd>
+
+    <dt>Choose what to send</dt>
+    <dd>
+        Each channel is a switch with its own size, and
+        <em>Show exactly what will be sent</em> renders the payload
+        before it goes. Form values, password fields and anything marked
+        <code>data-debug-feedback-redact</code> never leave the page.
+    </dd>
+
+    <dt>Screenshots</dt>
+    <dd>
+        Optional, and captured by the browser's own screen-capture
+        permission so the image shows your real rendering. Share
+        <strong>this tab</strong> rather than a window or a screen:
+        cropping and the black bars over form fields only work when the
+        frame can be mapped to the page, and the widget will say so if it
+        cannot.
+    </dd>
+</dl>
+
+<h2>Where it works</h2>
+
+<% if sites.nil? %>
+    <p>No allowlist configured: reports are accepted from any site.</p>
+<% else %>
+    <p>Reports are accepted from these hosts only:</p>
+    <ul>
+        <% sites.each do |site| %>
+            <li><code><%= site %></code></li>
+        <% end %>
+    </ul>
+<% end %>
+
+<p>
+    The bookmarklet loads on any page, but a report is posted to
+    <code>/.debug-feedback/report/</code> on <em>that page's own host</em>.
+    On a site without the endpoint mounted it will fail at the moment you
+    press send, with the report already written. Mounting it elsewhere is
+    one line in that vhost's config.
+</p>
+
+<h2>State</h2>
+
+<dl class="state">
+    <dt>Reports</dt>
+    <dd><a href="review/"><%= count %> stored</a></dd>
+
+    <dt>Latest</dt>
+    <dd><%= latest ? "#{latest["at"]} — #{latest["url"]}" : "none yet" %></dd>
+
+    <dt>Store</dt>
+    <dd><code><%= store_path %></code></dd>
+
+    <dt>Endpoint</dt>
+    <dd><a href="report/health">health</a></dd>
+</dl>
+
+<script>
+    /* The app is behind a proxy and is not told its public URL, but the
+       browser knows it: this page is being served from it. */
+    (function () {
+        var src = location.origin + "/common/js/debug-feedback.js";
+        var code = "javascript:(function(){var s=document.createElement('script');" +
+                   "s.src='" + src + "';document.body.appendChild(s);})();";
+        document.querySelector(".bookmarklet").href = code;
+        document.querySelector(".bookmarklet-source").textContent = code;
+    })();
+</script>
