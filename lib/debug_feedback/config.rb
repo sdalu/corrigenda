@@ -16,10 +16,17 @@ module DebugFeedback
             "sites"          => nil    # nil means "accept any site"
         }.freeze
 
+        # DEBUG_FEEDBACK_STORE wins over the file, so a caller can point
+        # one config at a different store without writing a second one.
         def self.load(path = ENV["DEBUG_FEEDBACK_CONFIG"])
-            return new if path.nil? || !File.exist?(path)
-
-            new(YAML.safe_load_file(path) || {})
+            values = if path.nil? || !File.exist?(path)
+                         {}
+                     else
+                         YAML.safe_load_file(path) || {}
+                     end
+            store = ENV["DEBUG_FEEDBACK_STORE"]
+            values = values.merge("store" => store) unless store.nil?
+            new(values)
         end
 
         def initialize(values = {})

@@ -24,8 +24,11 @@ different bodies depending on something no `Vary` header mentions.
 `../run-local` runs the endpoint from the working copy with no service
 account, nothing in /usr/local/etc and nothing to uninstall:
 
-    ./run-local -f          # fixture page + client + endpoint, port 9393
+    ./run-local -f               # fixture page + client + endpoint
     ./run-local -s /tmp/x.sock   # over a unix socket, as deployed
+
+Its defaults live in `config/local.yml`, which doubles as the endpoint
+config it runs with.
 
 Nothing below is needed for that.
 

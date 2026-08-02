@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class ReviewTest < FeedbackTest
+class ReviewTest < DebugFeedbackTest
     def app = DebugFeedback::Review
 
     def setup

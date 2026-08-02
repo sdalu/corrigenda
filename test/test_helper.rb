@@ -46,7 +46,7 @@ end
 
 TestSupport.configure
 
-class FeedbackTest < Minitest::Test
+class DebugFeedbackTest < Minitest::Test
     include Rack::Test::Methods
 
     def store = @store ||= DebugFeedback::Store.new(TestSupport::ROOT)

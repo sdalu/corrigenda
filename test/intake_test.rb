@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class IntakeTest < FeedbackTest
+class IntakeTest < DebugFeedbackTest
     def app = DebugFeedback::Intake
 
     def setup

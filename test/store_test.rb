@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class StoreTest < FeedbackTest
+class StoreTest < DebugFeedbackTest
     def setup
         @store = DebugFeedback::Store.new(Dir.mktmpdir("store-test"))
     end

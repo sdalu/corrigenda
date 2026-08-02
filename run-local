@@ -1,43 +1,45 @@
 #!/bin/sh
 #
 # Run the endpoint straight out of the working copy: no service account,
-# nothing under /usr/local/etc, no Apache, nothing to uninstall. The
-# store and the config it generates live under the store directory,
-# which is gitignored.
-#
+# nothing under /usr/local/etc, no Apache, nothing to uninstall.
 # deploy/ is the real installation; this is for trying things.
+#
+# Defaults come from config/local.yml; flags override them.
 
 set -e
 
 usage() {
     cat <<'EOF'
-usage: run-local [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
+usage: run-local [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
 
-  -p PORT    listen on 127.0.0.1:PORT (default 9393)
+  -c CONFIG  defaults and endpoint config (default config/local.yml)
+  -p PORT    listen on 127.0.0.1:PORT
   -s SOCKET  listen on a unix socket instead, as the deployed service does
-  -d STORE   where reports are written (default ./store, gitignored)
-  -f         also serve the test fixture page and the client, so the
-             widget can be driven in a real browser
+  -d STORE   where reports are written
+  -f         also serve the test fixture page and the client
   -h         this text
 
-With -f, open the fixture URL printed at startup and use the widget for
-real -- including the screenshot channel, which asks for the genuine
-screen-capture permission rather than the stub the browser test uses.
+Anything not given falls back to CONFIG, then to the built-in defaults
+(port 9393, store ./store, no fixture). With -f, open the fixture URL
+printed at startup and drive the widget for real -- including the
+screenshot channel, which asks for the genuine screen-capture permission
+rather than the stub the browser test injects.
 EOF
 }
 
-port=9393
+conf=""
+port=""
 socket=""
 store=""
-rackup="config.ru"
 fixture=""
 
-while getopts "p:s:d:fh" opt; do
+while getopts "c:p:s:d:fh" opt; do
     case "$opt" in
+        c) conf="$OPTARG"   ;;
         p) port="$OPTARG"   ;;
         s) socket="$OPTARG" ;;
         d) store="$OPTARG"  ;;
-        f) rackup="test/browser/config.ru" ; fixture=1 ;;
+        f) fixture=1 ;;
         h) usage ; exit 0 ;;
         *) usage >&2 ; exit 2 ;;
     esac
@@ -45,35 +47,46 @@ done
 
 cd "$(dirname "$0")"
 
+: "${conf:=config/local.yml}"
+
 if ! bundle check >/dev/null 2>&1; then
     echo "run-local: gems are not installed -- run: bundle install" >&2
     exit 1
 fi
 
-: "${store:=$PWD/store}"
+# Read the file with ruby, not with sed: it is YAML, and ruby is also the
+# only reader here that sees the real filesystem rather than a
+# /compat/linux shadow of it.
+eval "$(ruby -ryaml -rshellwords -e '
+    file = ARGV[0]
+    values = File.exist?(file) ? (YAML.safe_load_file(file) || {}) : {}
+    %w[port socket store fixture].each do |key|
+        value = values[key]
+        next if value.nil?
+        puts "cfg_#{key}=#{Shellwords.escape(value.to_s)}"
+    end' "$conf")"
 
-# Create the store and write the config with ruby rather than with the
-# shell. On this host a shell mkdir or redirect can land in a
-# /compat/linux shadow; puma is a native build and would then not see the
-# config at all, silently using the defaults instead of the -d you asked
-# for. The check afterwards is native too, for the same reason.
-#
-# No `sites` key, so any site is accepted: an allowlist is a production
-# concern and would only get in the way of a local fixture.
-config="$store/config.yml"
-ruby -e 'require "fileutils"
-         FileUtils.mkdir_p(ARGV[0])
-         File.write(ARGV[1], "store: #{ARGV[0]}\n")' "$store" "$config"
-ruby -e 'abort "run-local: #{ARGV[0]} was not written" unless File.exist?(ARGV[0])' \
-     "$config"
-DEBUG_FEEDBACK_CONFIG="$config"
-export DEBUG_FEEDBACK_CONFIG
+port="${port:-${cfg_port:-9393}}"
+socket="${socket:-${cfg_socket:-}}"
+store="${store:-${cfg_store:-store}}"
+
+case "${fixture:-$cfg_fixture}" in
+    1|true|yes|on) rackup="test/browser/config.ru" ; fixture=1  ;;
+    *)             rackup="config.ru"              ; fixture="" ;;
+esac
+
+# Create the store with ruby for the shadow reason above, and pass its
+# location by environment so the config file stays the one you edited
+# rather than one this script rewrites behind your back.
+ruby -e 'require "fileutils" ; FileUtils.mkdir_p(ARGV[0])' "$store"
+DEBUG_FEEDBACK_CONFIG="$conf"
+DEBUG_FEEDBACK_STORE="$store"
+export DEBUG_FEEDBACK_CONFIG DEBUG_FEEDBACK_STORE
 
 if [ -n "$socket" ]; then
     bind="unix://${socket}?umask=0117"
     echo "listening  ${socket}"
     echo "review     curl --unix-socket ${socket} http://localhost/review/"
-    [ -n "$fixture" ] && echo "note       -f serves pages over HTTP; use -p to reach them"
 else
     bind="tcp://127.0.0.1:${port}"
     echo "listening  127.0.0.1:${port}"
@@ -81,6 +94,7 @@ else
     echo "review     http://127.0.0.1:${port}/review/"
 fi
 
+echo "config     ${conf}"
 echo "store      ${store}"
 echo
 
