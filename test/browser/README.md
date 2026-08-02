@@ -9,8 +9,8 @@ Three steps, from `ops/DebugFeedback`:
 
 ```sh
 # 1. serve the fixture page, the client, and the endpoint together
-printf 'store: /var/tmp/debug-feedback-browser-store\n' > /var/tmp/fb.yml
-DEBUG_FEEDBACK_CONFIG=/var/tmp/fb.yml \
+printf 'store: /var/tmp/debug-feedback-browser-store\n' > /var/tmp/debug-feedback.yml
+DEBUG_FEEDBACK_CONFIG=/var/tmp/debug-feedback.yml \
     bundle exec puma -b tcp://127.0.0.1:9393 test/browser/config.ru
 
 # 2. drive it (see the headless-Chromium recipe in Common/CLAUDE.md).
