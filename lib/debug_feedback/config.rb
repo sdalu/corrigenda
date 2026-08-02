@@ -13,7 +13,24 @@ module DebugFeedback
             "max_report"     => 512 * 1024,
             "max_screenshot" => 2  * 1024 * 1024,
             "max_snapshot"   => 4  * 1024 * 1024,
-            "sites"          => nil    # nil means "accept any site"
+
+            # Three different questions, and they were one answer until
+            # a site stopped mounting the service:
+            #
+            #   endpoint  where this service answers, as the public URL
+            #             a site should be pointed at. It cannot work
+            #             this out for itself: it is behind a proxy that
+            #             strips the path it is served under.
+            #   sites     what a report may claim to be about.
+            #   origins   which pages may post one from another host.
+            #
+            # origins defaults to sites, because a site's pages are
+            # served from a host of the same name and repeating the list
+            # is how two lists start disagreeing. Set it only when the
+            # two genuinely differ.
+            "endpoint"       => nil,
+            "sites"          => nil,   # nil means "accept any site"
+            "origins"        => nil    # nil means "the sites, as https"
         }.freeze
 
         def self.load(path = ENV["DEBUG_FEEDBACK_CONFIG"])
@@ -73,6 +90,27 @@ module DebugFeedback
         # reports" was never going to differ from "may a report say it
         # came from that site".
         #
+        # The public URL of this service, without a trailing slash, or
+        # nil when nobody said. Only ever displayed: what a report does
+        # is decided by where it arrived, not by this.
+        def endpoint
+            value = @values.fetch("endpoint")
+            value&.sub(%r{/+\z}, "")
+        end
+
+        # Written out when they differ from the sites, derived from them
+        # when they do not. Either way this is a list of origins, and an
+        # origin is a scheme and a host: a bare hostname in the file is
+        # read as https, since that is the only scheme a page on this
+        # estate is served over.
+        def origins
+            listed = @values.fetch("origins")
+            return normalise(listed) unless listed.nil?
+
+            sites = @values.fetch("sites")
+            sites.nil? ? nil : normalise(sites)
+        end
+
         # https only, with one exception: loopback, where there is no
         # certificate to have and a test would otherwise have to invent
         # one. A page served over http on this estate is a page being
@@ -90,8 +128,8 @@ module DebugFeedback
             return false unless scheme == "https" ||
                                 (scheme == "http" && LOOPBACK.include?(host))
 
-            sites = @values.fetch("sites")
-            sites.nil? ? true : sites.include?(host)
+            allowed = origins
+            allowed.nil? ? true : allowed.include?(origin)
         end
 
         def max_for(part)
@@ -101,6 +139,15 @@ module DebugFeedback
             when :snapshot   then max_snapshot
             else raise ArgumentError, "unknown part: #{part}"
             end
+        end
+
+        private
+
+        # A bare hostname is an origin over https; anything already
+        # carrying a scheme is left as it is, which is how a port or a
+        # loopback entry gets in.
+        def normalise(values)
+            values.map { it.include?("://") ? it : "https://#{it}" }
         end
     end
 end

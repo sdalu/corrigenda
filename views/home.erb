@@ -153,7 +153,7 @@
 <h2>Where it works</h2>
 
 <dl class="railed">
-    <dt>Accepted from</dt>
+    <dt>Reports about</dt>
     <dd>
         <% if sites.nil? %>
             Any site — no allowlist configured.
@@ -161,17 +161,37 @@
             <% sites.each do |site| %>
                 <code><%= site %></code><br>
             <% end %>
+            <p>What a report may claim to be about. One naming anything
+            else is refused.</p>
         <% end %>
     </dd>
 
-    <dt>Everywhere else</dt>
+    <dt>Posted from</dt>
     <dd>
-        The bookmarklet loads on any page, but a report posts to
-        <code>/.debug-feedback/report/</code> on that page's own host. On
-        a site without the endpoint mounted it fails when you press send,
-        with the report already written. Mounting it elsewhere is one
-        line in that vhost's config.
+        <% if origins.nil? %>
+            Any origin — no allowlist configured.
+        <% else %>
+            <% origins.each do |origin| %>
+                <code><%= origin %></code><br>
+            <% end %>
+            <p>Which pages may send one from another host. A page
+            elsewhere is stopped by its own browser: the answer to the
+            preflight does not name it.</p>
+        <% end %>
     </dd>
+
+    <% if endpoint %>
+        <dt>Point a site here</dt>
+        <dd>
+            <p>A site that does not mount this service names it before
+            the vertical bar, and says who gets the widget after it:</p>
+            <pre><code>&lt;m:framework debug-feedback="<%= endpoint.sub(%r{/\.debug-feedback\z}, "") %>|yes"/&gt;</code></pre>
+            <p>A site that does mount it (<code>Use
+            DebugFeedbackEndpoint</code> in its vhost) leaves the
+            endpoint out and posts to its own origin, which needs no
+            CORS.</p>
+        </dd>
+    <% end %>
 </dl>
 
 <h2>State</h2>

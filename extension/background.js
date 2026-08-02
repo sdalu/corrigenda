@@ -71,19 +71,28 @@ const capture = async (message, sender) => {
  * Pages that already carry the widget (MoXoW injects it for some
  * clients) are left alone: the client refuses to mount twice, but
  * fetching the file again for nothing is still a fetch. */
-const WIDGET = "/.debug-feedback/debug-feedback.js";
+/* Absolute, and both halves of it. A site does not necessarily mount
+ * the service: www.alux.fr does not, and a relative /.debug-feedback/…
+ * there is a 404 twice over — once fetching the widget, once posting
+ * the report it wrote. The endpoint is named here for the same reason
+ * the manifest names the hosts: this add-on belongs to one estate. */
+const ENDPOINT = "https://tools.sdalu.com/.debug-feedback";
 
 const inject = async (tab) => {
     if (tab?.id === undefined) return;
 
     await api.scripting.executeScript({
         target: { tabId: tab.id },
-        args: [WIDGET],
-        func: (src) => {
+        args: [`${ENDPOINT}/debug-feedback.js`, `${ENDPOINT}/report/`],
+        func: (src, endpoint) => {
             if (window.__debugFeedbackLoaded) return;
 
+            /* The client reads its configuration off its own tag
+             * (document.currentScript), so the endpoint has to be on it
+             * before it runs — not appended afterwards. */
             const script = document.createElement("script");
             script.src = src;
+            script.dataset.endpoint = endpoint;
             document.documentElement.append(script);
         }
     });

@@ -79,7 +79,15 @@
 
 <% if target["html"] %>
     <h2>Fragment</h2>
-    <iframe class="fragment" sandbox srcdoc="<%= target["html"] %>"
+    <%# The fragment is a piece of another page and carries that page's
+        relative URLs. Without a base they resolve against this one:
+        every image in a reported card asks the review app for a report
+        named photo.jpg. With it they resolve where they were written,
+        so the fragment renders as it did -- and the requests stop
+        arriving here at all. Sandboxed with no allow-same-origin, so
+        the frame stays inert whatever it loads. %>
+    <iframe class="fragment" sandbox
+            srcdoc="<%= "<base href=\"#{document.dig("page", "url")}\">" %><%= target["html"] %>"
             title="The reported fragment, rendered in isolation"></iframe>
 <% end %>
 

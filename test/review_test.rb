@@ -117,4 +117,33 @@ end
 
         assert_equal 400, last_response.status
     end
+
+    # A fragment carries the reported page's relative URLs. Displayed
+    # here they used to resolve against this app: an <img src="photo.jpg">
+    # in a captured card asked for a report named photo.jpg, the store
+    # refused an id it could not parse, and the reporter got a 500.
+    def test_a_name_that_cannot_be_an_id_is_not_found
+        get "/photo.jpg"
+
+        assert_equal 404, last_response.status
+    end
+
+    def test_a_file_under_a_name_that_cannot_be_an_id_is_not_found
+        get "/photo.jpg/file/screenshot.webp"
+
+        assert_equal 404, last_response.status
+    end
+
+    # And the reason those requests stop arriving: the frame is told
+    # where its contents came from.
+    def test_the_fragment_resolves_against_the_page_it_came_from
+        store.save(TestSupport.document(
+            "target" => { "selector" => "figure", "html" => "<img src='photo.jpg'>" }))
+        id = store.entries(limit: 1).first.fetch("id")
+
+        get "/#{id}"
+
+        assert_includes last_response.body,
+                        "&lt;base href=&quot;https://www.alux.fr/&quot;&gt;"
+    end
 end

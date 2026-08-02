@@ -10,6 +10,11 @@ module DebugFeedback
     # Read-mostly listing of what has been reported. Behind the same
     # Apache auth as the intake; the only write is the state marker.
     class Review < Sinatra::Base
+        # A timestamp and a digest, which is what generate_id makes.
+        # Checked here rather than left to the store, whose refusal is an
+        # exception and became an Internal Server Error on the way out.
+        ID = /\A\d{8}T\d{6}Z-[0-9a-f]{8}\z/
+
         SERVABLE = {
             "screenshot.webp" => "image/webp",
             "snapshot.html"   => "text/html",
@@ -42,6 +47,8 @@ module DebugFeedback
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
             def find(id)
+                halt 404, "no such report\n" unless id.match?(ID)
+
                 document = store.read(id)
                 halt 404, "no such report\n" if document.nil?
 
@@ -82,7 +89,9 @@ module DebugFeedback
         # Whitelisted, because the name is a path component.
         get "/:id/file/:name" do
             id, name = params.values_at(:id, :name)
-            type     = SERVABLE[name]
+            halt 404, "no such report\n" unless id.match?(ID)
+
+            type = SERVABLE[name]
             halt 404, "not servable\n" if type.nil?
 
             path = store.dir_for(id) / name

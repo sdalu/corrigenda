@@ -49,6 +49,8 @@ module DebugFeedback
                 latest: store.entries(limit: 1).first,
                 store_path: config.store_path,
                 sites: config.sites,
+                origins: config.origins,
+                endpoint: config.endpoint,
                 packages: %w[firefox chrome].to_h { [it, package(it)&.then { File.size(it) }] }
             }
         end
