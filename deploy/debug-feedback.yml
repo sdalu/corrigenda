@@ -1,10 +1,17 @@
-# Install as /usr/local/etc/debug-feedback.yml, readable by the service user.
-# Every key has a default (lib/debug_feedback/config.rb); this file only needs
-# the ones that differ.
+# Install as /usr/local/etc/debug-feedback.yml. ../run reads this file
+# too, so there is one config and no second copy to drift.
 
+# Where reports are written. Whoever starts ../run must be able to write
+# here, and Apache never touches it.
 store: /var/db/debug-feedback
 
+# Listened on by default. Apache proxies to it (see
+# macro-debug-feedback.conf); ../run -p PORT overrides it for a run you
+# want to reach with a browser directly.
+socket: /var/run/debug-feedback/debug-feedback.sock
+
 # A report naming a site outside this list is refused, so the endpoint
-# cannot be used as free storage. Remove the key to accept any site.
+# cannot be used as free storage. Remove the key to accept any site;
+# ../run -f drops it for that run, since the fixture is on no vhost.
 sites:
     - www.alux.fr

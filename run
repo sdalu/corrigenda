@@ -1,0 +1,138 @@
+#!/bin/sh
+#
+# Start the endpoint. There is no rc.d script and no service account:
+# this is how it runs, in a terminal, under whoever starts it.
+#
+# Nothing restarts it on boot or after a crash. If that matters, run it
+# under a supervisor or a terminal multiplexer -- see deploy/README.md.
+#
+# Defaults come from deploy/debug-feedback.yml, the same file installed
+# at /usr/local/etc/debug-feedback.yml; flags override them.
+
+set -e
+
+usage() {
+    cat <<'EOF'
+usage: run [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
+
+  -c CONFIG  config to read (default deploy/debug-feedback.yml)
+  -p PORT    listen on 127.0.0.1:PORT instead of the configured socket
+  -s SOCKET  listen on this unix socket
+  -d STORE   write reports here instead of the configured store
+  -f         also serve the test fixture page and the client, and drop
+             the `sites` allowlist for this run
+  -h         this text
+
+With no flags this is the production endpoint, started by hand: the
+configured socket, the configured store, the configured allowlist.
+
+-f turns it into a playground instead: open the fixture URL printed at
+startup and drive the widget for real, including the screenshot channel,
+which asks for the genuine screen-capture permission rather than the
+stub the browser test injects. It reports itself as fixture.test, which
+is why -f also drops the allowlist.
+EOF
+}
+
+conf=""
+port=""
+socket=""
+store=""
+fixture=""
+
+while getopts "c:p:s:d:fh" opt; do
+    case "$opt" in
+        c) conf="$OPTARG"   ;;
+        p) port="$OPTARG"   ;;
+        s) socket="$OPTARG" ;;
+        d) store="$OPTARG"  ;;
+        f) fixture=1 ;;
+        h) usage ; exit 0 ;;
+        *) usage >&2 ; exit 2 ;;
+    esac
+done
+
+cd "$(dirname "$0")"
+
+: "${conf:=deploy/debug-feedback.yml}"
+
+if ! bundle check >/dev/null 2>&1; then
+    echo "run: gems are not installed -- run: bundle install" >&2
+    exit 1
+fi
+
+# Read the file with ruby, not with sed: it is YAML, and ruby is also the
+# only reader here that sees the real filesystem rather than a
+# /compat/linux shadow of it.
+eval "$(ruby -ryaml -rshellwords -e '
+    file = ARGV[0]
+    values = File.exist?(file) ? (YAML.safe_load_file(file) || {}) : {}
+    %w[port socket store fixture].each do |key|
+        value = values[key]
+        next if value.nil?
+        puts "cfg_#{key}=#{Shellwords.escape(value.to_s)}"
+    end' "$conf")"
+
+store="${store:-${cfg_store:-store}}"
+
+# -p wins over a configured socket; otherwise the socket wins over the
+# port, because that is what Apache proxies to.
+if [ -n "$port" ]; then
+    socket=""
+else
+    socket="${socket:-${cfg_socket:-}}"
+    port="${cfg_port:-9393}"
+fi
+
+case "${fixture:-$cfg_fixture}" in
+    1|true|yes|on) rackup="test/browser/config.ru" ; fixture=1  ;;
+    *)             rackup="config.ru"              ; fixture="" ;;
+esac
+
+# Directories are made with ruby for the shadow reason above. The socket
+# directory is group www so the socket created inside it is too: a new
+# file takes its DIRECTORY's group here, which is what lets Apache
+# connect to a 0660 socket owned by whoever started this.
+ruby -e 'require "fileutils" ; FileUtils.mkdir_p(ARGV[0])' "$store"
+
+if [ -n "$socket" ]; then
+    ruby -e 'require "etc"
+             require "fileutils"
+             dir = File.dirname(ARGV[0])
+             FileUtils.mkdir_p(dir)
+             begin
+                 File.chown(nil, Etc.getgrnam("www").gid, dir)
+                 File.chmod(0o750, dir)
+             rescue ArgumentError, Errno::EPERM
+                 warn "run: cannot set #{dir} to group www; " \
+                      "Apache may not reach the socket"
+             end' "$socket"
+fi
+
+DEBUG_FEEDBACK_CONFIG="$conf"
+DEBUG_FEEDBACK_STORE="$store"
+export DEBUG_FEEDBACK_CONFIG DEBUG_FEEDBACK_STORE
+
+# Empty means "no allowlist" rather than "unset", so this relaxes only
+# the run that asked for the fixture.
+if [ -n "$fixture" ]; then
+    DEBUG_FEEDBACK_SITES=""
+    export DEBUG_FEEDBACK_SITES
+fi
+
+if [ -n "$socket" ]; then
+    bind="unix://${socket}?umask=0117"
+    echo "listening  ${socket}"
+    echo "review     curl --unix-socket ${socket} http://localhost/review/"
+else
+    bind="tcp://127.0.0.1:${port}"
+    echo "listening  127.0.0.1:${port}"
+    [ -n "$fixture" ] && echo "fixture    http://127.0.0.1:${port}/fixture.html"
+    echo "review     http://127.0.0.1:${port}/review/"
+fi
+
+echo "config     ${conf}"
+echo "store      ${store}"
+echo
+
+exec bundle exec puma -b "$bind" "$rackup"
