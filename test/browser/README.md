@@ -9,7 +9,7 @@ Three steps, from `ops/DebugFeedback`:
 
 ```sh
 # 1. serve the fixture page, the client, and the endpoint together
-printf 'store: /var/tmp/feedback-browser-store\n' > /var/tmp/fb.yml
+printf 'store: /var/tmp/debug-feedback-browser-store\n' > /var/tmp/fb.yml
 DEBUG_FEEDBACK_CONFIG=/var/tmp/fb.yml \
     bundle exec puma -b tcp://127.0.0.1:9393 test/browser/config.ru
 
@@ -27,7 +27,7 @@ export CHROMIUM="$TOOLS"
 node -r ./shim.js /web/ops/DebugFeedback/test/browser/widget-check.js
 
 # 3. read what landed
-ls /var/tmp/feedback-browser-store/*/*/*/report.json
+ls /var/tmp/debug-feedback-browser-store/*/*/*/report.json
 ```
 
 The fixture is built to be broken on purpose: a stylesheet with a

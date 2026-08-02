@@ -16,7 +16,7 @@ require "debug_feedback/review"
 # One store per process, pointed at a temporary directory. Both apps read
 # their config at class level, so the override happens once, here.
 module TestSupport
-    ROOT = Dir.mktmpdir("feedback-test")
+    ROOT = Dir.mktmpdir("debug-feedback-test")
 
     def self.configure(**overrides)
         config = DebugFeedback::Config.new({ "store" => ROOT }.merge(overrides))

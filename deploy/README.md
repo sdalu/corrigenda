@@ -23,7 +23,7 @@ different bodies depending on something no `Vary` header mentions.
 
     # 1. service account and directories
     pw useradd debugfeedback -d /nonexistent -s /usr/sbin/nologin -c "Debug feedback endpoint"
-    install -d -o debugfeedback -g feedback -m 0750 /var/db/debug-feedback
+    install -d -o debugfeedback -g debugfeedback -m 0750 /var/db/debug-feedback
 
     # 2. configuration
     install -o root -g wheel -m 0644 deploy/debug-feedback.yml /usr/local/etc/debug-debug-feedback.yml

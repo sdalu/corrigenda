@@ -3,7 +3,7 @@
 # Install as /usr/local/etc/rc.d/debug_feedback (mode 0755), then
 #   sysrc debug_feedback_enable=YES && service debug_feedback start
 #
-# PROVIDE: feedback
+# PROVIDE: debug_feedback
 # REQUIRE: LOGIN
 # KEYWORD: shutdown
 
@@ -15,7 +15,7 @@ rcvar="debug_feedback_enable"
 load_rc_config $name
 
 : ${debug_feedback_enable:="NO"}
-: ${debug_feedback_user:="feedback"}
+: ${debug_feedback_user:="debugfeedback"}
 : ${debug_feedback_dir:="/web/ops/DebugFeedback"}
 : ${debug_feedback_rundir:="/var/run/debug-feedback"}
 

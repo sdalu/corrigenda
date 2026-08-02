@@ -70,8 +70,8 @@ review UI when we choose to. No mail, no XMPP.
 |---|---|---|
 | `debug-feedback.js` | `Common/js/`, served at `/common/js/` | Whole client: UI, picker, capture, transport |
 | CSS | inlined in the JS | Adopted `CSSStyleSheet` in an open shadow root |
-| `feedback` service | one Sinatra app, one Puma | Receives, validates, stores; serves review UI |
-| store | `<data>/feedback/` | One directory per report, plus `index.jsonl` |
+| `debug-feedback` service | one Sinatra app, one Puma | Receives, validates, stores; serves review UI |
+| store | `<data>/debug-feedback/` | One directory per report, plus `index.jsonl` |
 
 ### No separate CSS file
 
