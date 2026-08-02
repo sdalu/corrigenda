@@ -5,6 +5,18 @@ const SHOTS = process.env.SHOTS || '/var/tmp';
 const URL = 'http://127.0.0.1:9393/fixture.html';
 
 const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1; };
+
+// The switch is a clipped checkbox behind a chip, so a click lands on the
+// chip. Tests want a state, not a toggle: set it and announce it.
+const setChannel = (page, key, on) => page.evaluate(([k, want]) => {
+    const input = document.querySelector('#debug-feedback-widget')
+        .shadowRoot.querySelector(`.channels input[value="${k}"]`);
+    if (input.checked !== want) {
+        input.checked = want;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}, [key, on]);
+
 const ok   = (message) => console.log('ok   ' + message);
 
 (async () => {
@@ -42,10 +54,14 @@ const ok   = (message) => console.log('ok   ' + message);
     ok('widget loaded');
 
     // --- report 1: pick with the mouse -------------------------------
-    await page.click('#debug-feedback-widget .launcher');
+    // No launcher click: the widget opens on its menu, and the launcher
+    // is hidden while it is open.
     await page.click('#debug-feedback-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
     await page.fill('#debug-feedback-widget textarea', 'Caption is too pale to read');
+    // Visual preselects the screenshot channel, and send is blocked while it
+    // is on with nothing captured; this scenario does not want an image.
+    await setChannel(page, 'screenshot', false);
 
     const preview = await page.textContent('#debug-feedback-widget .preview');
     if (!preview.includes('"schema": 1')) fail('preview does not show the payload');
@@ -79,8 +95,10 @@ const ok   = (message) => console.log('ok   ' + message);
     await page.click('#debug-feedback-widget .launcher');
     await page.click('#debug-feedback-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
-    await page.check('#debug-feedback-widget .channels input[value="audit"]');
+    await setChannel(page, 'audit', true);
     await page.fill('#debug-feedback-widget textarea', 'Contrast check');
+    // no image wanted here either
+    await setChannel(page, 'screenshot', false);
     await page.click('#debug-feedback-widget .a-send');
     await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
     ok('report 3 accepted (audit switch on)');
@@ -103,8 +121,8 @@ const ok   = (message) => console.log('ok   ' + message);
     await page.click('#debug-feedback-widget .launcher');
     await page.click('#debug-feedback-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
-    await page.check('#debug-feedback-widget .channels input[value="screenshot"]');
-    await page.selectOption('#debug-feedback-widget .shot-scope', 'viewport');
+    await setChannel(page, 'screenshot', true);
+    await page.click('#debug-feedback-widget .scope-option[data-scope="viewport"]');
     await page.click('#debug-feedback-widget .a-shot');
     await page.waitForSelector('#debug-feedback-widget .shot-preview:not([hidden])');
 
