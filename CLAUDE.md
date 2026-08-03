@@ -102,6 +102,15 @@ NOTE="…"`. A person reads that trail to decide whether to believe the
 state, so write for them: what changed, where, and how you checked it.
 Work that changed nothing is worth a line too.
 
+**And show it.** A line can carry a picture — `image: {data: "<base64
+or a data: URL>"}` beside the note, or `SHOT=after.webp` on the rake
+task. It is filed as `shot-N.webp` and the review page puts it beside
+the screenshot the report was filed with, which is the comparison
+somebody wants before believing "fixed". Take the picture the same way
+the report's was taken (the widget's own capture, or a headless
+browser at the reported viewport); a screenshot of a different width
+proves nothing about the defect.
+
 ## The host splits paths
 
 This host runs a Linux compatibility layer: a Linux-side process

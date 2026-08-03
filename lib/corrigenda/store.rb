@@ -24,8 +24,31 @@ module Corrigenda
         # What has been done about the report, appended a line at a time.
         JOURNAL = "journal.jsonl"
 
+        # A picture belonging to one line of that trail rather than to
+        # the report: what the page looked like after the work, beside
+        # what it looked like when somebody complained. Numbered in the
+        # order they arrive and never reused, so a line's picture stays
+        # that line's picture when the next one is added.
+        SHOT = /\Ashot-\d+\.(webp|png|jpg)\z/
+        SHOT_TYPES = { "image/webp" => "webp", "image/png" => "png",
+                       "image/jpeg" => "jpg" }.freeze
+
+        # Room for a full-page capture of a long page, and no room for
+        # somebody's holiday video.
+        MAX_SHOT = 8 * 1024 * 1024
+
         # Kept by this class beside a report, rather than filed with it.
         MARKERS = ["state", ARCHIVE, JOURNAL].freeze
+
+        # What a journal picture may be served as, or nil for a name
+        # that is not one. The naming is this class's, so the answer is
+        # too — both the review UI and the API ask.
+        def self.shot_type(name)
+            ext = name.to_s[SHOT, 1]
+            return nil if ext.nil?
+
+            ext == "jpg" ? "image/jpeg" : "image/#{ext}"
+        end
 
         attr_reader :root
 
@@ -130,7 +153,11 @@ module Corrigenda
         # is what the caller says it is, which is not the same fact and
         # is kept apart from it: a program naming itself is useful, and
         # it is not identification.
-        def record(id, note, kind: "note", by: nil, agent: nil, refs: nil)
+        # `shot` is a picture for this line: { type:, bytes: }. It is
+        # written before the line is, so a journal never names a file
+        # that is not there.
+        def record(id, note, kind: "note", by: nil, agent: nil, refs: nil,
+                   shot: nil)
             dir = dir_for(id)
             raise StorageError, "no such report: #{id}" unless dir.exist?
 
@@ -142,10 +169,15 @@ module Corrigenda
             entry["by"]    = by    unless by.to_s.empty?
             entry["agent"] = agent unless agent.to_s.empty?
             entry["refs"]  = Array(refs) unless Array(refs).empty?
+            entry["shot"]  = write_shot(dir, shot) unless shot.nil?
 
             (dir / JOURNAL).open("a") { it.puts(JSON.generate(entry)) }
             entry
         end
+
+        # Every picture a journal line carries, oldest first. The report
+        # was filed with `screenshot.webp`; these came later.
+        def shots(id) = files(id).select { it.match?(SHOT) }
 
         # What was filed with the report, without the markers this keeps
         # beside it: state, the archive flag, the journal.
@@ -253,6 +285,26 @@ module Corrigenda
         end
 
         private
+
+        # Numbered from the pictures already on disk rather than from
+        # the length of the journal: most lines carry none, and a name
+        # counted from lines would be handed out twice.
+        def write_shot(dir, shot)
+            type  = shot[:type] || shot["type"]
+            bytes = shot[:bytes] || shot["bytes"]
+            ext   = SHOT_TYPES[type.to_s]
+            raise StorageError, "not a picture this keeps: #{type}" if ext.nil?
+            raise StorageError, "an empty picture" if bytes.to_s.empty?
+
+            if bytes.bytesize > MAX_SHOT
+                raise StorageError, "picture too large: #{bytes.bytesize} " \
+                                    "bytes, and #{MAX_SHOT} is the limit"
+            end
+
+            name = "shot-#{dir.children.count { it.basename.to_s.match?(SHOT) } + 1}.#{ext}"
+            (dir / name).binwrite(bytes)
+            name
+        end
 
         def index_entry(document, id:, at:, reporter:)
             page = document.fetch("page", {})

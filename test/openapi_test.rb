@@ -54,14 +54,35 @@ class OpenapiTest < CorrigendaTest
     end
 
     # The one place a file name is a path component, so the schema must
-    # agree with the whitelist rather than describe a wish.
+    # agree with the whitelist rather than describe a wish. It is a
+    # pattern rather than a list now, because a journal line can carry
+    # a picture and those are numbered as they arrive.
     def test_the_servable_names_are_the_ones_the_schema_offers
         offered = SPEC.dig("paths", "/reports/{id}/file/{name}",
                            "parameters")
                       .find { it["name"] == "name" }
-                      .dig("schema", "enum")
+                      .dig("schema", "pattern")
+        allowed = Regexp.new(offered)
 
-        assert_equal Corrigenda::API::SERVABLE.keys.sort, offered.sort
+        Corrigenda::API::SERVABLE.each_key { assert_match allowed, it }
+        assert_match allowed, "shot-1.webp"
+        assert_match allowed, "shot-12.png"
+        refute_match allowed, "journal.jsonl"
+        refute_match allowed, "state"
+    end
+
+    # And the store is what names those pictures, so the pattern has
+    # to agree with it rather than with a hope about it.
+    def test_every_name_the_schema_allows_is_one_the_store_serves
+        offered = SPEC.dig("paths", "/reports/{id}/file/{name}",
+                           "parameters")
+                      .find { it["name"] == "name" }
+                      .dig("schema", "pattern")
+
+        %w[shot-1.webp shot-2.png shot-3.jpg].each do |name|
+            assert_match Regexp.new(offered), name
+            refute_nil Corrigenda::Store.shot_type(name)
+        end
     end
 
     def test_the_id_pattern_is_the_one_the_app_enforces

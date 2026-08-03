@@ -234,6 +234,40 @@
                 <% if entry["refs"] %>
                     <span class="by"><%= entry["refs"].join(", ") %></span>
                 <% end %>
+
+                <%# The picture this line carries: what the page looked
+                    like after the step. The one the report was filed
+                    with sits beside it on request, which is the
+                    comparison somebody actually wants and the reason a
+                    trail carries pictures at all. %>
+                <% if entry["shot"] %>
+                    <% shot = to("/#{id}/file/#{entry["shot"]}", false) %>
+                    <figure class="after">
+                        <a href="<%= shot %>">
+                            <img class="shot" src="<%= shot %>" loading="lazy"
+                                 alt="The page after: <%= entry["note"] %>">
+                        </a>
+
+                        <% if files.include?("screenshot.webp") %>
+                            <details>
+                                <summary>beside the original</summary>
+                                <div class="pair">
+                                    <figure>
+                                        <img class="shot" loading="lazy"
+                                             src="<%= to("/#{id}/file/screenshot.webp", false) %>"
+                                             alt="The page as reported">
+                                        <figcaption>as reported</figcaption>
+                                    </figure>
+                                    <figure>
+                                        <img class="shot" src="<%= shot %>" loading="lazy"
+                                             alt="The page after: <%= entry["note"] %>">
+                                        <figcaption><%= entry["at"].to_s[0, 16].tr("T", " ") %></figcaption>
+                                    </figure>
+                                </div>
+                            </details>
+                        <% end %>
+                    </figure>
+                <% end %>
             </dd>
         <% end %>
     </dl>

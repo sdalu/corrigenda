@@ -97,7 +97,14 @@ From a terminal on the host, the same store, without the proxy:
     rake data:show     ID=<report>     one report in full
     rake data:status   ID=<report>     what happened to it…
     rake data:status   ID=<report> SET=fixed NOTE="what you changed"
+    rake data:status   ID=<report> NOTE="…" SHOT=after.webp
     rake data:archive  ID=<report>     done looking at it (UNDO=1 to undo)
+
+A note can carry a picture: `SHOT=` files it beside the report, and the
+report's page shows it on that line of the trail with the original
+screenshot beside it on request. That is the comparison worth having
+before anyone believes a report is fixed — the same page, before and
+after, rather than a sentence saying so.
 
 The listing carries a six-character column for what a report holds —
 `E` element, `R` css rules, `C` computed styles, `D` diagnostics,

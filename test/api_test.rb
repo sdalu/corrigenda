@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "base64"
+
 require "test_helper"
 
     # The interface a program reads. Most of what is asserted here is what
@@ -373,6 +375,65 @@ end
     # The trail. What an agent did about a report is the thing a person
     # will want to check afterwards, so it is recorded rather than
     # implied by a state that changed at some point.
+    # The point of a picture on a line is the comparison: an agent says
+    # what it did and shows the page as it now stands, and whoever reads
+    # the report can put that beside the screenshot it was filed with.
+    def test_a_note_can_carry_a_picture
+        enable("write" => true)
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "raised the contrast",
+                           "image" => { "type" => "image/webp",
+                                        "data" => Base64.strict_encode64("RIFF-after") }),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 201, last_response.status
+        assert_equal "shot-1.webp", body["shot"]
+
+        get "/reports/#{@id}/file/shot-1.webp"
+
+        assert_predicate last_response, :ok?
+        assert_equal "image/webp", last_response.content_type
+        assert_equal "RIFF-after", last_response.body
+    end
+
+    # A data: URL is what a browser and most agents already hold, so it
+    # is taken whole and the type read off it.
+    def test_a_picture_may_arrive_as_a_data_url
+        enable("write" => true)
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "after",
+                           "image" => { "data" => "data:image/png;base64," +
+                                                  Base64.strict_encode64("PNG") }),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 201, last_response.status
+        assert_equal "shot-1.png", body["shot"]
+    end
+
+    def test_a_picture_that_is_not_base64_is_refused
+        enable("write" => true)
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "after", "image" => { "data" => "not base64!" }),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+        assert_empty store.journal(@id)
+    end
+
+    # One call for the whole of it: the state, the reason, and the
+    # picture that shows the reason is true.
+    def test_a_state_change_can_carry_the_picture_with_its_reason
+        enable("write" => true)
+        patch "/reports/#{@id}",
+              JSON.generate("state" => "fixed", "note" => "footer no longer overlaps",
+                            "image" => { "data" => Base64.strict_encode64("RIFF") }),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_predicate last_response, :ok?
+        assert_equal "fixed", store.state(@id)
+        assert_equal "shot-1.webp", store.journal(@id).last["shot"]
+    end
+
     def test_a_note_can_be_recorded_and_read_back
         enable("write" => true)
         post "/reports/#{@id}/journal",

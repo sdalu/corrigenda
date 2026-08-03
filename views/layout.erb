@@ -1214,6 +1214,47 @@ svg {
         border: 1px solid var(--rule);
     }
 
+    /* A picture on a line of the trail. Small, because the trail is
+       read as a sequence and a full-width image at every step is a
+       gallery nobody asked for — full size is one click away, and the
+       comparison that matters is the one below it. */
+    .after {
+        margin-block-start: 0.5rem;
+
+        .shot { max-inline-size: min(100%, 22rem); }
+
+        summary {
+            margin-block-start: 0.35rem;
+            font-family: var(--display);
+            font-size: 0.875rem;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+            cursor: pointer;
+
+            &:hover { color: var(--ink); }
+        }
+
+        /* Then and now, side by side while there is room for both and
+           stacked when there is not: two pictures of the same page at
+           half the width each are still a comparison; one of them
+           squeezed to a thumbnail is not. */
+        .pair {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+            gap: 0.75rem;
+            margin-block-start: 0.5rem;
+
+            .shot { max-inline-size: 100%; }
+
+            figcaption {
+                font-family: var(--display);
+                font-size: 0.8125rem;
+                letter-spacing: 0.04em;
+                color: var(--muted);
+            }
+        }
+    }
+
     kbd {
         padding-inline: 0.35em;
         border: 1px solid var(--rule);

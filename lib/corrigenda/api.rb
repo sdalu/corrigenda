@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "base64"       # a picture arrives with the note it belongs to
 require "json"
 require "openssl"      # secure_compare, for the token
 require "sinatra/base"
@@ -82,6 +83,33 @@ module Corrigenda
                     "journal"  => store.journal(id),
                     "report"   => document
                 }
+            end
+
+            # A picture for the line being written, if one came with it.
+            # Base64 in the same JSON body rather than multipart: a
+            # client that can send a note can send this without learning
+            # a second encoding, and these are one screenshot each, not
+            # a stream. A data: URL is accepted whole, because that is
+            # what a browser and most agents already have in hand.
+            def shot_from(fields)
+                given = fields["image"]
+                return nil if given.nil? || given == ""
+
+                data = given.is_a?(Hash) ? given["data"] : given
+                type = given.is_a?(Hash) ? given["type"] : nil
+                if (url = data.to_s.match(%r{\Adata:(image/[\w.+-]+);base64,(.*)\z}m))
+                    type, data = url[1], url[2]
+                end
+
+                { type: type || "image/webp", bytes: decoded(data) }
+            end
+
+            def decoded(data)
+                fail_with(422, "image: expected base64 data") if data.to_s.empty?
+
+                Base64.strict_decode64(data.to_s.gsub(/\s+/, ""))
+            rescue ArgumentError
+                fail_with(422, "image: not base64")
             end
 
             # Two different facts, kept apart. `by` is what the server
@@ -276,7 +304,7 @@ module Corrigenda
             # done about it. `agent` and `refs` describe the caller and
             # its work rather than the report, and ride along with the
             # note they belong to.
-            unknown = changes.keys - %w[state archived note agent refs]
+            unknown = changes.keys - %w[state archived note agent refs image]
             unless unknown.empty?
                 fail_with(422, "not something a report can be told: " \
                                "#{unknown.join(", ")}")
@@ -312,7 +340,8 @@ module Corrigenda
             if changes["note"]
                 store.record(id, changes["note"], by: acting_user,
                                                   agent: changes["agent"],
-                                                  refs: changes["refs"])
+                                                  refs: changes["refs"],
+                                                  shot: shot_from(changes))
             end
 
             json(described(id, store.read(id)))
@@ -341,7 +370,8 @@ module Corrigenda
 
             entry = store.record(id, note, by: acting_user,
                                            agent: body_params["agent"],
-                                           refs: body_params["refs"])
+                                           refs: body_params["refs"],
+                                           shot: shot_from(body_params))
             json(entry, status: 201)
         end
 
@@ -352,7 +382,7 @@ module Corrigenda
             id, name = params.values_at(:id, :name)
             fail_with(404, "no such report: #{id}") unless id.match?(ID)
 
-            type = SERVABLE[name]
+            type = SERVABLE[name] || Store.shot_type(name)
             fail_with(404, "not servable: #{name}") if type.nil?
 
             path = store.dir_for(id) / name

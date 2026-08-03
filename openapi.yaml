@@ -582,11 +582,14 @@ paths:
               in: path
               required: true
               description: >
-                  Whitelisted, because it is a path component. Anything
-                  else is 404.
+                  Whitelisted, because it is a path component: the three
+                  a report is filed with, and the numbered pictures its
+                  journal lines carry (`shot-1.webp`, `shot-2.png`, …).
+                  Anything else is 404.
               schema:
                   type: string
-                  enum: [screenshot.webp, snapshot.html, report.json]
+                  pattern: '^(screenshot\.webp|snapshot\.html|report\.json|shot-[0-9]+\.(webp|png|jpg))$'
+                  examples: [screenshot.webp, shot-1.webp]
         get:
             tags: [reports]
             operationId: getReportFile
@@ -603,6 +606,11 @@ paths:
                 cropped to the element with a 16 pixel margin and has
                 form fields blacked out, so what you see is what the
                 reporter meant to send.
+
+                `shot-N.webp` is a picture some journal line carried —
+                the page after that step. The line names it in `shot`.
+                Fetch both and compare them rather than asserting that
+                something looks fixed.
             responses:
                 "200":
                     description: The file
@@ -874,6 +882,12 @@ components:
                 refs:
                     type: array
                     items: { type: string }
+                shot:
+                    type: string
+                    description: >
+                        The picture this line carries, as a file name to
+                        fetch from /reports/{id}/file/{name}. Absent on
+                        a line that carried none.
 
         NewJournalEntry:
             type: object
@@ -884,3 +898,23 @@ components:
                 refs:
                     type: array
                     items: { type: string }
+                image:
+                    $ref: "#/components/schemas/NewImage"
+
+        NewImage:
+            type: object
+            description: >
+                A picture for the line being written: what the page
+                looks like now. Base64 in this body rather than
+                multipart, and a whole `data:` URL is accepted in `data`
+                as well — 8 MB decoded is the ceiling.
+            required: [data]
+            properties:
+                data:
+                    type: string
+                    description: >
+                        Base64, or a data: URL whose type is then used.
+                type:
+                    type: string
+                    enum: [image/webp, image/png, image/jpeg]
+                    default: image/webp

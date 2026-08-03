@@ -126,6 +126,50 @@ def test_an_empty_note_records_nothing
     assert_empty @store.journal(id)
 end
 
+# A line can carry a picture: what the page looked like after the step,
+# to be read beside the one the report was filed with.
+def test_a_journal_line_can_carry_a_picture
+    id = @store.save(TestSupport.document)
+    entry = @store.record(id, "raised the contrast",
+                          shot: { type: "image/webp", bytes: "RIFF-after".b })
+
+    assert_equal "shot-1.webp", entry["shot"]
+    assert_equal "RIFF-after", (@store.dir_for(id) / "shot-1.webp").binread
+    assert_equal ["shot-1.webp"], @store.shots(id)
+end
+
+# Numbered from the pictures on disk, not from the length of the
+# journal: most lines carry none, and counting lines would hand the
+# same name out twice.
+def test_pictures_are_numbered_as_they_arrive
+    id = @store.save(TestSupport.document)
+    @store.record(id, "first look", shot: { type: "image/png", bytes: "PNG".b })
+    @store.record(id, "nothing to show")
+    entry = @store.record(id, "after the fix",
+                          shot: { type: "image/webp", bytes: "RIFF".b })
+
+    assert_equal "shot-2.webp", entry["shot"]
+    assert_equal %w[shot-1.png shot-2.webp], @store.shots(id)
+end
+
+def test_a_picture_of_an_unknown_kind_is_refused
+    id = @store.save(TestSupport.document)
+
+    assert_raises(Corrigenda::StorageError) do
+        @store.record(id, "a note", shot: { type: "image/gif", bytes: "GIF".b })
+    end
+    assert_empty @store.journal(id)
+end
+
+def test_a_picture_past_the_ceiling_is_refused
+    id = @store.save(TestSupport.document)
+    huge = { type: "image/webp",
+             bytes: "x".b * (Corrigenda::Store::MAX_SHOT + 1) }
+
+    assert_raises(Corrigenda::StorageError) { @store.record(id, "big", shot: huge) }
+    assert_empty @store.journal(id)
+end
+
 def test_the_journal_is_not_an_attachment
     id = @store.save(TestSupport.document,
                      files: { "screenshot.webp" => "RIFF".b })

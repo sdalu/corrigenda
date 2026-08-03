@@ -129,7 +129,7 @@ module Corrigenda
             id, name = params.values_at(:id, :name)
             halt 404, "no such report\n" unless id.match?(ID)
 
-            type = SERVABLE[name]
+            type = SERVABLE[name] || Store.shot_type(name)
             halt 404, "not servable\n" if type.nil?
 
             path = store.dir_for(id) / name

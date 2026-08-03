@@ -204,6 +204,25 @@ end
 # Whoever is at the terminal, which is the only actor a task has.
 def actor = ENV["SUDO_USER"] || ENV["USER"] || ENV["LOGNAME"]
 
+# SHOT=<file> attaches a picture to the line about to be written: what
+# the page looks like now, beside what it looked like when somebody
+# complained. The type comes from the name, because a file on disk has
+# no other honest source for it.
+SHOT_KINDS = { ".webp" => "image/webp", ".png" => "image/png",
+               ".jpg" => "image/jpeg", ".jpeg" => "image/jpeg" }.freeze
+
+def shot_from(path)
+    return nil if path.nil? || path.empty?
+    abort "no such file: #{path}" unless File.exist?(path)
+
+    type = SHOT_KINDS[File.extname(path).downcase]
+    if type.nil?
+        abort "SHOT=#{path}: #{SHOT_KINDS.keys.join(", ")} are what this keeps"
+    end
+
+    { type:, bytes: File.binread(path) }
+end
+
 def report_line(entry)
     format("%-33s %s, %d days", entry[:id], entry[:rule], entry[:days])
 end
@@ -387,11 +406,23 @@ namespace :data do
     # Asking and answering are one task: SET= changes it, and without
     # SET= this says what it is. Reading a state should not mean
     # remembering a second task name.
-    desc "Say or set what happened (ID=<report> SET=fixed NOTE=\"…\")"
+    desc "Say or set what happened " \
+         "(ID=<report> SET=fixed NOTE=\"…\" SHOT=after.webp)"
     task :status do
         store, = deployment
         id, = report_for(store, "data:status")
         want = ENV["SET"]
+
+        # A note with no state change is worth recording on its own --
+        # work that changed nothing still happened, and a picture of the
+        # page as it stands now is the clearest thing to say about it.
+        if want.nil? && ENV["NOTE"]
+            entry = store.record(id, ENV["NOTE"], by: actor,
+                                                  agent: ENV["AGENT"],
+                                                  shot: shot_from(ENV["SHOT"]))
+            puts "#{id}: noted#{entry["shot"] ? " (#{entry["shot"]})" : ""}"
+            next
+        end
 
         if want.nil?
             archived = store.archived?(id) ? ", archived" : ""
@@ -408,9 +439,11 @@ namespace :data do
         store.mark(id, want, by: actor, agent: ENV["AGENT"])
 
         # A reason, if there is one to give. The state change records
-        # itself either way; this is the sentence beside it.
+        # itself either way; this is the sentence beside it -- and the
+        # picture, if the work left something to look at.
         if ENV["NOTE"]
-            store.record(id, ENV["NOTE"], by: actor, agent: ENV["AGENT"])
+            store.record(id, ENV["NOTE"], by: actor, agent: ENV["AGENT"],
+                                          shot: shot_from(ENV["SHOT"]))
         end
 
         puts "#{id}: #{was} -> #{want}"

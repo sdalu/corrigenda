@@ -304,6 +304,34 @@ end
         assert_match %r{name="archived" value="0"}, last_response.body
     end
 
+    # A line that carries a picture shows it, and offers the one the
+    # report was filed with beside it: that comparison is the whole
+    # reason for keeping pictures on a trail.
+    def test_a_journal_picture_is_shown_with_the_original_beside_it
+        store.record(@id, "footer no longer overlaps",
+                     shot: { type: "image/webp", bytes: "RIFF".b })
+        get "/#{@id}"
+
+        assert_includes last_response.body, "/#{@id}/file/shot-1.webp"
+        assert_includes last_response.body, "beside the original"
+        assert_includes last_response.body, "/#{@id}/file/screenshot.webp"
+    end
+
+    def test_a_journal_picture_is_served_like_any_other_file
+        store.record(@id, "after", shot: { type: "image/png", bytes: "PNG".b })
+        get "/#{@id}/file/shot-1.png"
+
+        assert_predicate last_response, :ok?
+        assert_equal "image/png", last_response.content_type
+        assert_equal "PNG", last_response.body
+    end
+
+    def test_a_file_that_looks_like_a_picture_but_is_not_there_is_a_404
+        get "/#{@id}/file/shot-9.webp"
+
+        assert_equal 404, last_response.status
+    end
+
     def test_archiving_something_that_is_not_there_is_not_found
         post "/20260101T000000Z-deadbeef/archive", { "archived" => "1" }
 
