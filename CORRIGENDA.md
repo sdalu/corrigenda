@@ -121,7 +121,23 @@ load-time script captures **errors and failed resource loads that
 happen before activation** — which is most of them. The bookmarklet is
 for "I am looking at something odd right now"; a testing pass wants (C).
 
-Configuration rides on the script tag:
+### What a site must carry, and what it may
+
+**Mandatory — one link.** A site says where its reports go, in the head
+of every page:
+
+```html
+<link rel="corrigenda" href="https://tools.sdalu.com/.corrigenda">
+```
+
+Everything reads it: the widget when nothing on its own tag says
+otherwise, the bookmarklet, the add-on. Without it a site can only be
+reported on by someone whose tool already knows the address — the
+bookmarklet falls back to the instance it was built from, the add-on to
+the last endpoint it saw, and a first-time user of either has neither.
+
+**Optional — the script.** It puts the widget on the page rather than
+waiting to be asked:
 
 ```html
 <script src="/.corrigenda/corrigenda.js"
@@ -131,8 +147,14 @@ Configuration rides on the script tag:
         data-lang="fr" defer></script>
 ```
 
-`data-build` should carry the deployed git commit, so every report
-maps to a deploy.
+The bookmarklet and the add-on put the same widget there on demand, so
+this is convenience — with one thing they cannot match, and it is the
+trade-off named above: a load-time script is **already listening**, so
+the report carries the errors and failed loads from before anyone
+noticed. `data-endpoint` overrides the link, which is what a page that
+advertises nothing needs, or one pointed at a test instance;
+`data-build` should carry the deployed git commit, so every report maps
+to a deploy.
 
 ## 5. The widget
 

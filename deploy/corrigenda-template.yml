@@ -1,0 +1,80 @@
+# Copy to corrigenda.yml and edit. That copy is not tracked: it names
+# this deployment's hosts, its directory server and its paths, and none
+# of those belong to the program.
+#
+#     cp deploy/corrigenda-template.yml deploy/corrigenda.yml
+#
+# ../run reads it, and deploy/macro generates Apache's own configuration
+# from three of the values below — so a field changed here reaches both
+# halves at the next start.
+
+# Where reports are written. Whoever starts ../run must be able to write
+# here, and Apache never touches it.
+#
+# If this is a mountpoint (a ZFS dataset, say), be careful renaming it:
+# pointing at a path with nothing mounted on it does not fail. It makes
+# a plain directory and starts an empty store beside the real one.
+store: /var/db/corrigenda
+
+# Listened on by default. Apache proxies to it (see
+# macro-corrigenda.conf); ../run -p PORT overrides it for a run you want
+# to reach with a browser directly.
+socket: /var/run/corrigenda/corrigenda.sock
+
+# Who may reach the endpoint. Apache enforces this — the service trusts
+# the user it is told about in X-Remote-User and never asks — so the
+# block is here to be generated into deploy/macro-corrigenda.conf by
+# deploy/macro, not because the app reads it.
+#
+#   type: ldap    a directory. Needs url.
+#   type: file    an htpasswd. Needs file.
+#   type: none    nobody is asked. Anyone who can reach the vhost can
+#                 post a report and read every report already filed.
+#
+# `require` is passed to Apache as written, so `valid-user`, or
+# `user alice bob`, or `ldap-group cn=staff,...`. There is no default
+# for `type`: an endpoint that holds what staff report about the estate
+# should not become world-writable because a key was forgotten.
+auth:
+    type:    ldap
+    realm:   Corrigenda
+    url:     ldap://127.0.0.1/ou=People,dc=example,dc=com?uid,mail,cn?sub?(objectClass=inetOrgPerson)
+    require: valid-user
+
+    # An htpasswd instead:
+    # type: file
+    # file: /usr/local/etc/corrigenda.htpasswd
+
+    # Or nobody at all, said deliberately:
+    # type: none
+
+# Where this service answers, as the public URL a site is pointed at.
+# The app cannot work this out for itself — it is behind a proxy that
+# strips the path it is served under — and nothing it does depends on
+# it: this is what the landing page quotes when it tells you how to
+# point a site here, and its path is the mount deploy/macro writes.
+endpoint: https://tools.example.com/.corrigenda
+
+# What a report may claim to be about. One naming a site outside this
+# list is refused, so the endpoint cannot be used as free storage.
+# Remove the key to accept any site; ../run -f drops it for that run,
+# since the fixture is on no vhost.
+sites:
+    - www.example.com
+    - gallery.example.com
+
+# Which pages may post a report from another host. Absent, it is the
+# sites above read as https origins, which is the answer whenever a
+# site's pages are served from a host of its own name — so leave it out
+# unless the two genuinely differ. Written out, entries may carry a
+# scheme and a port:
+#
+#   origins:
+#       - https://www.example.com
+#       - https://gallery.example.com:8443
+#
+# A cross-origin report is refused by the browser, not by this service,
+# when its origin is not here: the answer to the preflight simply does
+# not name it. See the CORS section of macro-corrigenda.conf for the
+# other half — Apache must let an unauthenticated OPTIONS through, since
+# a preflight carries no credentials.

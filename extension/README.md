@@ -66,6 +66,26 @@ pick `dist/chrome/`.
 The landing page at the mount point serves both zips and repeats these
 steps, so nobody has to find this file.
 
+## Where it sends reports
+
+It carries no endpoint of its own — not one written in at build time,
+not one you are asked to type. Three answers, in order:
+
+1. `<link rel="corrigenda">` on the page. **This is the one thing a
+   site must carry**, and MoXoW emits it for every page of a configured
+   site, whether or not that client got the widget.
+2. The last endpoint this add-on saw. One prepared page teaches it, in
+   passing, so the toolbar button then works on pages that say nothing:
+   an app behind the same login, a static page, anything never prepared
+   for this.
+3. The page's own origin, which is right for a site that mounts the
+   service itself.
+
+So a site that carries the link needs nothing else for the add-on to
+work. Carrying the script as well is a separate choice, and it buys an
+earlier start rather than a capability: a load-time script is already
+listening when the page's own errors and failed loads happen.
+
 ## Permissions, and why
 
 - `host_permissions` / `content_scripts.matches` — the estate's hosts,

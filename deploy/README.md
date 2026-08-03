@@ -43,15 +43,40 @@ itself is generated, because two of the things in it were written
 twice. The socket the service binds and the path it is mounted under
 are in `corrigenda.yml`, and Apache cannot read YAML:
 
-    ./macro            rewrite macro-corrigenda.conf from corrigenda.yml
-    ./macro --check    say whether it is current (exit 1 if not)
+    ./macro                  rewrite macro-corrigenda.conf from corrigenda.yml
+    ./macro --check          say whether it is current (exit 1 if not)
+    ./macro --stdout         print it instead of writing
+    ./macro --config PATH    read another config, with --stdout
 
-The result is committed rather than built on deploy: Apache includes it
-straight from the repository, so a checkout has to be complete rather
-than buildable. `rake test` runs `--check`, which is what keeps the
-committed copy honest — a socket in the config and a different one in
-the macro produces a 503 from a proxy talking to nobody, and nothing
-anywhere says why.
+Three things come from the config: the socket, the mount, and the
+`auth:` block — `type: ldap` with a `url`, `type: file` with an
+htpasswd, or `type: none` for a deployment that asks nobody. `require`
+is passed to Apache as written, so `valid-user`, `user alice bob`, or
+an `ldap-group`. There is no default for `type`: a config without the
+block is refused rather than quietly generating an open endpoint.
+
+Whatever the provider, an unauthenticated `OPTIONS` is let through. A
+CORS preflight carries no credentials and cannot be given any, so
+gating it turns every cross-origin report into a 401 the page never
+sees the reason for.
+
+The result is **not** tracked: it is three fields of the config in
+Apache's syntax, and a copy of a config is exactly the drift the
+generator exists to prevent. `./run` writes it at every start, so the
+file Apache includes always agrees with the service that is running —
+a config edited without a restart is a config nobody is running, and a
+macro generated from one is worse than none.
+
+What that costs: a fresh checkout has no file for `httpd.conf` to
+include, so the service must be started once before Apache is
+reloaded. What it buys: a socket in the config and a different socket
+in the macro cannot happen, and that failure is a 503 from a proxy
+talking to nobody, with nothing anywhere saying why.
+
+    rake macro                    the same, from the repository root
+    rake macro:check
+    rake macro:show
+    rake run ARGS="-p 9393 -f"
 
 Editing the generator, or the config it reads, changes the live
 Apache configuration at the next reload. It also means this repo

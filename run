@@ -56,6 +56,13 @@ cd "$(dirname "$0")"
 
 : "${conf:=deploy/corrigenda.yml}"
 
+if [ ! -f "$conf" ]; then
+    echo "run: $conf does not exist." >&2
+    echo "     cp deploy/corrigenda-template.yml deploy/corrigenda.yml" >&2
+    echo "     It names this deployment, which is why it is not in git." >&2
+    exit 1
+fi
+
 if ! bundle check >/dev/null 2>&1; then
     echo "run: gems are not installed -- run: bundle install" >&2
     exit 1
@@ -107,6 +114,18 @@ if [ -n "$socket" ]; then
                  warn "run: cannot set #{dir} to group www; " \
                       "Apache may not reach the socket"
              end' "$socket"
+fi
+
+# The Apache macro says the same socket, mount and auth this run is
+# about to use, so it is written from the same file rather than tracked
+# beside it. Written every start: a config edited without a restart is a
+# config nobody is running, and a macro from one is worse than none.
+#
+# Apache is not told anything here. Whoever changes the config runs
+# `httpd -t` and reloads, which is the same thing they had to do before.
+if ! deploy/macro >/dev/null; then
+    echo "run: could not write deploy/macro-corrigenda.conf" >&2
+    exit 1
 fi
 
 CORRIGENDA_CONFIG="$conf"

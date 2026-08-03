@@ -3,74 +3,138 @@
 
 # Writes macro-corrigenda.conf from corrigenda.yml.
 #
-# Two facts were written twice: the socket the service listens on, and
-# the path it is mounted under. Apache cannot read YAML, so the file it
-# includes has to be generated from the one that configures the service
-# — otherwise the pair drifts, and the failure it produces is a 503 from
-# a proxy talking to a socket nobody is listening on, which says nothing
-# about why.
+# Three facts were written twice: the socket the service listens on, the
+# path it is mounted under, and who is allowed to reach it. Apache
+# cannot read YAML, so the file it includes is generated from the one
+# that configures the service — otherwise they drift, and the failures
+# they produce say nothing about why. A proxy pointed at the wrong
+# socket answers 503 with the service running; an auth block that
+# disagrees with the deployment either locks the staff out or lets the
+# world in.
 #
-#   ./macro           write the file
-#   ./macro --check   say whether it is current, and exit 1 if it is not
+#   ./macro                    write the file
+#   ./macro --check            say whether it is current, exit 1 if not
+#   ./macro --stdout           print it instead of writing
+#   ./macro --config PATH      read another config (with --stdout)
 #
-# The generated file is committed: Apache includes it straight from the
-# repository, so a checkout has to be complete rather than buildable. A
-# unit test runs --check, which is what keeps that true.
+# The generated file is NOT committed: it is three fields of the config
+# in Apache syntax, and a copy of a config is the drift this exists to
+# prevent. ../run writes it at every start, so the file Apache includes
+# always agrees with the service that is running.
 
 require "pathname"
 require "yaml"
 
 HERE   = Pathname(__dir__)
-CONFIG = HERE / "corrigenda.yml"
 TARGET = HERE / "macro-corrigenda.conf"
 
-values = YAML.safe_load_file(CONFIG)
+config = HERE / "corrigenda.yml"
+if (i = ARGV.index("--config"))
+    config = Pathname(ARGV.fetch(i + 1) { abort "macro: --config needs a path" })
+end
 
+unless config.exist?
+    abort <<~SAY
+        macro: #{config} does not exist.
+
+            cp deploy/corrigenda-template.yml deploy/corrigenda.yml
+
+        That file names this deployment -- its hosts, its directory
+        server, its paths -- which is why it is not in the repository.
+    SAY
+end
+
+values = YAML.safe_load_file(config)
 socket = values.fetch("socket")
 
 # The mount is the path the endpoint answers on, which is the path
 # component of its public URL. Everything Apache needs to know about
 # where this lives is in that one value.
 endpoint = values["endpoint"] or
-    abort "macro: corrigenda.yml names no endpoint, so there is no mount to write"
+    abort "macro: #{config} names no endpoint, so there is no mount to write"
 
 mount = endpoint.sub(%r{\Ahttps?://[^/]+}, "").sub(%r{/+\z}, "")
 abort "macro: #{endpoint} has no path to mount under" if mount.empty?
 
-LDAP = "ldap://127.0.0.1/ou=People,dc=sdalu,dc=com?uid,mail,cn?sub?" \
-       "(objectClass=inetOrgPerson)"
+# Absent rather than "none": an endpoint that stores what staff report
+# about the estate should not become world-writable because a key was
+# forgotten. Saying `type: none` is allowed; saying nothing is not.
+auth = values["auth"] or abort <<~SAY
+    macro: #{config} has no auth block.
+
+    Reports would then be accepted from anyone who can reach the vhost.
+    If that is what you want, say so:
+
+        auth:
+            type: none
+
+    Otherwise name a provider — ldap or file. See the block in
+    deploy/corrigenda.yml.
+SAY
+
+realm    = auth.fetch("realm", "Corrigenda")
+required = auth.fetch("require", "valid-user")
+
+# Everything but OPTIONS, whatever the provider: a CORS preflight is
+# sent with no credentials and no way to add any, so demanding them
+# turns every cross-origin report into a 401 the page never sees the
+# cause of. With no Require in force for OPTIONS, 2.4 asks for nothing.
+def gated(directives, required)
+    <<~APACHE.chomp
+        #{directives}
+
+            <LimitExcept OPTIONS>
+                Require         #{required}
+            </LimitExcept>
+    APACHE
+end
+
+body =
+    case auth["type"]
+    when "ldap"
+        url = auth["url"] or abort "macro: auth type ldap needs a url"
+        gated(<<~APACHE.chomp, required)
+            AuthName            "#{realm}"
+                AuthType            basic
+                AuthBasicProvider   ldap
+                AuthLDAPURL         #{url}
+        APACHE
+    when "file"
+        file = auth["file"] or abort "macro: auth type file needs a file"
+        gated(<<~APACHE.chomp, required)
+            AuthName            "#{realm}"
+                AuthType            basic
+                AuthBasicProvider   file
+                AuthUserFile        #{file}
+        APACHE
+    when "none"
+        <<~APACHE.chomp
+            # No authentication: this deployment says so in its config.
+                # Anyone who can reach the vhost can post a report and read
+                # every report already filed.
+                AuthType None
+                Require all granted
+        APACHE
+    else
+        abort "macro: unknown auth type #{auth['type'].inspect} " \
+              "(ldap, file, none)"
+    end
 
 conf = <<~APACHE
     # -*- apache -*-
     #
-    # Corrigenda endpoint. GENERATED by deploy/macro from corrigenda.yml —
-    # edit that, or the generator, and run ./macro again. The socket and
-    # the mount below are the ones the service itself is configured with,
-    # which is the point: a proxy pointed at the wrong socket answers 503
-    # and says nothing about why.
+    # Corrigenda endpoint. GENERATED by deploy/macro from #{config.basename} —
+    # edit that, or the generator, and run ./macro again. The socket, the
+    # mount and the authentication below are the ones the service itself
+    # is configured with, which is the point: a proxy pointed at the wrong
+    # socket answers 503 and says nothing about why.
     #
     # Install into Includes/ as macro-corrigenda.conf.proposed first:
     # httpd.conf includes Includes/*.conf, so the suffix parks the file
     # where it can be read and checked without being loaded.
 
     <Macro CorrigendaAuth>
-        AuthName            "Corrigenda"
-        AuthType            basic
-        AuthBasicProvider   ldap
-        AuthLDAPURL         #{LDAP}
-
-        # Everything but OPTIONS. A CORS preflight is sent by the browser
-        # with no credentials and no way to add any, so demanding them
-        # turns every cross-origin report into a 401 the page never sees
-        # the cause of. Nothing is exposed by letting it through: a
-        # preflight carries no body, and its answer is a set of
-        # Access-Control headers the app only sends for origins it knows.
-        #
-        # Authentication itself is not conditional -- with no Require in
-        # force for OPTIONS, 2.4 simply asks for nothing.
-        <LimitExcept OPTIONS>
-            Require         valid-user
-        </LimitExcept>
+        #{body}
     </Macro>
 
     # Auth lives INSIDE this macro on purpose: a vhost opts in with one
@@ -121,6 +185,11 @@ conf = <<~APACHE
     </Macro>
 APACHE
 
+if ARGV.include?("--stdout")
+    print conf
+    exit 0
+end
+
 if ARGV.include?("--check")
     current = TARGET.exist? ? TARGET.read : ""
     if current == conf
@@ -128,9 +197,10 @@ if ARGV.include?("--check")
         exit 0
     end
 
-    warn "macro-corrigenda.conf does not match corrigenda.yml; run deploy/macro"
+    warn "macro-corrigenda.conf does not match #{config.basename}; run deploy/macro"
     exit 1
 end
 
 TARGET.write(conf)
-puts "wrote #{TARGET.basename} (mount #{mount}, socket #{socket})"
+puts "wrote #{TARGET.basename} (mount #{mount}, socket #{socket}, " \
+     "auth #{auth['type']})"
