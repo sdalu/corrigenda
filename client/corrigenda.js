@@ -124,24 +124,17 @@
             surfaceTab: "this tab", surfaceWindow: "a window",
             surfaceScreen: "the whole screen", surfaceUnknown: "unknown surface",
             needShot: "Capture the screenshot, or switch it off.",
-            noTabCapture: "This browser shares a window or a screen, never a " +
-                          "single tab, so the image cannot be cropped to the " +
-                          "element or masked over form fields. The capture " +
-                          "add-on fixes that: if you have it, press its " +
-                          "toolbar button here and accept — it has to be " +
-                          "allowed per site, and nothing on the page can see " +
-                          "it until it is. Otherwise install it from the " +
-                          "Corrigenda page.",
-            helperNotHere: "The capture add-on is installed but not allowed " +
-                           "on this site, so the image cannot be cropped to " +
-                           "the element or masked over form fields. Press " +
-                           "its toolbar button here and accept, once: every " +
-                           "later visit is set.",
-            helperOutdated: "The capture add-on installed here is older than " +
-                            "this page needs, so it is not used and the image " +
-                            "cannot be cropped to the element or masked over " +
-                            "form fields. Install the current build from the " +
-                            "Corrigenda page.",
+            noTabCapture: "No cropping to the element, no masking of form " +
+                          "fields: this browser shares a window or a screen, " +
+                          "never one tab. The add-on fixes that — press its " +
+                          "toolbar button here to allow it, or install it " +
+                          "from the Corrigenda page.",
+            helperNotHere: "No cropping or masking: the add-on is not " +
+                           "allowed on this site. Press its toolbar button " +
+                           "here, once.",
+            helperOutdated: "No cropping or masking: the add-on here is " +
+                            "older than this page needs. Install the current " +
+                            "build from the Corrigenda page.",
             screenshot: "Screenshot",
             aboutFragment: "the picked element, sanitised",
             aboutRules: "the rules that matched it, with layer and media",
@@ -192,23 +185,18 @@
             surfaceTab: "cet onglet", surfaceWindow: "une fenêtre",
             surfaceScreen: "tout l'écran", surfaceUnknown: "surface inconnue",
             needShot: "Capturez l'écran, ou désactivez-le.",
-            noTabCapture: "Ce navigateur partage une fenêtre ou un écran, " +
-                          "jamais un onglet : l'image ne peut être ni recadrée " +
-                          "ni masquée. L'extension de capture corrige cela : " +
-                          "si vous l'avez, cliquez son bouton ici et " +
-                          "acceptez — elle s'autorise site par site, et rien " +
-                          "dans la page ne la voit avant. Sinon, installez-la " +
-                          "depuis la page Corrigenda.",
-            helperNotHere: "L'extension de capture est installée mais pas " +
-                           "autorisée sur ce site : l'image ne peut être ni " +
-                           "recadrée ni masquée. Cliquez son bouton dans la " +
-                           "barre d'outils et acceptez, une fois : les " +
-                           "visites suivantes sont réglées.",
-            helperOutdated: "L'extension de capture installée est plus " +
-                            "ancienne que cette page ne l'exige : elle n'est " +
-                            "pas utilisée et l'image ne peut être ni recadrée " +
-                            "ni masquée. Installez la version courante depuis " +
-                            "la page Corrigenda.",
+            noTabCapture: "Ni recadrage ni masquage : ce navigateur partage " +
+                          "une fenêtre ou un écran, jamais un onglet. " +
+                          "L'extension corrige cela — cliquez son bouton " +
+                          "ici pour l'autoriser, ou installez-la depuis la " +
+                          "page Corrigenda.",
+            helperNotHere: "Ni recadrage ni masquage : l'extension n'est pas " +
+                           "autorisée sur ce site. Cliquez son bouton, une " +
+                           "fois.",
+            helperOutdated: "Ni recadrage ni masquage : l'extension installée " +
+                            "est plus ancienne que cette page ne l'exige. " +
+                            "Installez la version courante depuis la page " +
+                            "Corrigenda.",
             screenshot: "Capture d'écran",
             aboutFragment: "l'élément choisi, nettoyé",
             aboutRules: "les règles qui s'y appliquent, layer et media compris",
@@ -3003,24 +2991,18 @@ input:where(:not(:checked)) + .chip {
          * about the browser and not about this report, and as a
          * permanent paragraph it re-explained itself on every
          * screenshot anyone ever took here. */
-        /* Which of these a reader is looking at, as far as a page can
-         * tell -- and it cannot tell the interesting one.
+        /* No marker means one of two things and a page cannot tell
+         * which: the bridge is registered only for origins the add-on
+         * has been granted, so "installed but not allowed here" and
+         * "not installed" are the same silence -- and Firefox means it,
+         * since its extension UUID is per profile and nothing can probe
+         * for a resource either. That message names both remedies.
          *
-         * The bridge is registered only for origins the add-on has been
-         * granted, so on a site nobody has allowed it there is no
-         * content script and no marker: "installed but off here" and
-         * "not installed" are the same silence. Firefox means that --
-         * its extension UUID is per profile, so a page cannot probe for
-         * a resource either. So the no-marker message carries both
-         * remedies rather than pretending to know which applies.
-         *
-         * Where a marker IS present, it says which contract the bridge
-         * speaks, and those two cases are distinguishable and worth
-         * distinguishing: too old to talk to (a download away), or
-         * running with the permission revoked under it (a button away).
-         * Read raw rather than through extension(), which answers null
-         * for a marker below what this page needs -- the very case that
-         * wants its own sentence. */
+         * A marker present says which contract the bridge speaks, and
+         * those two cases differ: too old to talk to, or running with
+         * the permission revoked under it. Read raw rather than through
+         * extension(), which answers null for the first -- the very
+         * case that wants its own sentence. */
         const marked = Number(
             document.documentElement.dataset.corrigendaCapture);
         const warn = $(".a-warn");
