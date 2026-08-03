@@ -181,6 +181,22 @@
         color: var(--muted);
     }
 
+    /* Which checkout is answering. Worth a line on every page: the whole
+       service is about pages that behave unlike the ones you tested, and
+       the first thing to ask of a report is what was serving the widget
+       that filed it. */
+    .colophon {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.75rem;
+        justify-content: space-between;
+        padding-block: 1.25rem;
+        margin-block-start: 3rem;
+        border-block-start: 1px solid var(--rule);
+        font-size: 0.875rem;
+        color: var(--muted);
+    }
+
     .masthead nav {
         display: flex;
         flex-wrap: wrap;
@@ -923,6 +939,11 @@ svg {
     <main>
         <%== yield %>
     </main>
+
+    <footer class="colophon">
+        <p>Corrigenda <%= Corrigenda::VERSION %></p>
+        <p>The widget served from here is this version.</p>
+    </footer>
 </div>
 </body>
 </html>

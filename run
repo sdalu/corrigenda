@@ -144,6 +144,12 @@ if [ -n "$fixture" ]; then
     export CORRIGENDA_SITES
 fi
 
+# Read out of the source rather than kept here as well: this script
+# starts the service, it does not get to have an opinion about which
+# version the service is.
+version=$(sed -n 's/^ *VERSION = "\(.*\)"/\1/p' lib/corrigenda.rb)
+echo "corrigenda ${version}"
+
 if [ -n "$socket" ]; then
     bind="unix://${socket}?umask=0117"
     echo "listening  ${socket}"

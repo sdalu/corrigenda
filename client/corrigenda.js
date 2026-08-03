@@ -13,6 +13,13 @@
     if (window.__corrigendaLoaded) return;
     window.__corrigendaLoaded = true;
 
+    /* Served by the endpoint it reports to, so the two are the same
+     * checkout: Corrigenda::VERSION in lib/corrigenda.rb is this
+     * number, and a test refuses to let them drift. It goes on the
+     * host element as well, where a live page can be asked which
+     * widget it is actually running. */
+    const VERSION = "0.1.0";
+
     const SCRIPT = document.currentScript;
 
     const CFG = (() => {
@@ -1626,6 +1633,7 @@ input:where(:not(:checked)) + .chip {
 
     const host = document.createElement("div");
     host.id = "corrigenda-widget";
+    host.dataset.version = VERSION;
     /* Open, not closed: the CSS isolation is identical either way, and
      * an open root can be inspected and driven from a test. */
     const root = host.attachShadow({ mode: "open" });
