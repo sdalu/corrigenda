@@ -3,6 +3,8 @@
 The design: what a report holds, how it is captured, what happens to it
 after it arrives. [README.md](README.md) is the shorter answer — what
 this is and how to run it — and this is the reasoning underneath.
+[HISTORY.md](HISTORY.md) keeps what was tried and abandoned, so this
+one can describe the thing as it stands.
 
 A small injectable client (one JS file) plus a Ruby endpoint, used to
 capture precise, reproducible reports about a rendered page: visual

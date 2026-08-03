@@ -197,11 +197,10 @@ page uploads it when you press Send — so `"required": ["none"]` is
 arguable. Declaring the content is the honest reading of what happens
 next, and under-declaring is what fails a review.
 
-Neither store has seen this. With the injector off, the add-on puts
-no code on any page and the remote-code objection goes with it; what
-would still come up is the broad `*://*/*` optional permission, which
-needs a justification in the listing. Firefox's unlisted channel asks
-for neither, which is how this is distributed.
+Neither store lists this. It goes out through Firefox's unlisted
+channel, which reviews automatically and asks for no listing text. A
+public listing would need one thing this does not carry: a written
+justification for the broad `*://*/*` optional permission.
 
 ## Why there is no bookmarklet installer
 

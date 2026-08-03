@@ -6,6 +6,14 @@ under `deploy/`, `extension/` and `test/browser/`; what follows is the
 part that would be noise in those — the host's quirks, the guards that
 will fail a commit, and the habits this codebase is written in.
 
+**Where a sentence belongs.** The READMEs are written in the present
+tense: how it works now, and what it will not do. What was tried and
+abandoned, and the bug that made a decision, go in
+[HISTORY.md](HISTORY.md); why it is shaped as it is goes in DESIGN.md;
+anything only an agent needs comes here. When you fix something, the
+fix is documented where it works — the story of it, if it is worth
+keeping, goes to HISTORY.
+
 ## The shape of it
 
     lib/corrigenda/   intake, review, store, config, schema, prefix

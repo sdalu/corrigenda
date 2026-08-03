@@ -13,20 +13,11 @@ starts it, reading `corrigenda.yml` from here.
 having nothing to install. If it matters, start it inside tmux or under
 a supervisor; the process is an ordinary foreground puma.
 
-## Why the automatic injection is not used
-
-The first plan was to have Apache inject the widget itself, gated on
-`<If "%{REMOTE_USER} != ''">`. That only fires when Apache
-authenticated the **page**, and of the fourteen
-vhosts here only this one authenticates anything — on the
-exhibition sites `REMOTE_USER` is always empty, so the widget would
-never appear on precisely the sites whose CSS is under investigation.
-`mod_substitute` is also commented out at httpd.conf:106.
-
-If automatic injection is wanted later, gate it on a signed cookie set
-by a login step rather than on `REMOTE_USER`, and give injected
-responses `Cache-Control: no-store` — the same URL then serves two
-different bodies depending on something no `Vary` header mentions.
+Apache serves the endpoint and authenticates it. It does not put the
+widget on any page: that is the bookmarklet's job, or the site's own
+framework declaration. (Injection was considered and does not work on
+this estate — [HISTORY.md](../HISTORY.md) says why, and what would have
+to change first.)
 
 ## How it is wired here
 

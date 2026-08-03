@@ -59,17 +59,12 @@ the sanitiser, the gzipped POST. Chromium only — it is about the
 widget's own logic, which does not vary by engine.
 
 `selection-check.js` runs the **same assertions in Chromium and in
-Firefox**, because everything it covers is exactly where the two
-engines disagree. It was written after a bug that was invisible for as
-long as the suite ran in Chromium alone: words inside a link could not
-be selected in Firefox at all. Firefox decides at mousedown that a
-gesture on a link is a drag, and once it has decided, cancelling
-`dragstart` stops the drag and still leaves the selection empty —
-measured. Only the `draggable` attribute, set before the gesture
-begins, gives the words back; `-webkit-user-drag` is ignored there.
-A second Firefox-only failure surfaced the same day: the window's
-clamp read a `getBoundingClientRect` that was still mid-transition, so
-a fast drag escaped the viewport.
+Firefox**, because everything it covers is where the two engines
+disagree: selecting words inside a link, which Firefox will treat as a
+drag unless the `draggable` attribute says otherwise, and the widget's
+own window staying inside the viewport when dragged fast. Both are
+failures only one engine has ever shown ([HISTORY.md](../../HISTORY.md)
+has the measurements).
 
 The Firefox build sits beside the Chromium one under `browsers/`.
 Adding a case here costs nothing; adding one to `widget-check.js`
@@ -86,11 +81,9 @@ answers with the viewport whatever you request), and fall back to
 `extension/content.js` does, in three moods: grant the rectangle, grant
 only the viewport, refuse.
 
-It also found a real fragility: the client used to read the add-on's
-marker once at load, so a marker set a moment later was invisible
-forever. A `document_start` content script always wins that race, but
-depending on an ordering you cannot see is not the same as being
-correct — detection is live now.
+It also covers detection: the widget asks whether an add-on is there
+and waits for an answer, rather than reading a marker once and
+believing it, so a check here fails if that ever regresses.
 
 The fixture is built to be broken on purpose: a stylesheet with a
 layered and media-nested `.caption` rule (so the CSSOM walk has

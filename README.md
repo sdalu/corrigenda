@@ -106,6 +106,7 @@ sanitiser and the CORS dance only exist in a browser — see
 | | |
 |---|---|
 | [DESIGN.md](DESIGN.md) | what it captures and why, the payload, the storage model — the reasoning under all of it |
+| [HISTORY.md](HISTORY.md) | approaches taken and abandoned, and the failures that shaped what is here |
 | [deploy/README.md](deploy/README.md) | installing it, the Apache wiring, retention in cron |
 | [extension/README.md](extension/README.md) | the add-on: build, install, permissions |
 | [test/browser/README.md](test/browser/README.md) | the browser checks and what each covers |
