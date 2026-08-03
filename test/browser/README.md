@@ -25,33 +25,30 @@ the deployment doorway and wants a config naming a deployment, while an
 absent config is a valid development config. These checks pass in a
 bare checkout.
 
-## By hand
+## Driving the same page yourself
 
-Worth knowing when a check fails and you want to drive the same page
-yourself. Three steps, from `ops/Corrigenda`:
+When a check fails, the useful next step is usually to look at the page
+it was driving rather than at the check. Serve it, and open it:
 
 ```sh
-# 1. serve the fixture page, the client, and the endpoint together
-printf 'store: /var/tmp/corrigenda-browser-store\n' > /var/tmp/corrigenda.yml
-CORRIGENDA_CONFIG=/var/tmp/corrigenda.yml \
-    bundle exec puma -b tcp://127.0.0.1:9393 test/browser/config.ru
+./run -f -p 9393        # the fixture page, the client, and the endpoint
+```
 
-# 2. drive it (see the headless-Chromium recipe in Common/CLAUDE.md).
-#    node is a native FreeBSD build and the shell is not, so the two can
-#    disagree about what an absolute path means. Which spelling holds the
-#    real tool is NOT fixed -- probe it, once, at the start of a session:
-TOOLS=$(ruby -e 'b = "/root/.claude/tools/playwright-chromium"
-                 puts ["/compat/linux#{b}", b].find { File.exist?("#{it}/shim.js") }')
+`http://127.0.0.1:9393/fixture.html` is then the same page the checks
+use, with a real browser and a real screen-capture permission instead
+of the stub below. Reports land in a store of their own, away from any
+real one.
 
-cd "$TOOLS"
-export LD_LIBRARY_PATH="$PWD/libs/usr/lib64:$PWD/libs/lib64"
-export NODE_PATH="$TOOLS/node_modules"
-export CHROMIUM="$TOOLS"
-node -r ./shim.js /web/ops/Corrigenda/test/browser/widget-check.js
-node -r ./shim.js /web/ops/Corrigenda/test/browser/selection-check.js
-node -r ./shim.js /web/ops/Corrigenda/test/browser/extension-check.js
+To run one check against a server you started yourself, keep the ports
+(`9393`, and `9397` for the cross-origin pass — they are written into
+the checks) and run its script under node with the browser toolchain on
+`CHROMIUM`, `NODE_PATH` and `LD_LIBRARY_PATH`. Finding that toolchain
+on this host has a trap in it, and the recipe lives in
+[CLAUDE.md](../../CLAUDE.md) rather than here.
 
-# 3. read what landed
+What landed:
+
+```sh
 ls /var/tmp/corrigenda-browser-store/*/*/*/report.json
 ```
 
@@ -103,12 +100,6 @@ is there to prove the sanitiser drops it.
 
 Screenshots land in `$SHOTS` (default `/var/tmp`).
 
-Probe for a **file** the tool must contain, not for the directory: on
-2026-08-02 both spellings of the directory existed and only the
-`/compat/linux` one was populated, so a `Dir.exist?` test picked the
-empty husk and node failed on a missing executable. Which side is
-populated is a property of the moment, not a rule.
-
 ## The getDisplayMedia stub
 
 Screen capture cannot be granted to a headless browser, so the test
@@ -131,9 +122,10 @@ on one origin, the endpoint on another.
 # the endpoint, on a second origin (0.0.0.0 so both names reach it)
 CORRIGENDA_STORE=/var/tmp/corrigenda-xorigin \
     bundle exec puma -b tcp://0.0.0.0:9397 test/browser/config.ru
-
-node -r ./shim.js /web/ops/Corrigenda/test/browser/cross-origin-check.js
 ```
+
+`test/browser/run` starts that second server only when this check is
+among the ones asked for.
 
 The page is served from `127.0.0.1` and the endpoint answers on
 `localhost`: same machine, different origin as far as a browser is

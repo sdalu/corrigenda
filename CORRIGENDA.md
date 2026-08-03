@@ -1,34 +1,28 @@
-# Corrigenda framework — specification (draft)
+# Corrigenda — what it captures, and why
 
-Status: **spec; the endpoint is built, the client is not.** Written
-2026-08-02.
-
-Phase 1 of §10 exists and is tested end to end: `lib/corrigenda/` (intake,
-store, schema, config), `config.ru`, `views/`, 34 unit tests
-(`bundle exec rake test`), and the client at
-`client/corrigenda.js` — launcher, menu, element picker
-with keyboard tree navigation, capture switches with live size
-estimates, payload preview, and the gzipped POST. A headless browser
-test (`test/browser/`) drives the real widget against the real endpoint.
-
-The screenshot channel of §6.2 is built too: `getDisplayMedia`, tab
-calibration, opaque redaction of form fields, cropping, WebP encoding
-and a multipart upload, with the endpoint storing `screenshot.webp`
-beside the report and the review UI showing it.
-
-Not built: annotation and the drag rectangle (§6.2), the DOM snapshot
-(§6.3), the enrichment pass (§8), the deep-link review mode, and the
-Apache wiring of §4 — the widget is loaded by a hand-written `<script>`
-tag today.
-
-Two details settled during the build, both narrower than the spec
-assumed: gzip is detected by **magic number** rather than a custom
-header, and a plain `application/json` body is accepted alongside
-multipart so the endpoint can be exercised with `curl`.
+The design: what a report holds, how it is captured, what happens to it
+after it arrives. [README.md](README.md) is the shorter answer — what
+this is and how to run it — and this is the reasoning underneath.
 
 A small injectable client (one JS file) plus a Ruby endpoint, used to
 capture precise, reproducible reports about a rendered page: visual
 defects, layout breakage, wrong content, things that do not work.
+
+**Built and in service** (§10 phases 1 and 2): the endpoint, the store
+and the review UI; the widget — launcher, menu, element picker with
+keyboard tree navigation, capture switches with live size estimates,
+payload preview, the gzipped POST; the screenshot channel of §6.2 with
+tab calibration, opaque redaction of form fields, cropping and WebP
+encoding; the browser add-on that takes that picture where a page
+cannot; and retention (§8), off unless a deployment asks for it.
+
+**Not built:** annotation and the drag rectangle (§6.2), the DOM
+snapshot (§6.3), the enrichment pass (§8), the deep-link review mode.
+
+Two details settled during the build, both narrower than this spec
+assumed: gzip is detected by **magic number** rather than a custom
+header, and a plain `application/json` body is accepted alongside
+multipart so the endpoint can be exercised with `curl`.
 
 ## 1. Scope, and what the audience decision changes
 
