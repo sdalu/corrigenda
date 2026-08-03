@@ -47,6 +47,14 @@ Three ways, in the order they cost you anything:
    add-on takes the picture through the browser's own capture API
    instead. See [extension/README.md](extension/README.md).
 
+A screenshot is optional, and you choose how much of the page it holds.
+Cropping to the picked element keeps a 16-pixel margin around it — a
+defect is usually a relationship with whatever sits next to the
+element, and a crop at its own edges throws that away. On a high-DPI
+screen the stored image shows that margin at the screen's own scale, so
+it looks like more than sixteen. Form fields are blacked out before the
+image is encoded, and nothing off-screen is ever captured.
+
 ## Running it
 
 Ruby 3.4, Sinatra 4.2, Puma 8. Gems install into `vendor/`.

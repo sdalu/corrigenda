@@ -21,6 +21,14 @@ An extension has `tabs.captureTab` (Firefox) or `tabs.captureVisibleTab`
 | Mask form fields                  | Chrome only            | yes            | yes           |
 | Below the fold ("no crop")        | no                     | **yes**        | no            |
 
+"Crop to the picked element" keeps a **16-pixel margin on every side**,
+so the element arrives in its surroundings rather than cut out of them
+— most visual defects are about a relationship with something next to
+the element, and a crop at its own edges removes exactly that. In the
+stored image the margin is multiplied by the screen's device pixel
+ratio, which is why it reads as tens of pixels rather than sixteen. It
+is trimmed where the shared surface ends.
+
 Firefox's `rect` is in CSS pixels **relative to the page** and may lie
 outside the visible viewport (Firefox 82+), which is what makes a real
 full-page capture possible. Chrome has no equivalent, so it answers with

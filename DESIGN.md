@@ -219,6 +219,16 @@ outright.
   client crops before upload, so the discarded pixels genuinely never
   leave the machine: picked element + margin, the viewport, or the full
   surface as captured. (A drag rectangle is specified but not built.)
+- **The margin is 16 CSS pixels on every side**, added to the element's
+  border box before the crop and therefore multiplied by the device
+  pixel ratio in the stored image — 32 device pixels a side on a 2×
+  screen, which is why the result looks looser than the outline did. It
+  is deliberate: almost every visual defect is a *relationship* — this
+  overlaps that, this is out of line with its neighbour, this sits too
+  close to the edge — and an element cut out exactly at its own box
+  takes the evidence of the relationship out with the surroundings. The
+  margin is clipped where the shared surface ends, so an element at the
+  edge of the page gets whatever is left rather than a black band.
 - **Redaction** — every `input` except checkbox and radio, plus
   `textarea`, `select` and `[data-corrigenda-redact]`, is covered before
   the image is encoded. **Opaque fill, not blur**: a blur over short,
