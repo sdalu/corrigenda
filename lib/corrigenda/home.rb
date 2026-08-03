@@ -176,9 +176,18 @@ module Corrigenda
             # application/x-xpi is what makes Firefox offer to install
             # rather than to save. Served as a zip it is a file in your
             # downloads folder and a puzzled reader.
-            xpi = path.end_with?(".xpi")
+            #
+            # The version goes in the name, out of the package that is
+            # being sent rather than out of anything here: a downloads
+            # folder collects these, and three files called
+            # corrigenda-firefox.zip are three files nobody can tell
+            # apart — including the one they are running.
+            xpi     = path.end_with?(".xpi")
+            version = package_version(target)
+            name    = ["corrigenda", target, version].compact.join("-")
+
             send_file path,
-                      filename: "corrigenda-#{target}#{xpi ? '.xpi' : '.zip'}",
+                      filename: "#{name}#{xpi ? ".xpi" : ".zip"}",
                       type: xpi ? "application/x-xpi" : "application/zip"
         end
     end

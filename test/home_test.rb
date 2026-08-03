@@ -192,6 +192,22 @@ ensure
     TestSupport.configure
 end
 
+    # A downloads folder collects these. Three files called
+    # corrigenda-firefox.zip are three files nobody can tell apart,
+    # including the one they are running, so the version travels in the
+    # name -- read out of the package being sent.
+    def test_the_download_is_named_with_its_version
+        get "/extension/firefox"
+
+        skip "no package built in this checkout" unless last_response.ok?
+
+        version = JSON.parse(
+            File.read("extension/dist/firefox/manifest.json"))["version"]
+
+        assert_includes last_response.headers["content-disposition"].to_s,
+                        "corrigenda-firefox-#{version}"
+    end
+
     # The schema viewer. A tab leading to a 404 is worse than no tab, so
     # both the tab and the page follow the deployment: with no `api:`
     # key the endpoint answers 404 to everything and there is nothing to
