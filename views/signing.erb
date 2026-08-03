@@ -1,0 +1,98 @@
+<% @wide = true %>
+<h1>Signing the add-on</h1>
+
+<p class="lede">
+    Firefox takes an unsigned add-on for one session and drops it at the
+    next restart. Signing it once makes the same download install for
+    good — and publishes nothing.
+</p>
+
+<h2>What signing is, and is not</h2>
+
+<dl class="railed">
+    <dt>Not publishing</dt>
+    <dd>
+        An <em>unlisted</em> submission never appears on
+        addons.mozilla.org, is not searchable, and has no listing page.
+        Mozilla signs the package and hands it back; where it is hosted
+        afterwards is your business — here, this service.
+    </dd>
+
+    <dt>Not review</dt>
+    <dd>
+        Unlisted submissions are checked by machine, not by a human
+        reviewer, and come back in a minute or two. What comes back is
+        the same package with a signature in it.
+    </dd>
+
+    <dt>Not permanent work</dt>
+    <dd>
+        It is one command per release. The keys are issued once and kept
+        wherever this service's other secrets live.
+    </dd>
+</dl>
+
+<h2>Doing it</h2>
+
+<ol class="steps is-tall">
+    <li>
+        On <a href="https://addons.mozilla.org/developers/addon/api/key/">addons.mozilla.org</a>,
+        sign in and open <em>Tools → Manage API keys</em>. Generate a
+        credential: it gives you an issuer (<code>user:1234567:890</code>)
+        and a secret. The secret is shown once.
+    </li>
+
+    <li>
+        On the machine that runs this service:
+<pre><code>export AMO_JWT_ISSUER=user:1234567:890
+export AMO_JWT_SECRET=…
+cd <%= root %>/extension
+./sign</code></pre>
+        It builds the Firefox package, sends it, waits, and puts the
+        signed result at <code>dist/firefox.xpi</code>.
+    </li>
+
+    <li>
+        Nothing else to do. This service prefers a <code>.xpi</code> over
+        a <code>.zip</code>, serves it as
+        <code>application/x-xpi</code> — which is what makes Firefox
+        offer to install rather than to save — and the
+        <a href="<%= mount("/") %>#add-on">add-on box</a> starts saying
+        <em>Install</em> instead of <em>Download</em>.
+    </li>
+</ol>
+
+<h2>Afterwards</h2>
+
+<dl class="railed">
+    <dt>Updating</dt>
+    <dd>
+        Raise <code>version</code> in both manifests and run
+        <code>./sign</code> again. Firefox does not update a self-hosted
+        add-on by itself unless the package names an update URL, so
+        whoever has it installed installs the new one from the same
+        link.
+    </dd>
+
+    <dt>The add-on id</dt>
+    <dd>
+        <code>corrigenda@sdalu.com</code>, in
+        <code>manifest.firefox.json</code>. It must not change between
+        versions: to Firefox, a different id is a different add-on, and
+        the signature is bound to it.
+    </dd>
+
+    <dt>Chrome</dt>
+    <dd>
+        No equivalent, and nothing to run. Chrome installs extensions
+        from its Web Store only, so the choices are an unlisted Web
+        Store listing — a one-off developer fee and a review — or
+        loading the unpacked folder, which is what the box on the front
+        page describes. For two or three people, unpacked is the honest
+        answer.
+    </dd>
+</dl>
+
+<p class="empty">
+    <a href="<%= mount("/") %>#add-on">Back to the add-on</a>
+</p>

@@ -5,7 +5,8 @@
   "description": "Gives the corrigenda widget a screenshot the browser can crop: the tab itself, in page coordinates, with no share dialog.",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "https://www.alux.fr/*",

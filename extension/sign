@@ -1,0 +1,55 @@
+#!/bin/sh
+# Sign the Firefox package, so it installs in one click and stays
+# installed.
+#
+# Firefox refuses unsigned add-ons on the release channel, and there is
+# no self-hosted way around it: about:debugging loads one until the
+# browser restarts, and that is all. Signing is free and does not
+# publish anything — an *unlisted* submission is reviewed automatically,
+# never appears on addons.mozilla.org, and comes back as an .xpi you
+# host yourself. That .xpi is what dist/firefox.xpi is, and what the
+# landing page then offers.
+#
+#   1. addons.mozilla.org -> Tools -> Manage API keys
+#   2. export AMO_JWT_ISSUER=user:1234567:890 AMO_JWT_SECRET=...
+#   3. ./sign
+#
+# Chrome has no equivalent. Since 2018 it installs extensions from the
+# Web Store only, so the choices there are an unlisted Web Store listing
+# (one-off developer fee, review, then a link that installs) or an
+# enterprise policy pointing at a self-hosted update manifest. Loading
+# it unpacked stays the honest answer for two or three people.
+
+set -eu
+
+here=$(dirname "$0")
+cd "$here"
+
+: "${AMO_JWT_ISSUER:?set AMO_JWT_ISSUER (addons.mozilla.org -> Manage API keys)}"
+: "${AMO_JWT_SECRET:?set AMO_JWT_SECRET (addons.mozilla.org -> Manage API keys)}"
+
+./build firefox
+
+# web-ext is fetched on demand rather than vendored: this runs once per
+# release, on a machine with a network, and a signing tool that lives in
+# the repository is a signing tool that goes stale in it.
+npx --yes web-ext sign \
+    --source-dir=dist/firefox \
+    --artifacts-dir=dist \
+    --channel=unlisted \
+    --api-key="$AMO_JWT_ISSUER" \
+    --api-secret="$AMO_JWT_SECRET"
+
+# web-ext names it after the add-on id and version; the service looks
+# for dist/firefox.xpi, so give it that name.
+signed=$(ls -t dist/*.xpi 2>/dev/null | head -1)
+if [ -n "${signed:-}" ] && [ "$signed" != "dist/firefox.xpi" ]; then
+    mv "$signed" dist/firefox.xpi
+fi
+
+if [ -f dist/firefox.xpi ]; then
+    echo "signed: dist/firefox.xpi — the landing page will now offer it"
+else
+    echo "sign: no .xpi came back; nothing changed" >&2
+    exit 1
+fi

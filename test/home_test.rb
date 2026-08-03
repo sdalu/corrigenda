@@ -41,6 +41,22 @@ class HomeTest < CorrigendaTest
                         "page-defect reporting widget"
     end
 
+# Written for whoever runs the service, and reachable from the box
+# that tells a reader their install is temporary.
+def test_the_signing_page_answers
+    get "/signing"
+
+    assert_predicate last_response, :ok?
+    assert_includes last_response.body, "AMO_JWT_ISSUER"
+    assert_includes last_response.body, "extension"
+end
+
+def test_the_add_on_box_links_to_it
+    get "/"
+
+    assert_includes last_response.body, %(href="/signing")
+end
+
     # The one public path: every page that injects the widget fetches it,
     # visitors included. Apache lets this through unauthenticated, and a
     # cache header keeps a busy site from asking for it every time.

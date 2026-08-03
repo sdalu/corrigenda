@@ -1,9 +1,11 @@
 <% @wide = true %>
-<h1>What the page actually did</h1>
+<h1>Report what a page got wrong</h1>
 
 <p class="lede">
-    Not a description of the problem — the element, the rule that styled
-    it, and the browser it happened in.
+    Point at the problem on the page itself. What arrives here is the
+    evidence rather than a description of it: the element, the rules
+    that styled it, what the browser was complaining about, and a
+    screenshot if you want one.
 </p>
 
 <figure class="specimen">
@@ -20,61 +22,126 @@
 <h2>Take it with you</h2>
 
 <p>
-    Drag this to your bookmarks toolbar, or right-click and choose
-    <em>Bookmark link</em>. Pasting a <code>javascript:</code> URL into
-    the address bar will not work — browsers strip it.
+    Drag this to your bookmarks toolbar, or right-click it and choose
+    <em>Bookmark link</em>.
 </p>
 
-<p><a class="bookmarklet" href="#">Corrigenda</a></p>
+<p class="caveat is-warning">
+    Pasting a <code>javascript:</code> URL into the address bar will not
+    work — every browser strips it. It has to become a bookmark.
+</p>
 
-<details>
-    <summary>Copy the URL instead</summary>
-    <pre class="bookmarklet-source"></pre>
-</details>
+<div class="take">
+    <p><a class="bookmarklet" href="#">Corrigenda</a></p>
 
-<h2>Or install the add-on</h2>
+    <div class="source">
+        <div class="block">
+            <pre class="bookmarklet-source"></pre>
+            <button type="button" class="a-copy">Copy</button>
+        </div>
+    </div>
+</div>
+
+<h2 id="add-on">Or install the add-on</h2>
 
 <p>
-    The add-on does two things the bookmarklet cannot. Its toolbar
-    button puts the widget on any page of the estate, so there is
-    nothing to drag anywhere. And it photographs the tab through the
-    browser's own capture API: no share dialog, no picking the right
-    window, and a frame that is already in page coordinates — which is
-    what lets a screenshot be cropped to the element and masked over
-    form fields.
+    The add-on is about the screenshot. A page can only photograph
+    itself through the browser's screen-sharing permission: a prompt to
+    answer, a surface to pick, and — in Firefox, which offers no tab —
+    a frame that cannot be placed on the page at all, so no cropping to
+    the element and no blacking out of form fields. The add-on takes
+    the picture through the browser's own capture API instead.
 </p>
 
+<p>
+    Its toolbar button also puts the widget on any page of the estate,
+    which the bookmarklet does too. That is a convenience, not the
+    reason: the add-on is worth having on a site that already serves
+    Corrigenda itself, because the screenshot gets better either way.
+</p>
+
+<%
+    # Three of the four capabilities are identical in both browsers, so
+    # they are said once, above. What is left in each box is the line
+    # that differs and the procedure — which is all anyone is here to
+    # compare.
+    browsers = [
+        { key: "firefox", name: "Firefox",
+          differs: [true, "Reaches below the fold — “no crop” is the page"],
+          steps: ["<code>about:debugging</code> → This Firefox",
+                  "Load Temporary Add-on → the unzipped " \
+                  "<code>manifest.json</code>"],
+          signed_steps: ["Open it, or click the link again and accept"] },
+
+        { key: "chrome", name: "Chrome",
+          differs: [false, "Visible page only — Chrome has no API for the rest"],
+          steps: ["<code>chrome://extensions</code> → Developer mode",
+                  "Load unpacked → the unzipped folder"] }
+    ]
+%>
+
+<ul class="can is-shared">
+    <li class="is-yes">No screen-share prompt to answer</li>
+    <li class="is-yes">Crops to the element you picked</li>
+    <li class="is-yes">Blacks out form fields before upload</li>
+</ul>
+
 <dl class="packages">
-    <% [["firefox", "Firefox",
-         "Captures any rectangle of the page, including the part " \
-         "below the fold, so “no crop” really is the whole page.",
-         "about:debugging → This Firefox → Load Temporary Add-on, and " \
-         "pick manifest.json inside the unzipped folder. A permanent " \
-         "install needs the package signed."],
-        ["chrome", "Chrome",
-         "Captures the visible page only — Chrome has no API for the " \
-         "part below the fold — but the crop to the element and the " \
-         "masking both work.",
-         "chrome://extensions → Developer mode → Load unpacked, and " \
-         "pick the unzipped folder."]].each do |target, name, what, how| %>
+    <% browsers.each do |browser| %>
+        <% package = packages[browser[:key]] %>
         <div>
-            <dt><%= name %></dt>
+            <dt><%= browser[:name] %></dt>
+
+            <% if package %>
+                <p class="get">
+                    <a class="package" href="<%= mount("/extension/#{browser[:key]}") %>"
+                       <%= "download" unless package[:signed] %>><svg
+                       viewBox="0 0 448 512" aria-hidden="true"><path
+                       d="M256 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 210.7-41.4-41.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l96 96c12.5 12.5 32.8 12.5 45.3 0l96-96c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 242.7 256 32zM64 320c-35.3 0-64 28.7-64 64l0 32c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-32c0-35.3-28.7-64-64-64l-46.9 0-56.6 56.6c-31.2 31.2-81.9 31.2-113.1 0L110.9 320 64 320zm304 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg><%=
+                       package[:signed] ? "Install" : "Download" %></a>
+                    <span class="weight">Size: <%= (package[:bytes] / 1024.0).round %> kB<%=
+                        ", signed" if package[:signed] %></span>
+                </p>
+            <% end %>
+
             <dd>
-                <p><%= what %></p>
-                <% if (bytes = packages[target]) %>
-                    <p>
-                        <a class="package" href="<%= mount("/extension/#{target}") %>"
-                           download>Download for <%= name %></a>
-                        <span class="weight"><%= (bytes / 1024.0).round %> kB</span>
-                    </p>
-                    <p class="how"><%= how %></p>
-                <% else %>
-                    <p class="empty">
-                        Not built yet. Run <code>extension/build <%= target %></code>
-                        where this service lives.
-                    </p>
+                <ul class="can">
+                    <li class="<%= browser[:differs].first ? "is-yes" : "is-no" %>"><%=
+                        browser[:differs].last %></li>
+                </ul>
+
+                <% if package %>
+                    <ol class="steps">
+                        <% (package[:signed] ? browser[:signed_steps] : browser[:steps]).each do |step| %>
+                            <li><%== step %></li>
+                        <% end %>
+                    </ol>
+
                 <% end %>
             </dd>
+
+            <% if package %>
+                    <% if browser[:key] == "firefox" && !package[:signed] %>
+                        <p class="caveat is-warning">
+                            This session only — Firefox drops a temporary
+                            add-on when it restarts. A signed build installs
+                            for good from the same link —
+                            <a href="<%= mount("/signing") %>">how to make one</a>.
+                        </p>
+                    <% elsif browser[:key] == "chrome" %>
+                        <p class="caveat is-warning">
+                            Chrome installs extensions from its Web Store
+                            only, so there is no self-hosted one-click
+                            install to offer.
+                        </p>
+                    <% end %>
+            <% else %>
+                <p class="caveat">
+                    Not built yet. Run
+                    <code>extension/build <%= browser[:key] %></code>
+                    where this service lives.
+                </p>
+            <% end %>
         </div>
     <% end %>
 </dl>
@@ -200,7 +267,7 @@
                 redrawing of how it was meant to look. Cropping to the
                 element and the bars over form fields need a frame that
                 maps to the page: share <strong>this tab</strong>, or
-                install the add-on and skip the question.
+                <a href="#add-on">install the add-on</a> and skip the question.
             </p>
         </dd>
     </div>
@@ -209,6 +276,19 @@
 <h2>Where it works</h2>
 
 <dl class="railed">
+<% if endpoint %>
+    <dt>This endpoint</dt>
+    <dd>
+        <p><code><%= endpoint %></code></p>
+        <p>Where this page came from, and where its reports go. The
+        client is served from <code><%= endpoint %>/corrigenda.js</code>,
+        which is the one path here that needs no login — every page
+        carrying the widget fetches it, visitors included. Reports
+        are posted to <code><%= endpoint %>/report/</code>, which
+        needs one.</p>
+    </dd>
+<% end %>
+
     <dt>Reports about</dt>
     <dd>
         <% if sites.nil? %>
@@ -239,13 +319,16 @@
     <% if endpoint %>
         <dt>Point a site here</dt>
         <dd>
-            <p>A site that does not mount this service names it before
-            the vertical bar, and says who gets the widget after it:</p>
+            <p>A site rendered by
+            <a href="https://gitlab.com/sdalu/moxow">MoXoW</a> names this
+            endpoint before the vertical bar, and says who gets the widget
+            after it:</p>
             <pre><code>&lt;m:framework corrigenda="<%= endpoint.sub(%r{/\.corrigenda\z}, "") %>|yes"/&gt;</code></pre>
-            <p>A site that does mount it (<code>Use
-            CorrigendaEndpoint</code> in its vhost) leaves the
-            endpoint out and posts to its own origin, which needs no
-            CORS.</p>
+            <p>A site that mounts the service itself (<code>Use
+            CorrigendaEndpoint</code> in its vhost) leaves the endpoint
+            out: the widget posts to its own origin then, which needs no
+            CORS. Either way the page advertises where reports go, so a
+            bookmarklet or the add-on finds it without being told.</p>
         </dd>
     <% end %>
 </dl>
@@ -270,10 +353,41 @@
     /* The app is behind a proxy and is not told its public URL. The
        browser knows it: this page came from it. */
     (function () {
-        var src = location.origin + "<%= mount("/corrigenda.js") %>";
-        var code = "javascript:(function(){var s=document.createElement('script');" +
-                   "s.src='" + src + "';document.body.appendChild(s);})();";
+        /* The page it lands on may already say where its reports go —
+           MoXoW puts <link rel="corrigenda"> on every page of a site the
+           widget is configured for. Reading it means a bookmarklet made
+           here still does the right thing on a site with its own
+           endpoint. Where nothing is advertised, this endpoint is the
+           fallback, and the tag carries it: without that the client
+           would post to the page's own origin, which is a 404 on any
+           site that does not mount the service. */
+        var here = location.origin + "<%= mount("") %>";
+        var code = "javascript:(function(){" +
+                   "var l=document.querySelector('link[rel=corrigenda]')," +
+                   "b=(l&&l.href||'" + here + "').replace(/[/]+$/,'')," +
+                   "s=document.createElement('script');" +
+                   "s.src=b+'/corrigenda.js';" +
+                   "s.dataset.endpoint=b+'/report/';" +
+                   "document.documentElement.appendChild(s);})();";
         document.querySelector(".bookmarklet").href = code;
         document.querySelector(".bookmarklet-source").textContent = code;
+
+        /* Clipboard access is refused outside a secure context, and this
+           page is served over plain http on a development run — so the
+           button says what happened either way rather than appearing to
+           work. */
+        var button = document.querySelector(".a-copy");
+        button.addEventListener("click", function () {
+            var done = function (word) {
+                button.textContent = word;
+                setTimeout(function () { button.textContent = "Copy"; }, 1500);
+            };
+
+            if (!navigator.clipboard) return done("Select it");
+
+            navigator.clipboard.writeText(code)
+                .then(function () { done("Copied"); },
+                      function () { done("Select it"); });
+        });
     })();
 </script>

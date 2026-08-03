@@ -33,13 +33,38 @@ module Corrigenda
         # than the service reading its payloads.
         CLIENT = File.expand_path("../../client/corrigenda.js", __dir__)
 
+        # The add-on's icon, doubling as the service's. One drawing for
+        # the toolbar button and the browser tab: they are the same tool,
+        # and a second drawing is a second thing to keep in step.
+        ICON = File.expand_path("../../extension/icon.svg", __dir__)
+
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
+            # A signed .xpi if one has been made, the plain zip
+            # otherwise. The difference is the whole install story on
+            # Firefox: a signed package installs in one click and stays
+            # installed, an unsigned one can only be loaded as a
+            # temporary add-on and is gone at the next restart.
             def package(target)
-                path = File.join(PACKAGES, "#{target}.zip")
-                File.exist?(path) ? path : nil
+                [File.join(PACKAGES, "#{target}.xpi"),
+                 File.join(PACKAGES, "#{target}.zip")].find { File.exist?(it) }
             end
+
+            def signed?(target) = package(target).to_s.end_with?(".xpi")
+        end
+
+        # How to make the download install for good rather than for one
+        # session. Written for whoever runs this service, which the box
+        # on the front page is not: it tells a reader their install is
+        # temporary, and this says what to do about it.
+        get "/icon.svg" do
+            cache_control :public, max_age: 86_400
+            send_file ICON, type: "image/svg+xml"
+        end
+
+        get "/signing" do
+            erb :signing, locals: { root: File.expand_path("../..", __dir__) }
         end
 
         get "/" do
@@ -51,7 +76,11 @@ module Corrigenda
                 sites: config.sites,
                 origins: config.origins,
                 endpoint: config.endpoint,
-                packages: %w[firefox chrome].to_h { [it, package(it)&.then { File.size(it) }] }
+                packages: %w[firefox chrome].to_h { |target|
+                    path = package(target)
+                    [target, path && { bytes: File.size(path),
+                                       signed: signed?(target) }]
+                }
             }
         end
 
@@ -79,8 +108,13 @@ module Corrigenda
             path   = package(target)
             halt 404, "no package built for #{target}" if path.nil?
 
-            send_file path, filename: "corrigenda-#{target}.zip",
-                            type: "application/zip"
+            # application/x-xpi is what makes Firefox offer to install
+            # rather than to save. Served as a zip it is a file in your
+            # downloads folder and a puzzled reader.
+            xpi = path.end_with?(".xpi")
+            send_file path,
+                      filename: "corrigenda-#{target}#{xpi ? '.xpi' : '.zip'}",
+                      type: xpi ? "application/x-xpi" : "application/zip"
         end
     end
 end

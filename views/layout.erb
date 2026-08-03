@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Corrigenda</title>
+<link rel="icon" href="<%= mount("/icon.svg") %>" type="image/svg+xml">
 <style>
 /* The estate's own faces, served by the same vhost. Absent (a local run
    with no /common alias) the stacks below fall back and nothing breaks. */
@@ -350,6 +351,24 @@
         color: var(--muted);
     }
 
+    /* A remark, and a remark that costs you something. "Every browser
+       strips it" is not a footnote: it is the thing you are about to try,
+       and it will not work. Tinted, so the plain remarks around it stay
+       plain. */
+    .caveat {
+        max-inline-size: var(--measure);
+        margin-block-start: 0.6rem;
+        font-size: 0.9375rem;
+        color: var(--muted);
+
+        &.is-warning {
+            padding: 0.5rem 0.7rem;
+            color: var(--ink);
+            background: color-mix(in oklab, var(--signal) 16%, transparent);
+            border-inline-start: 3px solid var(--signal);
+        }
+    }
+
     .bookmarklet {
         display: inline-block;
         min-block-size: 2.75rem;
@@ -368,18 +387,45 @@
         &:hover { border-color: var(--ink); }
     }
 
-    /* Two packages side by side while there is room for two: the choice
-       is which browser you use, so they are read against each other. */
+    /* Two packages, read against each other. What they share is said
+       once above them; each box carries the line that differs, the
+       button, and the two steps it takes — so the eye compares rows
+       rather than paragraphs, and neither box is furniture. */
     .packages {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
         gap: var(--space);
-        margin-block-start: 0.75rem;
+        margin-block-start: 0.6rem;
 
+        /* The name and what it can do read left to right; the thing you
+           came to press sits in the corner where a button belongs, with
+           its weight underneath rather than beside it. The description
+           column is bounded so a long line cannot slide under it. */
         > div {
-            padding: 0.9rem 1rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            column-gap: 0.75rem;
+            align-content: start;
+            padding: 0.75rem 0.9rem;
             background: var(--panel);
             border: 1px solid var(--rule);
+        }
+
+        dt { grid-column: 1; }
+        dd { grid-column: 1; }
+
+        /* Both columns, under everything: what it says is about the
+           package, not about the line it happened to sit beside, and it
+           is the widest sentence in the box. */
+        .caveat { grid-column: 1 / -1; }
+
+        .get {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            justify-self: end;
+            /* Hugs the top corner rather than stretching down the box:
+               a grid item fills its area unless told not to. */
+            align-self: start;
         }
 
         dt {
@@ -392,12 +438,68 @@
 
         dd { margin: 0.4rem 0 0; }
 
-        p + p { margin-block-start: 0.5rem; }
+        .caveat { font-size: 0.8125rem; }
+    }
 
-        .how, .weight {
-            font-size: 0.875rem;
-            color: var(--muted);
+    /* Ticks and dashes rather than prose: what separates the two
+       packages is one line long, and a reader should see it without
+       reading it. */
+    .can {
+        display: grid;
+        gap: 0.2rem;
+        font-size: 0.9375rem;
+
+/* What both browsers do, on the same panel as the boxes below
+ and spanning the width of both: it belongs to the pair, not
+ to either one. Spaced apart rather than left-packed, so the
+ three read as three rather than as a sentence. */
+&.is-shared {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 0.3rem 1.5rem;
+  margin-block-start: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+}
+
+        li {
+            padding-inline-start: 1.4rem;
+            text-indent: -1.4rem;
         }
+
+        li::before {
+            display: inline-block;
+            inline-size: 1.4rem;
+            text-indent: 0;
+            font-family: var(--mono);
+        }
+
+        .is-yes::before { content: "✓"; color: var(--signal); }
+
+        /* Not a failure, a boundary — so a dash, not a cross. */
+        .is-no::before { content: "–"; color: var(--muted); }
+        .is-no { color: var(--muted); }
+    }
+
+    .get {
+        display: grid;
+        gap: 0.25rem;
+        justify-items: end;
+        margin: 0;
+        text-align: end;
+    }
+
+    .steps {
+        display: grid;
+        gap: 0.15rem;
+        margin-block-start: 0.5rem;
+        padding-inline-start: 1.3rem;
+        list-style: decimal;
+        font-size: 0.875rem;
+        color: var(--muted);
     }
 
     /* Four boxes, because they are four choices made at the same moment
@@ -469,9 +571,22 @@
         color: var(--ink);
         border: 1px solid var(--signal);
         border-radius: 2px;
-        text-decoration: none;
+text-decoration: none;
 
-        &:hover { background: color-mix(in oklab, var(--signal) 18%, transparent); }
+/* Font Awesome Free download arrow (CC BY 4.0), sized to the
+ word beside it rather than to a pixel count, so the two
+ scale together. */
+display: inline-flex;
+gap: 0.5em;
+align-items: center;
+
+svg {
+  inline-size: 0.9em;
+  block-size: 0.9em;
+  fill: currentColor;
+}
+
+&:hover { background: color-mix(in oklab, var(--signal) 18%, transparent); }
     }
 
     .railed {
@@ -652,7 +767,66 @@
         }
     }
 
-    .bookmarklet-source { white-space: pre-wrap; word-break: break-all; }
+    /* The bookmarklet's own source, in the open: it is four lines long,
+       and a disclosure that hides four lines costs more than it saves.
+       The button is beside it because that is what most people want
+       from a block of code they cannot drag. */
+    /* The thing you drag and the thing you copy are two ways to take the
+       same object, so they stand side by side while there is room for
+       two — the pill keeps its own width, the source gets the rest —
+       and stack when there is not. Queried on the container, because
+       what decides it is how wide this column is, not the window. */
+    .take {
+        display: grid;
+        gap: var(--space);
+        align-items: start;
+        margin-block-start: 0.75rem;
+
+        @container (inline-size > 44rem) {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+    }
+
+    .source {
+        display: grid;
+        gap: 0.4rem;
+    }
+
+    /* The button sits on the block it copies, in the corner, where it is
+       out of the way of the text and unmistakably about it. The text is
+       padded clear of it so a long first line cannot run underneath. */
+    .source .block {
+        position: relative;
+    }
+
+    .bookmarklet-source {
+        inline-size: 100%;
+        margin: 0;
+        padding-inline-end: 5.5rem;
+        white-space: pre-wrap;
+        word-break: break-all;
+        font-size: 0.8125rem;
+    }
+
+    .a-copy {
+        position: absolute;
+        inset-block-start: 0.4rem;
+        inset-inline-end: 0.4rem;
+        min-block-size: 1.75rem;
+        padding-inline: 0.6rem;
+        font-family: var(--display);
+        font-size: 0.8125rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink);
+        /* Opaque, not transparent: it is over text. */
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        cursor: pointer;
+
+        &:hover { border-color: var(--ink); }
+    }
 
     .empty {
         padding: 2rem 0;

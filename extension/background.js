@@ -18,6 +18,7 @@
  */
 const api = globalThis.browser ?? globalThis.chrome;
 const CAPTURE = "corrigenda/capture";
+const LEARN = "corrigenda/learn";
 
 const validRect = (rect) =>
     rect !== null &&
@@ -68,34 +69,49 @@ const capture = async (message, sender) => {
  * the job the bookmarklet was standing in for: put the widget on the
  * page in front of you.
  *
- * Pages that already carry the widget (MoXoW injects it for some
- * clients) are left alone: the client refuses to mount twice, but
- * fetching the file again for nothing is still a fetch. */
-/* The page says where its reports go:
+ * Where the reports go is a question with three answers, tried in this
+ * order:
  *
- *   <link rel="corrigenda" href="https://tools.sdalu.com/.corrigenda">
+ *   1. <link rel="corrigenda"> on the page. MoXoW emits it for any site
+ *      the widget is configured for, whether or not that client got the
+ *      widget itself.
+ *   2. The last one this add-on saw. Visiting one prepared page teaches
+ *      it the estate's endpoint, and from then on the button works on
+ *      pages that say nothing -- an app behind the same login, a static
+ *      page, anything never prepared for this.
+ *   3. The page's own origin, which is right for a site that mounts the
+ *      service and is what the widget assumed before any of this.
  *
- * which MoXoW emits for any site the widget is configured for, whether
- * or not that client got the widget itself. So this add-on carries no
- * endpoint of its own: it is installed once and follows whatever the
- * estate is doing, including a site that moves its endpoint or mounts
- * its own. Nothing to rebuild, nothing to reinstall, nothing to drift.
- *
- * A page that advertises nothing falls back to its own origin, which is
- * what the widget assumed before any of this and is right for a site
- * that mounts the service. If it does not, the report says so plainly
- * rather than failing silently. */
+ * So the add-on still carries no endpoint of its own: not one written
+ * at build time, not one you are asked to type. It follows the estate,
+ * and remembers.
+ */
+const REMEMBERED = "endpoint";
+
+const remember = async (base) => {
+    if (!base) return;
+
+    const known = await api.storage.local.get(REMEMBERED);
+    if (known[REMEMBERED] === base) return;
+
+    await api.storage.local.set({ [REMEMBERED]: base });
+};
+
+const recalled = async () =>
+    (await api.storage.local.get(REMEMBERED))[REMEMBERED] || null;
+
 const inject = async (tab) => {
     if (tab?.id === undefined) return;
 
-    await api.scripting.executeScript({
+    const [result] = await api.scripting.executeScript({
         target: { tabId: tab.id },
-        func: () => {
-            if (window.__corrigendaLoaded) return;
+        args: [await recalled()],
+        func: (known) => {
+            if (window.__corrigendaLoaded) return null;
 
             const advertised = document.querySelector(
-                'link[rel="corrigenda"]')?.href;
-            const base = (advertised || "/.corrigenda")
+                'link[rel="corrigenda"]')?.href || null;
+            const base = (advertised || known || "/.corrigenda")
                 .replace(/\/+$/, "");
 
             /* The client reads its configuration off its own tag
@@ -105,13 +121,24 @@ const inject = async (tab) => {
             script.src = `${base}/corrigenda.js`;
             script.dataset.endpoint = `${base}/report/`;
             document.documentElement.append(script);
+
+            return advertised;
         }
     });
+
+    await remember(result?.result?.replace(/\/+$/, ""));
 };
 
 api.action.onClicked.addListener((tab) => { inject(tab); });
 
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    /* A page of the estate saying where its reports go. Nothing to
+     * answer: the content script is telling, not asking. */
+    if (message?.type === LEARN) {
+        remember(String(message.endpoint || "").replace(/\/+$/, ""));
+        return false;
+    }
+
     if (message?.type !== CAPTURE) return false;
 
     capture(message, sender).then(

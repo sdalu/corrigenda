@@ -13,14 +13,34 @@ module Corrigenda
     # /review, so `to` builds different things in each. The mount root is
     # what the proxy told us, and it is the same for both.
     module MountPath
-        def mount(path) = "#{request.env[Prefix::HEADER].to_s.chomp('/')}#{path}"
+# The proxy's header first: only Apache knows the path this
+# is served under, since it strips the Location before
+# proxying. Failing that, SCRIPT_NAME, which Rack::URLMap
+# sets when the app is mounted locally -- without it a
+# bookmarklet built by a local run points at the wrong
+# place and every link in the masthead loses its prefix.
+def mount(path)
+    prefix = request.env[Prefix::HEADER]
+    prefix = request.env["SCRIPT_NAME"] if prefix.to_s.empty?
+    "#{prefix.to_s.chomp('/')}#{path}"
+end
     end
 
     # The masthead is shared, but Home is mounted at / and Review at
     # /review, so `to` builds different things in each. The mount root is
     # what the proxy told us, and it is the same for both.
     module MountPath
-        def mount(path) = "#{request.env[Prefix::HEADER].to_s.chomp('/')}#{path}"
+# The proxy's header first: only Apache knows the path this
+# is served under, since it strips the Location before
+# proxying. Failing that, SCRIPT_NAME, which Rack::URLMap
+# sets when the app is mounted locally -- without it a
+# bookmarklet built by a local run points at the wrong
+# place and every link in the masthead loses its prefix.
+def mount(path)
+    prefix = request.env[Prefix::HEADER]
+    prefix = request.env["SCRIPT_NAME"] if prefix.to_s.empty?
+    "#{prefix.to_s.chomp('/')}#{path}"
+end
     end
 
     class Prefix

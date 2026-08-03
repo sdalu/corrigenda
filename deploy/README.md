@@ -78,11 +78,20 @@ out gid 80.
 
 ## The bookmarklet
 
-One line, kept as a file so it can be edited rather than retyped:
-`bookmarklet.js`. It injects the client from whichever host serves
-`/.corrigenda/corrigenda.js`; the widget then defaults its endpoint to
-`/.corrigenda/report/` **relative to the page**, which keeps the
-POST same-origin and inside that vhost's auth.
+There is no file for it, and there was one until it went stale: a copy
+with a host written into it disagrees with the service the day the
+host changes. The landing page builds it in the browser from
+`location.origin` and the mount it was served under, so the
+bookmarklet you drag is always the one for the instance you are
+looking at.
+
+What it does when used: read `<link rel="corrigenda">` on the page it
+lands on and load the client from there, so a bookmarklet made on one
+instance still does the right thing on a site with an endpoint of its
+own. Where the page advertises nothing, the instance that emitted the
+bookmarklet is the fallback, and that goes on the tag as
+`data-endpoint` — without it the client would post to the page's own
+origin, which is a 404 on any site that does not mount the service.
 
 ## Checking it works
 

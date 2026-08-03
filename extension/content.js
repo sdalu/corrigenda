@@ -18,8 +18,21 @@
     const FROM_PAGE = "corrigenda";
     const FROM_EXT  = "corrigenda-extension";
     const CAPTURE   = "corrigenda/capture";
+    const LEARN     = "corrigenda/learn";
 
     document.documentElement.dataset[MARK] = VERSION;
+
+    /* Learned by walking past, not by being asked. A page of the estate
+     * says where its reports go; telling the background half means the
+     * toolbar button works later on a page that says nothing -- an app
+     * behind the same login, a static page, anything never prepared for
+     * this. Sent once per page and ignored if it fails: the button
+     * still asks the page directly when it is pressed. */
+    const advertised = document.querySelector('link[rel="corrigenda"]')?.href;
+    if (advertised) {
+        api.runtime.sendMessage({ type: LEARN, endpoint: advertised })
+           .catch(() => {});
+    }
 
     const reply = (id, payload) => {
         window.postMessage({ source: FROM_EXT, id, ...payload }, window.origin);
