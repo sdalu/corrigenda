@@ -3,17 +3,12 @@
 
 # Where reports are written. Whoever starts ../run must be able to write
 # here, and Apache never touches it.
-# Still the old name: this is a ZFS dataset (data/web/debug-feedback),
-# and a dataset is renamed with zfs, not with mv. Until it is, pointing
-# here at /var/db/corrigenda would not fail — the service would create
-# a plain directory over the mountpoint and start an empty store beside
-# the real one, which is worse than a stale name. Rename it with
-#
-#   zfs rename data/web/debug-feedback data/web/corrigenda
-#   zfs set mountpoint=/var/db/corrigenda data/web/corrigenda
-#
-# and change this line in the same breath.
-store: /var/db/debug-feedback
+# The ZFS dataset data/web/corrigenda, renamed from data/web/debug-feedback
+# on 2026-08-03. A dataset is renamed with zfs and a mountpoint change,
+# never with mv — and this line must not run ahead of it: pointing at a
+# path no dataset is mounted on does not fail, it makes a plain
+# directory and starts an empty store beside the real one.
+store: /var/db/corrigenda
 
 # Listened on by default. Apache proxies to it (see
 # macro-corrigenda.conf); ../run -p PORT overrides it for a run you
