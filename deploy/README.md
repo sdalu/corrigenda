@@ -1,9 +1,9 @@
 # Deploying the endpoint
 
-Route A of DESIGN.md §4: the endpoint is mounted same-origin on
-a vhost, and the widget is loaded on demand by a bookmarklet. Nothing is
-injected into any page, so no `mod_substitute` and no global httpd.conf
-change is involved.
+The endpoint is mounted same-origin on a vhost, and the widget is
+loaded on demand — by a bookmarklet, or by a site that asks for it.
+Nothing is injected into any page, so no `mod_substitute` and no global
+httpd.conf change is involved.
 
 The endpoint itself is **started by hand** with `../run`. There is no
 rc.d script and no service account: it runs in a terminal, as whoever
@@ -15,8 +15,9 @@ a supervisor; the process is an ordinary foreground puma.
 
 ## Why the automatic injection is not used
 
-§4 originally gated injection on `<If "%{REMOTE_USER} != ''">`. That
-only fires when Apache authenticated the **page**, and of the fourteen
+The first plan was to have Apache inject the widget itself, gated on
+`<If "%{REMOTE_USER} != ''">`. That only fires when Apache
+authenticated the **page**, and of the fourteen
 vhosts here only this one authenticates anything — on the
 exhibition sites `REMOTE_USER` is always empty, so the widget would
 never appear on precisely the sites whose CSS is under investigation.

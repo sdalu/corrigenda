@@ -152,12 +152,19 @@
 
     /* Structural labels live in the margin at width, above at narrow —
        the label is a marginal note, not a heading. */
+    /* minmax(0, 1fr) rather than a bare track: a grid column's automatic
+       minimum is min-content, so one wide child -- the paths table --
+       set the width of this list, the list set the width of the page,
+       and the page scrolled sideways on a phone. The floor of 0 lets
+       the column be as narrow as the screen and leaves the wide child
+       to say what it does about that (see .scroller). */
     .railed {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.35rem var(--space);
 
         @container (inline-size > 44rem) {
-            grid-template-columns: 9rem 1fr;
+            grid-template-columns: 9rem minmax(0, 1fr);
             gap: 1.1rem var(--space);
         }
     }
@@ -688,6 +695,17 @@ svg {
         }
 
         td:first-child { white-space: nowrap; }
+
+        /* On a phone the third column has nowhere left to go. Let the
+           permission wrap onto two lines and tighten the gutters, which
+           is enough to bring the whole table inside the screen; the
+           path itself still never wraps, because a path broken across
+           lines is a path somebody mistypes. .scroller stays underneath
+           it as the last resort, for a narrower screen than this. */
+        @container (inline-size < 24rem) {
+            td, th { padding-inline-end: 0.4rem; }
+            th { white-space: normal; }
+        }
     }
 
     .listing {

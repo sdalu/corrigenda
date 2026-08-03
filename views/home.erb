@@ -297,6 +297,9 @@
 <p>Where this page came from, and where its reports go. The
 paths below are relative to it.</p>
 
+<%# Its own scroll region rather than a narrower table: these are paths,
+    and a path broken across two lines is a path somebody mistypes. %>
+<div class="scroller">
 <table class="paths">
     <tbody>
         <tr>
@@ -325,6 +328,7 @@ paths below are relative to it.</p>
         </tr>
     </tbody>
 </table>
+</div>
     </dd>
 <% end %>
 
