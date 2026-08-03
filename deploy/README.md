@@ -109,6 +109,9 @@ path and meets no Apache at all:
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
          http://localhost/ai/reports
 
+The routes, their parameters and what they refuse are in
+[AI-ENDPOINT.md](../AI-ENDPOINT.md).
+
 Add `write: true` to let it set a state and archive; there is no
 delete. Add `token: <secret>` to require a Bearer token as well —
 worth it if the endpoint is ever reachable by anything you would not

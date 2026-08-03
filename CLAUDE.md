@@ -82,9 +82,11 @@ Apache, which saves needing a login:
          http://localhost/ai/reports
 
 `GET /ai/` describes itself: the routes, whether writes are allowed,
-the id format. Writes (`POST /ai/reports/:id/state`, `.../archive`)
-answer 403 unless the config says `write: true`, and there is no delete
-at all — that stays in the review UI, which asks twice.
+the id format. The written-out version, with every parameter and
+refusal, is [AI-ENDPOINT.md](AI-ENDPOINT.md). Writes
+(`POST /ai/reports/:id/state`, `.../archive`) answer 403 unless the
+config says `write: true`, and there is no delete at all — that stays
+in the review UI, which asks twice.
 
 Without the key every path there is a 404, so the first thing to check
 when it seems missing is the config and not the code. From a terminal

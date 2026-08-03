@@ -171,18 +171,25 @@ module Corrigenda
         # both. The filter runs before the limit -- filtering after it
         # would answer "the archive" with whichever of the last hundred
         # reports happened to be archived.
+        #
+        # limit: nil is all of them, for a caller with a filter of its
+        # own to apply: the same trap one level up, since anything
+        # narrowed after a limit is narrowed within a window it did not
+        # choose.
         def entries(limit: 100, archived: false)
             index = @root / INDEX
             return [] unless index.exist?
 
-            index.readlines.reverse.filter_map { |line|
+            found = index.readlines.reverse.filter_map { |line|
                 entry = JSON.parse(line)
                 id    = entry.fetch("id")
                 mark  = archived?(id)
                 next if !archived.nil? && mark != archived
 
                 entry.merge("state" => state(id), "archived" => mark)
-            }.first(limit)
+            }
+
+            limit.nil? ? found : found.first(limit)
         end
 
         private

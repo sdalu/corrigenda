@@ -103,12 +103,14 @@ that knows nothing else can start there.
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
          http://localhost/ai/reports
 
-It is read-only until the config says `write: true`, and even then it
-can only set a state and archive: deleting a report is not offered to a
-program at all. `token: <secret>` adds a Bearer token on top of
-whatever Apache already asked for. With no `ai:` key, every path under
-`/ai` answers 404 rather than 403 — a route that is switched off should
-not advertise that it exists.
+Everything it answers, every setting and every refusal is in
+[AI-ENDPOINT.md](AI-ENDPOINT.md). In short: it is read-only until the
+config says `write: true`, and even then it can only set a state and
+archive — deleting a report is not offered to a program at all.
+`token: <secret>` adds a Bearer token on top of whatever Apache already
+asked for. With no `ai:` key, every path under `/ai` answers 404 rather
+than 403 — a route that is switched off should not advertise that it
+exists.
 
 Nothing expires unless the config says it should:
 
@@ -134,6 +136,7 @@ sanitiser and the CORS dance only exist in a browser — see
 |---|---|
 | [DESIGN.md](DESIGN.md) | what it captures and why, the payload, the storage model — the reasoning under all of it |
 | [HISTORY.md](HISTORY.md) | approaches taken and abandoned, and the failures that shaped what is here |
+| [AI-ENDPOINT.md](AI-ENDPOINT.md) | the JSON interface in full: routes, parameters, responses, errors |
 | [deploy/README.md](deploy/README.md) | installing it, the Apache wiring, retention in cron |
 | [extension/README.md](extension/README.md) | the add-on: build, install, permissions |
 | [test/browser/README.md](test/browser/README.md) | the browser checks and what each covers |

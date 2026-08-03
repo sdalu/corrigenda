@@ -51,6 +51,32 @@ class AITest < CorrigendaTest
         assert_includes body["reports"].map { it["id"] }, @id
     end
 
+    # A filter applied inside the limit would answer "the fixed ones"
+    # with whichever of the newest hundred happened to be fixed, and a
+    # client cannot tell that from "there are none".
+    def test_a_filter_looks_past_the_limit_it_was_given
+        enable
+        store.mark(@id, "wontfix")
+        20.times { store.save(TestSupport.document) }
+
+        get "/reports?state=wontfix&limit=1"
+
+        assert_includes body["reports"].map { it["id"] }, @id
+    end
+
+    # Two numbers, because one of them is a decision: how many answered
+    # the filter, and how many came back.
+    def test_the_listing_says_how_many_it_did_not_send
+        enable
+        3.times { store.save(TestSupport.document) }
+
+        get "/reports?limit=2"
+
+        assert_equal 2, body["count"]
+        assert_equal 2, body["reports"].size
+        assert_operator body["matched"], :>, 2
+    end
+
     def test_the_listing_can_be_filtered_by_state
         enable
         store.mark(@id, "fixed")

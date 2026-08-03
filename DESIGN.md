@@ -465,7 +465,9 @@ Puppeteer 23+ drives it over BiDi.
 ### The JSON interface, for a program
 
 `/ai`, optional, absent unless the deployment's config carries an `ai:`
-key. The review UI is HTML meant for a person; an agent asked to fix
+key. Reference — every route, parameter and refusal — in
+[AI-ENDPOINT.md](AI-ENDPOINT.md); what follows is why it is shaped that
+way. The review UI is HTML meant for a person; an agent asked to fix
 what was reported would otherwise scrape it, and would be reading a
 layout rather than a report.
 

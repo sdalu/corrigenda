@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "openssl"      # secure_compare, for the token
 require "sinatra/base"
 
 require_relative "../corrigenda"
@@ -150,15 +151,26 @@ module Corrigenda
                        else                   false
                        end
 
-            asked   = params.fetch(:limit, 100)
-            limit   = Integer(asked, exception: false) || 100
-            entries = store.entries(limit:, archived:)
+            asked = params.fetch(:limit, 100)
+            limit = Integer(asked, exception: false) || 100
+
+            # Unlimited from the store, then narrowed, then cut: a limit
+            # applied first would answer "the fixed ones" with whichever
+            # of the newest hundred happened to be fixed, and a client
+            # cannot tell that from "there are none".
+            entries = store.entries(limit: nil, archived:)
             entries = entries.select { it["state"] == params[:state] } if
                 params[:state]
             entries = entries.select { it["site"] == params[:site] } if
                 params[:site]
 
-            json({ "count" => entries.size, "reports" => entries })
+            # Both numbers, because one of them is a decision: `matched`
+            # is how many answer the filter, `count` how many are in
+            # this response. A client that sees them differ knows to ask
+            # for more rather than concluding it has seen everything.
+            shown = entries.first(limit)
+            json({ "count" => shown.size, "matched" => entries.size,
+                   "reports" => shown })
         end
 
         get "/reports/:id" do
