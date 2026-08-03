@@ -170,12 +170,38 @@ def test_the_prompt_says_what_the_agent_may_do
     TestSupport.configure("api" => { "write" => ["journal"] })
     get "/"
 
-    assert_includes last_response.body, "cannot change a report"
+    # Wrapped where it is written, so the assertion has to be too: the
+    # prompt lives inside a <pre> and its lines are chosen for reading,
+    # not for matching.
+    assert_match(/cannot\s+change a report/, last_response.body)
 
     TestSupport.configure("api" => { "write" => true })
     get "/"
 
-    assert_includes last_response.body, "do not mark"
+    assert_match(/Do\s+not mark anything fixed/, last_response.body)
+ensure
+    TestSupport.configure
+end
+
+# A picture of the page after the work is the half of a claim that can
+# be checked, so every prompt that may write at all asks for one.
+def test_the_prompt_asks_for_the_picture_wherever_it_may_write
+    ["journal", "state"].each do |grant|
+        TestSupport.configure("api" => { "write" => [grant] })
+        get "/"
+
+        assert_match(/screenshot of\s+the page after/, last_response.body,
+                     "#{grant}: the prompt never asks for a picture")
+        assert_match(/beside the picture it\s+was\s+reported with/,
+                     last_response.body)
+    end
+
+    # And does not, where it may not: an agent told to attach something
+    # it will be refused for is an agent that reports a failure.
+    TestSupport.configure("api" => true)
+    get "/"
+
+    refute_match(/screenshot of\s+the page after/, last_response.body)
 ensure
     TestSupport.configure
 end

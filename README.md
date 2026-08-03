@@ -163,11 +163,13 @@ paragraph that says what the agent is allowed to do there. Copy it
 from the page rather than from here, where it could only say
 `<site>`.
 
-Two things worth keeping if you write your own: point it at
+Three things worth keeping if you write your own: point it at
 `/api/` first, so it learns what it may do rather than discovering a
-403 halfway through, and say what *fixed* means to you — otherwise
+403 halfway through; say what *fixed* means to you — otherwise
 it means "I changed something", which is a different claim and the
-one you will be reading later.
+one you will be reading later; and ask for the picture, since a
+screenshot taken after the work sits beside the one the report came
+with and settles the claim without you opening the site.
 
 An agent given `write: [journal]` and nothing else is a good way to
 start: it tells you what it found and what it tried, and every state

@@ -441,24 +441,33 @@ paths below are relative to it.</p>
     # Wrapped where it is written: this ends up inside a <pre>, and a
     # paragraph that runs to three hundred characters is one somebody
     # has to scroll sideways to read before deciding whether to send it.
+    #  `<<~` strips the common indentation, so what a reader is handed is
+    #  the source line minus wherever it began. These start at the left
+    #  margin for that reason: indented to sit under `doing =` they wrapped
+    #  at 55 characters while the rest of the prompt wrapped at 70, and the
+    #  paragraph looked like it had been pasted in from somewhere else.
     doing = if api_allows?("state")
-                <<~SAY.chomp
-                    Record what you did on the report as you go, and do not mark
-                    anything fixed until you have checked the defect is gone under
-                    the conditions the report names. If a report needs a decision
-                    rather than a change, leave it open and tell me.
-                SAY
+<<~SAY.chomp
+    Record what you did on the report as you go, and attach a screenshot of
+    the page after your change — taken at the viewport and colour scheme the
+    report names — so what you did can be seen beside the picture it was
+    reported with. Do not mark anything fixed until you have checked the
+    defect is gone under those same conditions. If a report needs a decision
+    rather than a change, leave it open and tell me.
+SAY
             elsif api_allows?("journal")
-                <<~SAY.chomp
-                    Record what you find and what you tried on each report as you
-                    go. You cannot change a report's state here: say what you
-                    believe it should be and I will set it.
-                SAY
+<<~SAY.chomp
+    Record what you find and what you tried on each report as you go, with a
+    screenshot of the page after any change — taken at the viewport and
+    colour scheme the report names — so it can be seen beside the picture it
+    was reported with. You cannot change a report's state here: say what you
+    believe it should be and I will set it.
+SAY
             else
-                <<~SAY.chomp
-                    You can only read here — nothing you do can change a report or
-                    add to it, so report back to me instead.
-                SAY
+<<~SAY.chomp
+    You can only read here — nothing you do can change a report or add to
+    it, so report back to me instead.
+SAY
             end
 %>
 <h2>Setting an agent to work</h2>
@@ -500,11 +509,14 @@ override somewhere else.
 </div>
 
 <p class="empty">
-    Two things worth keeping if you write your own: point it at
+    Three things worth keeping if you write your own: point it at
     <code>/api/</code> first, so it learns what it may do rather than
-    discovering a 403 halfway through, and say what <em>fixed</em> means
-    to you — otherwise it means “I changed something”, which is a
-    different claim and the one you will be reading later.
+    discovering a 403 halfway through; say what <em>fixed</em> means to
+    you — otherwise it means “I changed something”, which is a different
+    claim and the one you will be reading later; and ask for the
+    picture, since a screenshot taken after the work sits beside the one
+    the report came with and settles the claim without you opening the
+    site.
 </p>
 <% end %>
 
