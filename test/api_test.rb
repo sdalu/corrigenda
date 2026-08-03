@@ -2,10 +2,10 @@
 
 require "test_helper"
 
-# The interface a program reads. Most of what is asserted here is what
-# it refuses: an endpoint that acts on somebody else's bug list on the
-# strength of a request is worth more scepticism than one that renders a
-# page.
+    # The interface a program reads. Most of what is asserted here is what
+    # it refuses: an endpoint that acts on somebody else's bug list on the
+    # strength of a request is worth more scepticism than one that renders a
+    # page.
 class APITest < CorrigendaTest
     def app = Corrigenda::API
 
@@ -102,6 +102,50 @@ class APITest < CorrigendaTest
         get "/reports?archived=all"
         assert_includes body["reports"].map { it["id"] }, @id
     end
+
+    # Where work may happen, and where there is any. An agent asking
+    # this does not have to be handed a hostname.
+    def test_the_sites_come_with_their_counts
+    enable
+    store.mark(@id, "fixed")
+    open_one = store.save(TestSupport.document)
+
+    get "/sites"
+
+    assert_equal 200, last_response.status
+    mine = body["sites"].find { it["site"] == "www.example.com" }
+
+    assert_operator mine["total"], :>=, 2
+    assert_operator mine["open"], :>=, 1
+    assert_includes body["sites"].map { it["site"] }, "www.example.com"
+    refute_nil open_one
+end
+
+    # The allowlist and what has been filed are different questions, and
+    # the answer says both: a site with reports but off the list is
+    # worth seeing rather than hiding.
+    def test_a_site_off_the_allowlist_is_shown_as_such
+    TestSupport.configure("api" => true, "sites" => ["only.example.com"])
+
+    get "/sites"
+
+    by_name = body["sites"].to_h { [it["site"], it] }
+
+    assert_equal ["only.example.com"], body["allowlist"]
+    assert by_name["only.example.com"]["allowed"]
+    refute by_name["www.example.com"]["allowed"]
+    ensure
+    TestSupport.configure
+end
+
+    def test_no_allowlist_means_every_site_is_allowed
+    enable
+
+    get "/sites"
+
+    assert_nil body["allowlist"]
+    assert body["sites"].all? { it["allowed"] }
+end
 
     def test_one_report_carries_its_state_and_its_files
         enable

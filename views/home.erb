@@ -420,6 +420,94 @@ paths below are relative to it.</p>
     <% end %>
 </dl>
 
+<% if api_offered? %>
+<%
+    # Written here rather than in the README because this page knows
+    # the answers: the socket this deployment listens on, a site it
+    # actually accepts reports about, and which of the two changes it
+    # allows. A prompt with <site> in it is a prompt somebody has to
+    # correct before using.
+    #
+    # The token, if there is one, is deliberately absent: it is the one
+    # thing on this page that would be a secret, and a page behind a
+    # login is still not where a secret should be printed.
+    reach = if socket
+                "curl --unix-socket #{socket} http://localhost/api/"
+            else
+                "curl #{endpoint || "<this endpoint>"}/api/"
+            end
+
+
+    # Wrapped where it is written: this ends up inside a <pre>, and a
+    # paragraph that runs to three hundred characters is one somebody
+    # has to scroll sideways to read before deciding whether to send it.
+    doing = if api_allows_writes?
+                <<~SAY.chomp
+                    Record what you did on the report as you go, and do not mark
+                    anything fixed until you have checked the defect is gone under
+                    the conditions the report names. If a report needs a decision
+                    rather than a change, leave it open and tell me.
+                SAY
+            elsif api_allows_records?
+                <<~SAY.chomp
+                    Record what you find and what you tried on each report as you
+                    go. You cannot change a report's state here: say what you
+                    believe it should be and I will set it.
+                SAY
+            else
+                <<~SAY.chomp
+                    You can only read here — nothing you do can change a report or
+                    add to it, so report back to me instead.
+                SAY
+            end
+%>
+<h2>Setting an agent to work</h2>
+
+<p>
+    No plugin and no integration: the interface describes itself, so an
+    agent with a shell and this prompt has enough. It is written for
+    this deployment — the socket below is the one this service is
+    listening on, and the last paragraph says what it is allowed to do
+    here<%= api_needs_token? ? ", less the token, which you give it yourself" : "" %>.
+</p>
+
+<div class="source">
+    <div class="block">
+<pre class="prompt">There is a defect-report service on this host called Corrigenda. Its
+JSON interface answers under /api:
+
+    <%= reach %>
+
+Start with that: it says what routes exist and which changes this
+deployment allows. GET /api/openapi.json is the full schema, and it
+carries a note addressed to you on every operation — read it before
+deciding how to use anything.
+
+GET /api/sites says which sites this deployment takes reports about and
+how many are open for each. Work through the open ones:
+GET /api/reports?state=open, with &amp;site= added if I have asked you
+for one site rather than all of them.
+
+For each one: read the report, look at its screenshot, reproduce the
+defect at the viewport and colour scheme it names, then fix it where the
+rule lives. Each report names the stylesheet and the cascade layer every
+matching rule came from; prefer changing it there over adding an
+override somewhere else.
+
+<%= doing %></pre>
+        <button type="button" class="a-copy">Copy</button>
+    </div>
+</div>
+
+<p class="empty">
+    Two things worth keeping if you write your own: point it at
+    <code>/api/</code> first, so it learns what it may do rather than
+    discovering a 403 halfway through, and say what <em>fixed</em> means
+    to you — otherwise it means “I changed something”, which is a
+    different claim and the one you will be reading later.
+</p>
+<% end %>
+
 <h2>State</h2>
 
 <dl class="railed">
@@ -473,22 +561,31 @@ paths below are relative to it.</p>
         document.querySelector(".bookmarklet").href = code;
         document.querySelector(".bookmarklet-source").textContent = code;
 
-        /* Clipboard access is refused outside a secure context, and this
-           page is served over plain http on a development run — so the
-           button says what happened either way rather than appearing to
-           work. */
-        var button = document.querySelector(".a-copy");
-        button.addEventListener("click", function () {
-            var done = function (word) {
-                button.textContent = word;
-                setTimeout(function () { button.textContent = "Copy"; }, 1500);
-            };
+        /* Every copy button on the page, each taking the block it sits
+           in: there are two now — the bookmarklet, whose text this
+           script just wrote, and the agent prompt, which the server
+           rendered. Reading the <pre> rather than a variable is what
+           lets one handler serve both.
 
-            if (!navigator.clipboard) return done("Select it");
+           Clipboard access is refused outside a secure context, and
+           this page is served over plain http on a development run — so
+           the button says what happened either way rather than
+           appearing to work. */
+        document.querySelectorAll(".a-copy").forEach(function (button) {
+            button.addEventListener("click", function () {
+                var source = button.closest(".block").querySelector("pre");
+                var done = function (word) {
+                    button.textContent = word;
+                    setTimeout(function () { button.textContent = "Copy"; },
+                               1500);
+                };
 
-            navigator.clipboard.writeText(code)
-                .then(function () { done("Copied"); },
-                      function () { done("Select it"); });
+                if (!navigator.clipboard) return done("Select it");
+
+                navigator.clipboard.writeText(source.textContent)
+                    .then(function () { done("Copied"); },
+                          function () { done("Select it"); });
+            });
         });
     })();
 </script>

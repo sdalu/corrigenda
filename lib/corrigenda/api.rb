@@ -218,6 +218,39 @@ module Corrigenda
                    "reports" => shown })
         end
 
+        # Where work can be, and where there is any. The allowlist is
+        # what a report may claim to be about; the counts are what has
+        # actually been filed, so a client can pick a site to start on
+        # instead of being handed a placeholder to fill in.
+        get "/sites" do
+            filed = Hash.new { |all, site| all[site] = { "open" => 0,
+                                                         "archived" => 0,
+                                                         "total" => 0 } }
+
+            store.entries(limit: nil, archived: nil).each do |entry|
+                counts = filed[entry["site"].to_s]
+                counts["total"]    += 1
+                counts["archived"] += 1 if entry["archived"]
+                counts["open"]     += 1 if !entry["archived"] &&
+                                           entry["state"] == "open"
+            end
+
+            # Both, and in one list: a site with an open report that is
+            # not on the allowlist is worth seeing (it was listed once,
+            # or the list changed under it), and a site with no reports
+            # yet is where somebody may still work.
+            allowed = config.sites
+            names   = ((allowed || []) + filed.keys).uniq.sort
+
+            json({ "allowlist" => allowed,
+                   "count"     => names.size,
+                   "sites"     => names.map { |name|
+                       { "site" => name, "allowed" => allowed.nil? ||
+                                                      allowed.include?(name) }
+                           .merge(filed[name])
+                   } })
+        end
+
         get "/reports/:id" do
             id = params[:id]
             document = report!(id)
@@ -425,6 +458,9 @@ module Corrigenda
 
             def routes_description
                 {
+                    "GET /sites"               => "where reports may " \
+                                                  "come from, and how many " \
+                                                  "are open for each",
                     "GET /reports"             => "id, at, site, state, " \
                                                   "archived, channels, summary",
                     "GET /reports/:id"         => "the report as filed",

@@ -123,6 +123,75 @@ ensure
     TestSupport.configure
 end
 
+# The prompt is on the page rather than in the README because this
+# page knows the answers: the socket this service listens on, a site
+# it accepts reports about, and what an agent may do here.
+def test_no_api_no_prompt
+    get "/"
+
+    refute_includes last_response.body, "Setting an agent to work"
+end
+
+def test_the_prompt_carries_this_deployment_s_own_socket
+    TestSupport.configure("api" => true, "socket" => "/var/run/x/y.sock")
+    get "/"
+
+    assert_includes last_response.body, "Setting an agent to work"
+    assert_includes last_response.body, "--unix-socket /var/run/x/y.sock"
+ensure
+    TestSupport.configure
+end
+
+# It names no site. An estate has as many as it has, and taking one off
+# the top of the list tells an agent to work on whichever happened to be
+# written first; the filter is the useful thing to teach instead.
+def test_the_prompt_teaches_the_filter_rather_than_naming_a_site
+    TestSupport.configure("api" => true,
+                          "sites" => %w[a.example.com b.example.com])
+    get "/"
+    prompt = last_response.body[/<pre class="prompt">(.*?)<\/pre>/m, 1].to_s
+
+    refute_includes prompt, "a.example.com"
+    assert_includes prompt, "state=open"
+    assert_includes prompt, "site="
+ensure
+    TestSupport.configure
+end
+
+# And what it tells the agent to do follows what the deployment
+# actually allows, so a prompt cannot promise a permission the
+# endpoint will refuse.
+def test_the_prompt_says_what_the_agent_may_do
+    TestSupport.configure("api" => true)
+    get "/"
+
+    assert_includes last_response.body, "You can only read here"
+
+    TestSupport.configure("api" => { "record" => true })
+    get "/"
+
+    assert_includes last_response.body, "cannot change a report"
+
+    TestSupport.configure("api" => { "write" => true })
+    get "/"
+
+    assert_includes last_response.body, "do not mark"
+ensure
+    TestSupport.configure
+end
+
+# The one thing on this page that would be a secret.
+def test_the_prompt_never_prints_the_token
+    TestSupport.configure("api" => { "record" => true,
+                                     "token" => "s3cret-abc" })
+    get "/"
+
+    refute_includes last_response.body, "s3cret-abc"
+    assert_includes last_response.body, "which you give it yourself"
+ensure
+    TestSupport.configure
+end
+
     # The schema viewer. A tab leading to a 404 is worse than no tab, so
     # both the tab and the page follow the deployment: with no `api:`
     # key the endpoint answers 404 to everything and there is nothing to

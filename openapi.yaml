@@ -201,6 +201,48 @@ paths:
                             schema: { type: object }
                 "404": { $ref: "#/components/responses/SwitchedOff" }
 
+    /sites:
+        get:
+            tags: [service]
+            operationId: listSites
+            summary: Where reports may come from, and where there are any
+            description: |
+                The deployment's allowlist and what has actually been
+                filed, in one list: every site that may be reported on,
+                every site that has a report, and for each of them how
+                many are open, archived and in total.
+
+                ---
+
+                🤖 **For AI:** ask this before deciding where to work.
+                It saves you guessing a hostname, and `open` tells you
+                which sites have anything waiting rather than which ones
+                merely exist. A site with `allowed: false` has reports
+                but is no longer on the list — worth mentioning to a
+                person rather than acting on.
+            responses:
+                "200":
+                    description: The sites, sorted by name
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    allowlist:
+                                        type: [array, "null"]
+                                        description: >
+                                            What the config permits, or
+                                            null where any site is
+                                            accepted.
+                                        items: { type: string }
+                                    count: { type: integer }
+                                    sites:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/Site"
+                "401": { $ref: "#/components/responses/Unauthorized" }
+                "404": { $ref: "#/components/responses/SwitchedOff" }
+
     /reports:
         get:
             tags: [reports]
@@ -697,6 +739,22 @@ components:
                 routes:
                     type: object
                     additionalProperties: { type: string }
+
+        Site:
+            type: object
+            properties:
+                site: { type: string, examples: ["www.example.com"] }
+                allowed:
+                    type: boolean
+                    description: >
+                        Whether a report may still claim to be about it.
+                        False means reports exist but the config no
+                        longer lists it.
+                open:
+                    type: integer
+                    description: Not archived, and still in the open state
+                archived: { type: integer }
+                total: { type: integer }
 
         Listing:
             type: object

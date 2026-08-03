@@ -112,6 +112,7 @@ module Corrigenda
                 count: store.count,
                 latest: store.entries(limit: 1).first,
                 store_path: config.store_path,
+                socket: config.socket,
                 sites: config.sites,
                 origins: config.origins,
                 endpoint: config.endpoint,

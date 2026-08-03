@@ -38,6 +38,19 @@ module Corrigenda
             false
         end
 
+# The three questions a page asks about it, rather than making a
+# template dig into the settings hash and repeat the rule that
+# `record` follows `write`.
+def api_allows_writes?  = api_settings["write"] == true
+def api_allows_records? = api_settings["record"] == true
+def api_needs_token?    = !api_settings["token"].nil?
+
+def api_settings
+    settings.feedback_config.api || {}
+rescue ArgumentError
+    {}
+end
+
         # What it will let a caller do, in the words the startup
         # line uses. Both come from Config, so a page and a terminal
         # cannot describe the same deployment differently.

@@ -1003,16 +1003,28 @@ svg {
        padded clear of it so a long first line cannot run underneath. */
     .source .block {
         position: relative;
+
+        /* A grid item's automatic minimum is min-content, so a block
+           holding an unbreakable path was as wide as that path and took
+           the page with it. The bookmarklet never showed this: it
+           breaks mid-token, so its min-content is a character. */
+        min-inline-size: 0;
     }
 
-    .bookmarklet-source {
+    .bookmarklet-source,
+    .prompt {
         inline-size: 100%;
         margin: 0;
         padding-inline-end: 5.5rem;
         white-space: pre-wrap;
-        word-break: break-all;
         font-size: 0.8125rem;
     }
+
+    /* The bookmarklet is one long unbreakable string, so it is allowed
+       to break mid-token; the prompt is prose and is not. Both wrap
+       rather than widen: a block that grows to its content takes the
+       page with it, and this one is wider than a phone. */
+    .bookmarklet-source { word-break: break-all; }
 
     .a-copy {
         position: absolute;

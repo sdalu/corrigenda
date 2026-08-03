@@ -98,6 +98,13 @@ module Corrigenda
         def max_screenshot = Integer(@values.fetch("max_screenshot"))
         def max_snapshot   = Integer(@values.fetch("max_snapshot"))
 
+        # Where the service listens, when it listens on a socket --
+        # which is how a program on this host reaches it without meeting
+        # Apache. The app never binds it (../run does); it is here so a
+        # page can tell somebody the path rather than have them look it
+        # up.
+        def socket = @values["socket"]
+
         # nil means no allowlist: every site is accepted.
         def sites = @values.fetch("sites")
 
