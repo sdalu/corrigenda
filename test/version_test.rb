@@ -69,6 +69,17 @@ class VersionTest < CorrigendaTest
                      "the Firefox and Chrome packages claim different versions"
     end
 
+    # The add-on id is permanent -- a signature is bound to it -- so it
+    # is the worst place in the repository for a hostname belonging to
+    # whoever happened to build it first. A UUID names nobody.
+    def test_the_add_on_id_names_nobody
+        id = manifest("firefox")
+             .dig("browser_specific_settings", "gecko", "id")
+
+        assert_match(/\A\{[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\}\z/i, id,
+                     "the add-on id should be a UUID, not an address: #{id}")
+    end
+
     def test_the_manifests_carry_a_release_number
         assert_match(/\A\d+\.\d+(\.\d+)?\z/, manifest("firefox").fetch("version"))
     end

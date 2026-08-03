@@ -55,6 +55,19 @@ module Corrigenda
 
             def signed?(target) = package(target).to_s.end_with?(".xpi")
 
+            # Read rather than repeated: the id is the one string in
+            # the manifest that must never change once a package has
+            # been signed, and a page quoting a stale copy of it is
+            # how it gets changed.
+            def addon_id
+                manifest = File.expand_path(
+                    "../../extension/manifest.firefox.json", __dir__)
+                JSON.parse(File.read(manifest))
+                    .dig("browser_specific_settings", "gecko", "id")
+            rescue Errno::ENOENT, JSON::ParserError
+                nil
+            end
+
             # The add-on's version, which is its own and not this
             # service's: it is installed rather than served, so a browser
             # may be carrying any of them, and the only honest answer to

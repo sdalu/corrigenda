@@ -86,10 +86,19 @@ rake addon:sign</code></pre>
 
     <dt>The add-on id</dt>
     <dd>
-        <code>corrigenda@sdalu.com</code>, in
+        <code><%= addon_id %></code>, in
         <code>manifest.firefox.json</code>. It must not change between
         versions: to Firefox, a different id is a different add-on, and
         the signature is bound to it.
+    </dd>
+
+    <dt>Why a UUID</dt>
+    <dd>
+        An id may be an address or a UUID, and this one is a UUID because
+        the alternative names somebody. AMO ids are unique across the
+        whole store, so a <em>second</em> deployment signing its own build
+        of this must mint its own — <code>uuidgen</code>, braces included
+        — before the first upload, and never touch it again.
     </dd>
 
     <dt>Chrome</dt>
