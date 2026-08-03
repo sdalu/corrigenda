@@ -19,6 +19,7 @@
 const api = globalThis.browser ?? globalThis.chrome;
 const CAPTURE = "corrigenda/capture";
 const LEARN = "corrigenda/learn";
+const READY = "corrigenda/ready";
 
 const validRect = (rect) =>
     rect !== null &&
@@ -260,6 +261,26 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === LEARN) {
         remember(String(message.endpoint || "").replace(/\/+$/, ""));
         return false;
+    }
+
+    /* Can this half take a picture of that page? Asked before anything
+     * is offered, and answered from the permission rather than from the
+     * fact that somebody is asking: a content script registered in an
+     * earlier session outlives the grant that registered it, and a page
+     * told "yes" on the strength of that finds out at capture time. */
+    if (message?.type === READY) {
+        const origin = String(message.origin || "");
+
+        if (!/^https?:\/\//.test(origin)) {
+            sendResponse({ granted: false });
+            return false;
+        }
+
+        api.permissions.contains({ origins: [`${origin}/*`] })
+           .then((granted) => sendResponse({ granted: granted === true }),
+                 () => sendResponse({ granted: false }));
+
+        return true;
     }
 
     if (message?.type !== CAPTURE) return false;

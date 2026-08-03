@@ -14,6 +14,16 @@ entry in the dialog.
 An extension has `tabs.captureTab` (Firefox) or `tabs.captureVisibleTab`
 (Chrome): no dialog, and a frame that is already in page coordinates.
 
+Installed is not the same as allowed here. The widget asks before it
+offers anything, and the answer comes from the half that holds the
+permission rather than from the content script that carries the
+question: a registration outlives the grant that made it, so a script
+left over from an earlier session would otherwise answer "yes" for a
+site the add-on may no longer capture. Where the answer is no, the page
+reads exactly as it does with no add-on at all — the cropping scopes
+withdraw and the warning stays up — rather than failing at the moment
+somebody presses the button.
+
 |                                   | bookmarklet / injected | Firefox add-on | Chrome add-on |
 |-----------------------------------|:----------------------:|:--------------:|:-------------:|
 | Share dialog per screenshot       | yes                    | no             | no            |
@@ -108,11 +118,14 @@ requires. Neither is a release:
 
 | side      | where                  | now |
 |-----------|------------------------|-----|
-| provided  | `extension/content.js` `HELPER` | 1 |
-| required  | `client/corrigenda.js` `HELPER_REQUIRED` | 1 |
+| provided  | `extension/content.js` `HELPER` | 2 |
+| required  | `client/corrigenda.js` `HELPER_REQUIRED` | 2 |
 
 Raise the provided number when an exchange changes shape — never for
-a fix, a permission, or a release. Below what the page requires, the
+a fix, a permission, or a release. It went to 2 when `pong` gained
+`granted`: a helper that cannot say whether it may capture *here* only
+proves that a content script is running, which is not the question the
+widget is asking. Below what the page requires, the
 widget leaves the add-on alone and takes the share dialog, which is
 the honest answer: the two are installed and served separately, so an
 add-on older than the page it is on is a normal state of affairs, not

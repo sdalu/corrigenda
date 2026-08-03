@@ -26,12 +26,17 @@
      *
      * 1  ping/pong, and capture{rect,viewport,scale} answered with
      *    captured{dataUrl,rect,scale} or failed{error}.
+     * 2  pong also carries `granted`: whether the half that takes the
+     *    picture holds a permission for this site. A helper that
+     *    cannot say is one whose "yes" means only that a content
+     *    script is running, which is not the question.
      */
-    const HELPER    = 1;
+    const HELPER    = 2;
     const FROM_PAGE = "corrigenda";
     const FROM_EXT  = "corrigenda-extension";
     const CAPTURE   = "corrigenda/capture";
     const LEARN     = "corrigenda/learn";
+    const READY     = "corrigenda/ready";
 
     document.documentElement.dataset[MARK] = String(HELPER);
 
@@ -80,11 +85,33 @@
         if (!message || message.source !== FROM_PAGE) return;
 
         if (message.type === "ping") {
-            /* The build travels here rather than on the element:
+            /* Asked of the background half rather than answered here.
+             * This script running proves only that it was registered
+             * once: a registration outlives the permission that put it
+             * there, so on a site whose grant was revoked -- or never
+             * given, with the script left over from a previous session
+             * -- the page would be told a capture is available and find
+             * out otherwise at the moment somebody pressed the button.
+             *
+             * The half that holds the permission is the half that can
+             * say. It is also the half that can be asleep or revoked,
+             * and a failure to reach it is the same answer: no.
+             *
+             * The build travels here rather than on the element:
              * nothing branches on it, and a report that says which
              * helper took its picture is worth having. */
-            reply(message.id, { type: "pong",
-                                helper: HELPER, version: VERSION });
+            let granted = false;
+            try {
+                const answer = await api.runtime.sendMessage({
+                    type: READY, origin: window.origin
+                });
+                granted = answer?.granted === true;
+            } catch {
+                granted = false;
+            }
+
+            reply(message.id, { type: "pong", helper: HELPER,
+                                version: VERSION, granted });
             return;
         }
 

@@ -502,7 +502,12 @@
      * ordering it cannot see, and an extension that installs, updates or
      * is enabled while the page is open would go unnoticed until a
      * reload. Reading a dataset property costs nothing. */
-    const HELPER_REQUIRED = 1;
+    /* 2: a pong that says whether the add-on holds a permission for
+     * this site. A helper that cannot say only proves a content script
+     * is running, which is not what the cropping scopes depend on -- so
+     * an older one is treated as no helper, and the page falls back to
+     * the share dialog with its warning up. */
+    const HELPER_REQUIRED = 2;
 
     const extension = () => {
         const provided = Number(
@@ -543,8 +548,15 @@
             /* An add-on that answers but speaks an older contract is one
              * this page must not talk to. It says which it speaks; a
              * helper too old to say is helper 1. */
+            /* Three things, and all of them have to hold: something
+             * answered, it speaks a contract this page can use, and it
+             * says it may capture *here*. The last is the one that a
+             * marker alone cannot tell you -- an add-on installed but
+             * never granted this site answers cheerfully and cannot
+             * take the picture. */
             helperAnswers = pong?.type === "pong" &&
-                (pong.helper ?? 1) >= HELPER_REQUIRED;
+                (pong.helper ?? 1) >= HELPER_REQUIRED &&
+                pong.granted === true;
         } catch {
             helperAnswers = false;
         }

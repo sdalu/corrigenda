@@ -40,7 +40,7 @@ const mute = `
     window.__captureAsks = [];
 `;
 
-const stub = (grants, helper = 1) => `
+const stub = (grants, helper = 2, granted = true) => `
     // A content script at document_start runs once the parser has made
     // the documentElement; an init script here runs before that, so the
     // marker waits for the element it goes on. The widget is deferred,
@@ -60,7 +60,8 @@ const stub = (grants, helper = 1) => `
         const reply = (payload) => postMessage(
             { source: "corrigenda-extension", id: m.id, ...payload }, origin);
 
-        if (m.type === "ping") return reply({ type: "pong", helper: ${helper}, version: "stub" });
+        if (m.type === "ping") return reply({ type: "pong", helper: ${helper},
+                                             version: "stub", granted: ${granted} });
         if (m.type !== "capture") return;
 
         window.__captureAsks.push(m.rect);
@@ -83,8 +84,8 @@ const stub = (grants, helper = 1) => `
     });
 `;
 
-const open = async (page, grants, helper) => {
-    await page.addInitScript(stub(grants, helper));
+const open = async (page, grants, helper, granted) => {
+    await page.addInitScript(stub(grants, helper, granted));
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
     await page.click('#corrigenda-widget .a-type[value="visual"]');
@@ -316,6 +317,49 @@ const check = async (name, browser, executablePath) => {
     else if (name === 'firefox' && silent.scopes.filter(Boolean).length !== 1)
         fail(`${name}: cropping scopes offered: ${JSON.stringify(silent.scopes)}`);
     else ok(`${name}: an add-on that does not answer here is not used`);
+    await page.close();
+
+    // 9. installed, answering, and not granted this site. The marker is
+    //    there and the bridge replies, so everything that looks at the
+    //    page says "add-on present" -- but the half that takes the
+    //    picture holds no permission here, and says so. This must read
+    //    exactly like having no add-on at all: warning up, cropping
+    //    withdrawn, nothing captured behind anyone's back.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await page.addInitScript(() => {
+        window.__shareAsked = 0;
+        navigator.mediaDevices.getDisplayMedia = async () => {
+            window.__shareAsked += 1;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(innerWidth * devicePixelRatio);
+            canvas.height = Math.round(innerHeight * devicePixelRatio);
+            canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+            return canvas.captureStream(10);
+        };
+    });
+    await open(page, 'rect', 2, false);
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.waitForTimeout(500);
+    const ungranted = await page.evaluate(() => {
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
+        return {
+            warned: !r.querySelector('.a-warn').hidden,
+            scopes: [...r.querySelectorAll('.scope input')].map((i) => !i.disabled),
+            asks: window.__captureAsks.length,
+            shared: window.__shareAsked
+        };
+    });
+
+    if (ungranted.asks !== 0)
+        fail(`${name}: asked an ungranted add-on for ${ungranted.asks} capture(s)`);
+    else if (name === 'firefox' && !ungranted.warned)
+        fail(`${name}: installed but ungranted, and no warning`);
+    else if (name === 'firefox' && ungranted.scopes.filter(Boolean).length !== 1)
+        fail(`${name}: cropping offered by an ungranted add-on: ${JSON.stringify(ungranted.scopes)}`);
+    else ok(`${name}: an add-on that may not capture here reads as none`);
     await page.close();
 
     await instance.close();

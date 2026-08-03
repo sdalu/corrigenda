@@ -83,7 +83,11 @@ only the viewport, refuse.
 
 It also covers detection: the widget asks whether an add-on is there
 and waits for an answer, rather than reading a marker once and
-believing it, so a check here fails if that ever regresses.
+believing it, so a check here fails if that ever regresses. The answer
+has to say more than "something is listening" — an add-on installed but
+never granted this site answers cheerfully and cannot take the picture,
+and the last case asserts that the page then reads exactly as it does
+with no add-on.
 
 The fixture is built to be broken on purpose: a stylesheet with a
 layered and media-nested `.caption` rule (so the CSSOM walk has
