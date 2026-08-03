@@ -8,27 +8,6 @@
     "scripting",
     "storage"
   ],
-  "host_permissions": [
-    "https://www.alux.fr/*",
-    "https://www.sdalu.com/*",
-    "https://tools.sdalu.com/*",
-    "https://kuiristo.eu/*"
-  ],
-  "content_scripts": [
-    {
-      "matches": [
-        "https://www.alux.fr/*",
-        "https://www.sdalu.com/*",
-        "https://tools.sdalu.com/*",
-        "https://kuiristo.eu/*"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": false
-    }
-  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -39,5 +18,8 @@
   "action": {
     "default_title": "Report a page defect",
     "default_icon": "icon-48.png"
-  }
+  },
+  "optional_host_permissions": [
+    "*://*/*"
+  ]
 }

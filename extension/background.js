@@ -69,6 +69,22 @@ const capture = async (message, sender) => {
  * the job the bookmarklet was standing in for: put the widget on the
  * page in front of you.
  *
+ * Nothing here names a host. The manifest asks for `activeTab`, which
+ * the browser grants for the tab whose button you pressed and for as
+ * long as that visit lasts -- enough to inject the widget and to
+ * photograph the tab, and it goes stale by itself. A site added to the
+ * estate tomorrow therefore needs no new build and no reinstall, which
+ * is the whole point: baking the hosts in made every change of host a
+ * redeployment.
+ *
+ * What a click cannot buy is the bridge running on a page you have NOT
+ * clicked: a page that carries the widget already (MoXoW injects it)
+ * wants a mapped capture without a toolbar visit. That is what the
+ * optional permission is for. It is asked for at the click, because a
+ * click is the user gesture browsers require, and once granted the
+ * content script is registered for that origin and runs at
+ * document_start on every later visit.
+ *
  * Where the reports go is a question with three answers, tried in this
  * order:
  *
@@ -81,12 +97,9 @@ const capture = async (message, sender) => {
  *      page, anything never prepared for this.
  *   3. The page's own origin, which is right for a site that mounts the
  *      service and is what the widget assumed before any of this.
- *
- * So the add-on still carries no endpoint of its own: not one written
- * at build time, not one you are asked to type. It follows the estate,
- * and remembers.
  */
 const REMEMBERED = "endpoint";
+const SCRIPT_ID = "corrigenda-bridge";
 
 const remember = async (base) => {
     if (!base) return;
@@ -95,6 +108,53 @@ const remember = async (base) => {
     if (known[REMEMBERED] === base) return;
 
     await api.storage.local.set({ [REMEMBERED]: base });
+};
+
+/* Every origin the user has granted, as a match pattern. Read from the
+ * browser rather than kept in storage: the browser is where a
+ * permission actually lives, and it can be revoked from the add-ons
+ * page without telling us. */
+const granted = async () => {
+    const { origins } = await api.permissions.getAll();
+    return origins || [];
+};
+
+/* One registration covering everything granted, replaced whenever that
+ * set changes. Registered scripts survive restarts, so this is
+ * idempotent by design: unregister, then register what is true now. */
+const registerBridge = async () => {
+    const origins = await granted();
+
+    try {
+        await api.scripting.unregisterContentScripts({ ids: [SCRIPT_ID] });
+    } catch {
+        /* not registered yet, which is the normal first case */
+    }
+
+    if (!origins.length) return;
+
+    await api.scripting.registerContentScripts([{
+        id: SCRIPT_ID,
+        js: ["content.js"],
+        matches: origins,
+        runAt: "document_start",
+        persistAcrossSessions: true
+    }]);
+};
+
+api.runtime.onInstalled.addListener(() => { registerBridge(); });
+api.runtime.onStartup.addListener(() => { registerBridge(); });
+api.permissions.onAdded?.addListener(() => { registerBridge(); });
+api.permissions.onRemoved?.addListener(() => { registerBridge(); });
+
+/* The origin of a page, as a pattern the permission API accepts. */
+const originOf = (url) => {
+    try {
+        const { protocol, host } = new URL(url);
+        return /^https?:$/.test(protocol) ? `${protocol}//${host}/*` : null;
+    } catch {
+        return null;
+    }
 };
 
 const recalled = async () =>
@@ -129,7 +189,31 @@ const inject = async (tab) => {
     await remember(result?.result?.replace(/\/+$/, ""));
 };
 
-api.action.onClicked.addListener((tab) => { inject(tab); });
+/* Inject first, ask second. The injection needs nothing but activeTab,
+ * which the click itself grants, so the widget appears whatever the
+ * answer to the question is. The question is only about later visits:
+ * with the origin granted, the bridge runs at document_start and a
+ * page that already carries the widget gets a mapped capture without
+ * anyone pressing anything.
+ *
+ * Asked once per origin -- permissions.request resolves true straight
+ * away for one already held -- and never for a page that is not http.
+ */
+api.action.onClicked.addListener(async (tab) => {
+    await inject(tab);
+
+    const origin = originOf(tab?.url || "");
+    if (!origin) return;
+
+    if (await api.permissions.contains({ origins: [origin] })) return;
+
+    try {
+        await api.permissions.request({ origins: [origin] });
+    } catch {
+        /* Refused, or asked outside a gesture the browser accepts.
+         * The button still works; only the automatic bridge is lost. */
+    }
+});
 
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     /* A page of the estate saying where its reports go. Nothing to

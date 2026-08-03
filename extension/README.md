@@ -88,14 +88,25 @@ listening when the page's own errors and failed loads happen.
 
 ## Permissions, and why
 
-- `host_permissions` / `content_scripts.matches` — the estate's hosts,
-  listed one by one. The add-on can see and photograph those pages and
-  no others.
-- `activeTab` — for the capture, which is always of the tab the request
-  came from: the tab id comes from the messaging layer, never from the
-  page.
+The add-on names no hosts. It ships with none declared and asks for the
+site you are on, the first time you press the button there — so adding
+a site to the estate is a line in the service's config, not a new build
+of the add-on that everyone has to install again.
+
+- `activeTab` — for the capture, and for the first click on any page.
+  It is granted by the click itself and lasts until you navigate away,
+  which is exactly as long as the widget needs. The capture is always of
+  the tab the request came from: the tab id comes from the messaging
+  layer, never from the page.
 - `scripting` — for the toolbar button, which injects the widget on the
   page in front of you.
+- `storage` — for the last endpoint seen, and nothing else.
+- `optional_host_permissions: *://*/*` — nothing is granted by
+  installing. Granting a site, at the prompt the first click raises,
+  registers the bridge on it: a page that carries the widget itself then
+  gets a mapped capture without anyone pressing the button first.
+  Revoke the site in the add-on's permissions and it goes back to
+  button-only, which still works — nothing else breaks.
 
 The content script accepts messages only from its own window and origin,
 and only in the shape the widget sends. The background half validates
