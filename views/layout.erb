@@ -605,6 +605,20 @@ svg {
     /* What answers where, and who may ask: the path, the permission, and
        why, in that order. Relative to the endpoint above it, so nothing
        here repeats the host. */
+    /* A label inside a description, for the one distinction that matters
+       in it: what a site must do, and what it may. */
+    .railed dd .term {
+        margin-block-start: 0.9rem;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 0.8125rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .railed dd .term:first-child { margin-block-start: 0; }
+
     .paths {
         border-collapse: collapse;
         margin-block-start: 0.6rem;

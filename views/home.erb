@@ -344,17 +344,25 @@ paths below are relative to it.</p>
     <% if endpoint %>
 <dt>Point a site here</dt>
 <dd>
-    <p>One tag, in the head of any page. It says where reports go
-    and nothing else — the bookmarklet reads it, the add-on reads
-    it, and the widget uses it when nothing on its own tag says
-    otherwise:</p>
+    <p class="term">Required</p>
+
+    <p>One tag, in the head of every page. It says where reports
+    go, and nothing else. Without it a site cannot be reported on
+    by anyone who has not already been told this address: the
+    bookmarklet falls back to the instance it was made from, the
+    add-on to whatever it last saw, and a first-time user of
+    either has neither.</p>
 
     <pre><code>&lt;link rel="corrigenda" href="<%= endpoint %>"&gt;</code></pre>
 
-    <p>A second tag, optional, makes the page carry the widget
-    itself rather than waiting to be asked. It is what buys a
-    report the errors and failed loads from before you noticed
-    anything, because the client is already listening:</p>
+    <p class="term">Optional</p>
+
+    <p>The script carries the widget on the page instead of
+    waiting to be asked. It is a convenience — the bookmarklet and
+    the add-on put the same widget there on demand — with one
+    thing they cannot match: it is already listening, so a report
+    carries the errors and failed loads from before anyone
+    noticed.</p>
 
     <pre><code>&lt;script src="<%= endpoint %>/corrigenda.js"&gt;&lt;/script&gt;</code></pre>
 
@@ -368,7 +376,7 @@ paths below are relative to it.</p>
 
     <p>A site that mounts the service itself (<code>Use
     CorrigendaEndpoint</code> in its vhost) leaves the endpoint
-    out of all three: the paths are then its own, and the POST is
+    out of all three: the paths are its own then, and the POST is
     same-origin, which needs no CORS.</p>
 </dd>
     <% end %>
