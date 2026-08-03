@@ -133,6 +133,16 @@ api.runtime.onStartup.addListener(() => { registerBridge(); });
 api.permissions.onAdded?.addListener(() => { registerBridge(); });
 api.permissions.onRemoved?.addListener(() => { registerBridge(); });
 
+/* And once whenever this half is loaded at all, which the events above
+ * do not cover: enabling a disabled add-on, or reloading it from
+ * about:debugging, starts a fresh background with the old registration
+ * still standing -- pointing at a script from an extension that no
+ * longer exists. Every page loaded after that got a bridge whose
+ * runtime was already gone, and the only cure anybody found was to
+ * disable and re-enable, which is this line by hand.
+ */
+registerBridge();
+
 /* The origin of a page, as a pattern the permission API accepts. */
 const originOf = (url) => {
     try {

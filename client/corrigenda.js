@@ -823,6 +823,36 @@
     const MAX_EDGE = 1600;
     const MAX_BYTES = 2 * 1024 * 1024;
 
+    /* What a browser will actually draw. Firefox and Chrome both stop
+     * at 32767 on an edge, and both have an area ceiling below the
+     * product of two of those; 100 megapixels is under every one of
+     * them and still four times what this ever needs, since the upload
+     * is capped at 1600px on the longest edge regardless. */
+    const MAX_SIDE = 32000;
+    const MAX_AREA = 100e6;
+
+    const withinLimits = (rect) => {
+        let scale = devicePixelRatio || 1;
+
+        /* Scale first: it costs nothing here, because the picture is
+         * downscaled before it is encoded anyway. */
+        while (scale > 0.25 &&
+               (rect.width * scale > MAX_SIDE ||
+                rect.height * scale > MAX_SIDE ||
+                rect.width * rect.height * scale * scale > MAX_AREA)) {
+            scale /= 2;
+        }
+
+        /* Still too much, so the page is simply longer than a picture
+         * can be. Take the top of it and say the shot was cut. */
+        const maxHeight = Math.min(MAX_SIDE / scale,
+                                   MAX_AREA / (rect.width * scale * scale));
+        if (rect.height <= maxHeight) return { rect, scale, cut: false };
+
+        return { rect: { ...rect, height: Math.floor(maxHeight) },
+                 scale, cut: true };
+    };
+
     const downscale = (canvas) => {
         const factor = MAX_EDGE / Math.max(canvas.width, canvas.height);
         if (factor >= 1) return canvas;
@@ -862,17 +892,28 @@
              * browser for the document is the part that was impossible
              * from a page. */
             async grab() {
-                const dpr = devicePixelRatio || 1;
                 const doc = document.documentElement;
-                const rect = SHOT.scope === "full"
+                const wanted = SHOT.scope === "full"
                     ? { x: 0, y: 0,
                         width: Math.max(doc.scrollWidth, innerWidth),
                         height: Math.max(doc.scrollHeight, innerHeight) }
                     : { x: scrollX, y: scrollY,
                         width: innerWidth, height: innerHeight };
 
-                const answer = await BRIDGE.ask("capture",
-                                                { rect, scale: dpr });
+                /* A browser will not draw a canvas of any size, and "no
+                 * crop" on a long page asks for one: an estate page of
+                 * 20 000 pixels at a device ratio of 2 is 40 000 down,
+                 * past every engine's limit, and what comes back is not
+                 * a picture but an exception. So the scale comes down
+                 * first -- the shot is capped at 1600px on its longest
+                 * edge before upload anyway, so nothing legible is lost
+                 * -- and the height after it, which is the one thing
+                 * that has to be said out loud rather than quietly
+                 * cropped. */
+                const { rect, scale, cut } = withinLimits(wanted);
+                SHOT.trimmed = cut;
+
+                const answer = await BRIDGE.ask("capture", { rect, scale });
                 const canvas = await drawn(answer.dataUrl);
 
                 /* What came back, not what was asked for. Firefox grants
@@ -2946,9 +2987,20 @@ input:where(:not(:checked)) + .chip {
                   `${humanBytes(SHOT.blob.size)} · ${SHOT.redacted} ▮` +
                   `${SHOT.partial ? ` · ${T.shotViewportOnly}` : ""}`
                 : `${surface ? `${surface} — ` : ""}${T.shotUnmapped}`;
-        } catch {
+        } catch (error) {
+            /* Said, not swallowed. This used to be a bare `catch` and a
+             * fixed sentence, which meant a capture that failed for a
+             * reason the browser had explained arrived as "no
+             * screenshot" and nothing else -- to the one person in a
+             * position to report it. The console line carries the whole
+             * error; the panel carries as much of it as a line can. */
+            const why = String(error?.message || error || "").trim();
+            console.warn("corrigenda: capture failed", error);
+
             clearShot();
-            shotStatus.textContent = T.shotDenied;
+            shotStatus.textContent = why
+                ? `${T.shotDenied} — ${why.slice(0, 80)}`
+                : T.shotDenied;
         } finally {
             button.disabled = false;
             refresh();

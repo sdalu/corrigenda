@@ -87,10 +87,35 @@
         window.postMessage({ source: FROM_EXT, id, ...payload }, window.origin);
     };
 
+    /* An update, a disable, a reload from about:debugging: the extension
+     * is replaced and every content script it had already injected keeps
+     * running, attached to a runtime that is gone. Such a script still
+     * answers the page -- it is ordinary JavaScript in the page's world
+     * -- but everything it forwards fails, which is a bridge that says
+     * yes and then cannot deliver.
+     *
+     * The marker is what the widget trusts, so an orphan takes its own
+     * marker down. The page then reads exactly as it does with no
+     * add-on, which it now effectively has, and the next load gets a
+     * live one from the registration.
+     */
+    const orphaned = () => {
+        try {
+            if (api.runtime?.id) return false;
+        } catch {
+            /* Touching runtime at all can throw once it is gone. */
+        }
+
+        delete document.documentElement.dataset[MARK];
+        return true;
+    };
+
     /* true, false, or null for "could not ask". The three are different:
      * a refusal is the browser's answer about this site, and null is
      * this half failing to reach the other one. */
     const mayCapture = async () => {
+        if (orphaned()) return false;
+
         try {
             const answer = await api.runtime.sendMessage({
                 type: READY, origin: window.origin
@@ -98,7 +123,7 @@
 
             return answer?.granted === true;
         } catch {
-            return null;
+            return orphaned() ? false : null;
         }
     };
 
@@ -172,8 +197,13 @@
             /* The background half can be asleep, revoked, or updating.
              * The widget falls back to getDisplayMedia on any failure,
              * so the honest thing here is to say so and stop. */
-            reply(message.id, { type: "failed",
-                                error: String(error.message || error) });
+            const dead = orphaned();
+
+            reply(message.id, {
+                type: "failed",
+                error: dead ? "the add-on was reloaded under this page"
+                            : String(error.message || error)
+            });
         }
     });
 })();
