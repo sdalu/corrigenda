@@ -101,13 +101,67 @@ module Corrigenda
             raise StorageError, "no such report: #{id}" unless dir.exist?
 
             FileUtils.rm_rf(dir)
-            forget(id)
+            forget([id])
+            prune_empty(id)
             id
         end
 
         def count
             index = @root / INDEX
             index.exist? ? index.readlines.size : 0
+        end
+
+        # Age is read off the id, not off the index: the id is minted
+        # from the filing time and travels with the directory, so a
+        # report whose index line was lost is still datable and a purge
+        # never depends on the one file it is about to rewrite.
+        def self.filed_at(id)
+            unless id.match?(/\A\d{8}T\d{6}Z/)
+                raise StorageError, "bad id: #{id}"
+            end
+
+            Time.utc(id[0, 4].to_i, id[4, 2].to_i, id[6, 2].to_i,
+                     id[9, 2].to_i, id[11, 2].to_i, id[13, 2].to_i)
+        end
+
+        # When it was archived is the marker's own mtime: `archive`
+        # writes that file at the moment somebody decided they were done
+        # looking at the report, so the fact was already on disk and no
+        # format had to change to keep it.
+        def archived_at(id)
+            file = dir_for(id) / ARCHIVE
+            file.exist? ? file.mtime.utc : nil
+        end
+
+        # Every report on disk, oldest first -- the directories rather
+        # than the index, because a directory the index lost should age
+        # out like any other and not become a thing only `du` knows
+        # about.
+        def ids
+            @root.glob("[0-9][0-9][0-9][0-9]/[0-9][0-9]/*")
+                 .select(&:directory?).map { it.basename.to_s }.sort
+        end
+
+        # What a purge would take and under which rule. Separate from
+        # taking it: a deletion nobody can explain first is a deletion
+        # nobody will authorise, and this is the one operation here with
+        # nothing behind it.
+        def expired(rules, now: Time.now.utc)
+            return [] if rules.nil? || rules.empty?
+
+            ids.filter_map { verdict(it, rules, now) }
+        end
+
+        # Gone, with the index rewritten once rather than once per
+        # report: `destroy` rewrites it every time, which is fine for the
+        # one report somebody deleted by hand and quadratic for a year of
+        # them.
+        def purge(rules, now: Time.now.utc)
+            going = expired(rules, now:)
+            going.each { FileUtils.rm_rf(dir_for(it[:id])) }
+            forget(going.map { it[:id] })
+            going.each { prune_empty(it[:id]) }
+            going
         end
 
         # Newest first. Reads the state and archive markers per entry,
@@ -147,13 +201,51 @@ module Corrigenda
             }
         end
 
-        # Rewritten rather than marked: a deleted report should leave
-        # nothing behind, and a tombstone in the index is something.
-        def forget(id)
-            index = @root / INDEX
-            return unless index.exist?
+        # archived first: it is the rule about a decision somebody made,
+        # where `any` is only about the calendar. A report old enough for
+        # both was archived before it was ancient, and that is the truer
+        # reason to give.
+        def verdict(id, rules, now)
+            if (limit = rules["archived"]) && (at = archived_at(id))
+                age = age_in_days(at, now)
+                return { id:, rule: "archived", days: age } if age >= limit
+            end
 
-            kept = index.readlines.reject { JSON.parse(it).fetch("id") == id }
+            if (limit = rules["any"])
+                age = age_in_days(self.class.filed_at(id), now)
+                return { id:, rule: "any", days: age } if age >= limit
+            end
+
+            nil
+        end
+
+        def age_in_days(at, now) = ((now - at) / 86_400).floor
+
+        # A month that has been emptied should not stay as a directory
+        # for ever. rmdir refuses one with anything still in it, which is
+        # exactly the question being asked, so the refusal is the answer
+        # rather than an error.
+        def prune_empty(id)
+            dir = dir_for(id)
+            [dir.parent, dir.parent.parent].each do |path|
+                path.rmdir
+            rescue SystemCallError
+                break
+            end
+        end
+
+        # Rewritten rather than marked: a deleted report should leave
+        # nothing behind, and a tombstone in the index is something. Takes
+        # a list because a purge is many at once and the file should be
+        # rewritten once, not once per report.
+        def forget(ids)
+            index = @root / INDEX
+            return if ids.empty? || !index.exist?
+
+            gone = ids.to_h { [it, true] }
+            kept = index.readlines.reject {
+                gone.key?(JSON.parse(it).fetch("id"))
+            }
             temp = @root / "#{INDEX}.new"
             temp.write(kept.join)
             temp.rename(index.to_s)

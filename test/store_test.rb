@@ -72,4 +72,104 @@ class StoreTest < CorrigendaTest
     def test_entries_is_empty_before_anything_is_reported
         assert_empty Corrigenda::Store.new(Dir.mktmpdir).entries
     end
+
+    # Retention. The clock is not stopped for the tests: a report is aged
+    # by moving the marker's mtime and by asking about a `now` further
+    # along, which is what the store itself reads.
+    def days_ago(count) = Time.now.utc - (count * 86_400)
+
+    def archived_days_ago(id, count)
+        @store.archive(id)
+        marker = @store.dir_for(id) / Corrigenda::Store::ARCHIVE
+        File.utime(days_ago(count), days_ago(count), marker)
+        id
+    end
+
+    def test_nothing_expires_without_rules
+        @store.save(TestSupport.document)
+
+        assert_empty @store.expired(nil)
+        assert_empty @store.expired({})
+    end
+
+    def test_the_archived_rule_counts_from_the_archiving
+        old   = archived_days_ago(@store.save(TestSupport.document), 100)
+        young = archived_days_ago(@store.save(TestSupport.document), 10)
+        open  = @store.save(TestSupport.document)
+
+        going = @store.expired({ "archived" => 90 })
+
+        assert_equal [old], going.map { it[:id] }
+        assert_equal "archived", going.first[:rule]
+        assert_equal 100, going.first[:days]
+        refute_includes going.map { it[:id] }, young
+        refute_includes going.map { it[:id] }, open
+    end
+
+    # The id carries the filing time, so ageing a report by `any` needs no
+    # file touched -- which is also why a report whose index line was lost
+    # is still datable.
+    def test_the_any_rule_counts_from_the_filing
+        id = "20200101T000000Z-0badcafe"
+        FileUtils.mkdir_p(@store.dir_for(id))
+
+        going = @store.expired({ "any" => 365 })
+
+        assert_equal [id], going.map { it[:id] }
+        assert_equal "any", going.first[:rule]
+    end
+
+    # A report old enough for both is reported under the rule about a
+    # decision somebody made, not the one about the calendar.
+    def test_archived_is_the_reason_when_both_rules_match
+        id = archived_days_ago(@store.save(TestSupport.document), 100)
+
+        going = @store.expired({ "archived" => 90, "any" => 1 })
+
+        assert_equal [{ id:, rule: "archived", days: 100 }], going
+    end
+
+    def test_purge_takes_the_directory_and_the_index_line_together
+        gone = archived_days_ago(@store.save(TestSupport.document), 100)
+        kept = @store.save(TestSupport.document)
+
+        @store.purge({ "archived" => 90 })
+
+        refute_path_exists @store.dir_for(gone)
+        assert_equal [kept], @store.entries.map { it["id"] }
+        assert_equal 1, @store.count
+    end
+
+    def test_purge_says_what_it_took
+        id = archived_days_ago(@store.save(TestSupport.document), 91)
+
+        assert_equal [{ id:, rule: "archived", days: 91 }],
+                     @store.purge({ "archived" => 90 })
+    end
+
+    # An emptied month is not left behind as a directory; a month with
+    # anything still in it is untouched.
+    def test_purge_prunes_the_months_it_empties
+        id  = "20200101T000000Z-0badcafe"
+        dir = @store.dir_for(id)
+        FileUtils.mkdir_p(dir)
+
+        @store.purge({ "any" => 365 })
+
+        refute_path_exists dir.parent
+        refute_path_exists dir.parent.parent
+    end
+
+    def test_purge_leaves_a_month_that_still_has_reports
+        old = "20200101T000000Z-0badcafe"
+        FileUtils.mkdir_p(@store.dir_for(old))
+        young = "20200131T000000Z-0badbeef"
+        FileUtils.mkdir_p(@store.dir_for(young))
+
+        # Only the first is old enough at this `now`.
+        @store.purge({ "any" => 365 }, now: Time.utc(2021, 1, 15))
+
+        assert_path_exists @store.dir_for(young)
+        refute_path_exists @store.dir_for(old)
+    end
 end

@@ -392,6 +392,20 @@ file means no schema migration, ever.
 Server-side limits: total payload cap, per-part caps, rejection of
 unknown parts. Sanity bounds, not abuse controls.
 
+Retention is a `retention:` key in the deployment config, in days, and
+absent by default — nothing expires unless an estate says it should.
+Two rules: `archived: N` counts from the moment somebody archived the
+report, which is when they said they were done looking at it, and
+`any: N` counts from filing, for the ones nobody ever triaged. A report
+old enough for both is reported under `archived`, the rule about a
+decision rather than about the calendar.
+
+Nothing sweeps on its own. `rake data:purge:show` says what a rule
+would take, `rake data:purge` takes it — the split is because deletion
+is the one operation here with nothing behind it. Ageing is read off
+the report's id and the archive marker's mtime, so no format changed to
+support this, and a report whose index line was lost still ages out.
+
 ### Enrichment — what the client cannot know
 
 A pass that runs **after** a report lands, never in the request path:
@@ -487,7 +501,11 @@ prefixes for state and action hooks.
 
 - Port and host for the Puma process; whether one process serves all
   vhosts or one per environment.
-- Where the store lives on disk, and its retention.
+- How often a purge should run, and from where — cron on the host is
+  the obvious answer, but nothing has been decided. Retention itself is
+  settled: a config key and `rake data:purge` (§8), with no rule set on
+  this deployment yet. The store lives on `/var/db/corrigenda`, its own
+  ZFS dataset.
 - Whether `data-build` can carry the git commit today, or needs a
   build-step change.
 - Enrichment has to fetch pages that Apache protects by LDAP or by IP.

@@ -63,6 +63,26 @@ sites:
     - www.example.com
     - gallery.example.com
 
+# How long a report is kept, in days, per rule. Absent — the default —
+# nothing ever expires: reports are somebody's bug list, and a tool that
+# deletes one on its own initiative is worse than a store that grows.
+#
+#   archived: N   days since somebody archived it, which is the moment
+#                 they said they were done looking. Reach for this one
+#                 first: it expires what was dealt with, not what is
+#                 merely old.
+#   any: N        days since it was filed, whatever its state. The
+#                 backstop for reports nobody ever triaged.
+#
+# Either alone is a valid rule. Nothing here happens on its own: `rake
+# data:purge` applies them, `rake data:purge:show` says what that would
+# take and takes nothing — run it first, and put the purge in cron once
+# you believe it.
+#
+# retention:
+#     archived: 90
+#     any: 365
+
 # Which pages may post a report from another host. Absent, it is the
 # sites above read as https origins, which is the answer whenever a
 # site's pages are served from a host of its own name — so leave it out

@@ -30,8 +30,21 @@ module Corrigenda
             # two genuinely differ.
             "endpoint"       => nil,
             "sites"          => nil,   # nil means "accept any site"
-            "origins"        => nil    # nil means "the sites, as https"
+            "origins"        => nil,   # nil means "the sites, as https"
+
+            # How long a report stays, in days, per rule. nil -- the
+            # default, and what every deployment did before there was a
+            # key -- means nothing ever expires: reports are somebody's
+            # bug list, and a tool that quietly deletes one is worse than
+            # a disk that fills up slowly and visibly.
+            "retention"      => nil
         }.freeze
+
+        # `archived` is the rule anyone should reach for first: it counts
+        # from the moment a person said they were done looking, so it
+        # expires what was dealt with rather than what is merely old.
+        # `any` is the backstop for reports nobody ever triaged.
+        RETENTION_RULES = %w[archived any].freeze
 
         def self.load(path = ENV["CORRIGENDA_CONFIG"])
             new(from_file(path).merge(from_env))
@@ -132,6 +145,37 @@ module Corrigenda
             allowed.nil? ? true : allowed.include?(origin)
         end
 
+        # nil when nothing expires, otherwise the rules that say what
+        # does, as whole days. Read strictly and refused loudly: this is
+        # the one setting whose mistakes are unrecoverable, and a typo
+        # that silently means "no retention" would be found the day
+        # somebody wondered why the disk never emptied -- while a typo
+        # read as a smaller number than intended cannot happen at all,
+        # because nothing here guesses.
+        def retention
+            values = @values.fetch("retention")
+            return nil if values.nil?
+
+            unless values.is_a?(Hash)
+                raise ArgumentError,
+                      "retention: expected " \
+                      "#{RETENTION_RULES.join(" and/or ")}, " \
+                      "got #{values.class}"
+            end
+
+            rules = values.compact.to_h { |rule, days| [rule.to_s, days] }
+
+            unknown = rules.keys - RETENTION_RULES
+            unless unknown.empty?
+                raise ArgumentError,
+                      "retention: no such rule #{unknown.join(", ")} " \
+                      "(#{RETENTION_RULES.join(", ")})"
+            end
+
+            rules = rules.to_h { |rule, days| [rule, whole_days(rule, days)] }
+            rules.empty? ? nil : rules.freeze
+        end
+
         def max_for(part)
             case part
             when :report     then max_report
@@ -142,6 +186,19 @@ module Corrigenda
         end
 
         private
+
+        # Days, whole and positive. Zero is refused rather than read as
+        # "delete on sight": a config saying 0 is far more likely to be
+        # an unfinished edit than a deployment that wants its reports
+        # gone the moment they arrive.
+        def whole_days(rule, days)
+            value = Integer(days, exception: false)
+            return value if value&.positive?
+
+            raise ArgumentError,
+                  "retention: #{rule} wants a number of days, " \
+                  "got #{days.inspect}"
+        end
 
         # A bare hostname is an origin over https; anything already
         # carrying a scheme is left as it is, which is how a port or a

@@ -103,6 +103,28 @@ same file.
     ./run -p 9393                # a port instead, to reach it directly
     ./run -f -p 9393 -d /var/tmp/store   # fixture playground
 
+## Keeping the store from growing forever
+
+Nothing expires unless `corrigenda.yml` says so. With a `retention:`
+rule set (see the template), the sweep is a command somebody or cron
+runs — never the service on its own:
+
+    bundle exec rake data:purge:show   # what it would take
+    bundle exec rake data:purge        # take it
+
+Look before you cut: `:show` prints every report with the rule that
+selected it and its age in days, and removes nothing. Once the numbers
+say what you meant, a crontab line is the rest of it — weekly is plenty
+at this volume, and there is no harm in a run that finds nothing:
+
+    12 4 * * 0  cd /web/ops/Corrigenda && \
+                CORRIGENDA_CONFIG=deploy/corrigenda.yml \
+                /usr/local/bin/bundle exec rake data:purge >/dev/null
+
+A purge takes the report's directory — screenshots and snapshots with
+it — and its line in `index.jsonl`, and prunes the month directory it
+empties. There is nothing behind it: no trash, no tombstone.
+
 ## Why the socket is reachable by Apache
 
 Apache runs as `www` and the socket is 0660, so the group has to be

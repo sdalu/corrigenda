@@ -13,6 +13,54 @@ class ConfigTest < Minitest::Test
         ENV.delete("CORRIGENDA_SITES")
     end
 
+    # Nothing expires unless a deployment says so, and what it says is
+    # refused rather than interpreted: every wrong reading of this key
+    # deletes somebody's bug list.
+    def test_no_retention_is_the_default
+        assert_nil Corrigenda::Config.new.retention
+    end
+
+    def test_retention_is_read_as_whole_days_per_rule
+        File.write(@file, "retention:\n  archived: 90\n  any: 365\n")
+
+        assert_equal({ "archived" => 90, "any" => 365 },
+                     Corrigenda::Config.load(@file).retention)
+    end
+
+    def test_one_rule_alone_is_a_rule
+        File.write(@file, "retention:\n  archived: 30\n")
+
+        assert_equal({ "archived" => 30 },
+                     Corrigenda::Config.load(@file).retention)
+    end
+
+    # A key written but left blank is an edit in progress, not a policy.
+    def test_a_blank_rule_is_not_a_rule
+        File.write(@file, "retention:\n  archived:\n")
+
+        assert_nil Corrigenda::Config.load(@file).retention
+    end
+
+    def test_an_unknown_rule_is_refused
+        File.write(@file, "retention:\n  yesterday: 5\n")
+
+        error = assert_raises(ArgumentError) {
+            Corrigenda::Config.load(@file).retention
+        }
+        assert_match(/yesterday/, error.message)
+    end
+
+    def test_days_that_are_not_days_are_refused
+        %w[soon 0 -5].each do |value|
+            File.write(@file, "retention:\n  any: #{value}\n")
+
+            assert_raises(ArgumentError,
+                          "#{value} should not be days") {
+                Corrigenda::Config.load(@file).retention
+            }
+        end
+    end
+
     def test_an_absent_file_is_a_valid_config
         assert_equal Pathname("store"),
                      Corrigenda::Config.load("/nowhere/at/all").store_path
