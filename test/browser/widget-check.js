@@ -196,6 +196,43 @@ const ok   = (message) => console.log('ok   ' + message);
     await headPage.close();
 }
 
+    // --- a page that only advertises the endpoint --------------------
+    // The shape MoXoW emits: a link saying where reports go, and a
+    // script tag saying nothing but where the client is. The endpoint
+    // used to be on the tag as well, which is two places to say one
+    // thing and two places to disagree.
+    {
+        const linkPage = await browser.newPage({ viewport: { width: 900, height: 700 } });
+        const posted = [];
+        // URL is the fixture's own constant at the top of this file, so
+        // the global constructor is out of reach here: strip the origin
+        // by hand rather than shadow-dance around it.
+        linkPage.on('request', (r) => {
+            if (r.method() === 'POST') {
+                posted.push(r.url().replace(/^https?:\/\/[^/]+/, ''));
+            }
+        });
+
+        await linkPage.goto('http://127.0.0.1:9393/link-only.html', { waitUntil: 'load' });
+        await linkPage.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+        await linkPage.click('#corrigenda-widget .a-type[value="idea"]');
+        await linkPage.waitForSelector('#corrigenda-widget .report:not([hidden])');
+        await linkPage.fill('#corrigenda-widget textarea',
+                            'found the endpoint on the page');
+        await linkPage.click('#corrigenda-widget .a-send');
+        await linkPage.waitForFunction(() => !document.querySelector('#corrigenda-widget')
+            .shadowRoot.querySelector('.result').hidden, null, { timeout: 8000 })
+            .catch(() => {});
+
+        const said = (await linkPage.textContent('#corrigenda-widget .result')).trim();
+        if (!/Sent\. Reference: \d{8}T/.test(said))
+            fail('a link-only page could not send: ' + said);
+        else if (!posted.includes('/.corrigenda/report/'))
+            fail('posted somewhere else: ' + JSON.stringify(posted));
+        else ok('reads the endpoint off the page when the tag does not say');
+        await linkPage.close();
+    }
+
     // --- the widget must not disturb the page it measures ------------
     const stray = await page.evaluate(() =>
         document.body.querySelectorAll('div#corrigenda-widget').length);

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="build" content="test-build-1">
+<title>Fixture</title>
+<link rel="stylesheet" href="/fixture.css">
+<link rel="corrigenda" href="/.corrigenda">
+</head>
+<body>
+<h1>Fixture page</h1>
+
+<section id="gallery">
+    <figure>
+        <img src="/missing-on-purpose.png" alt="A photograph that fails to load">
+        <figcaption class="caption">Venetian carnival, 2019</figcaption>
+    </figure>
+</section>
+
+<!-- The shape that broke on www.alux.fr/sessions/: a card whose whole
+     body, heading and prose included, is wrapped in a link. Text there
+     drags before it selects, and a click navigates away. -->
+<ul class="index-simplex">
+    <li><a href="/nowhere/"><div class="content">
+        <h3>Retro</h3>
+        <p>Traveling back in time, you can do it.</p>
+    </div></a></li>
+</ul>
+
+<div class="too-wide"></div>
+
+<form>
+    <label>Secret <input type="password" name="secret" value="hunter2"></label>
+    <label>Name <input type="text" name="name" value="Stephane"></label>
+</form>
+
+<script src="/.corrigenda/corrigenda.js" defer></script>
+</body>
+</html>
