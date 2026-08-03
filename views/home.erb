@@ -342,19 +342,35 @@ paths below are relative to it.</p>
 </dd>
 
     <% if endpoint %>
-        <dt>Point a site here</dt>
-        <dd>
-            <p>A site rendered by
-            <a href="https://gitlab.com/sdalu/moxow">MoXoW</a> names this
-            endpoint before the vertical bar, and says who gets the widget
-            after it:</p>
-            <pre><code>&lt;m:framework corrigenda="<%= endpoint.sub(%r{/\.corrigenda\z}, "") %>|yes"/&gt;</code></pre>
-            <p>A site that mounts the service itself (<code>Use
-            CorrigendaEndpoint</code> in its vhost) leaves the endpoint
-            out: the widget posts to its own origin then, which needs no
-            CORS. Either way the page advertises where reports go, so a
-            bookmarklet or the add-on finds it without being told.</p>
-        </dd>
+<dt>Point a site here</dt>
+<dd>
+    <p>One tag, in the head of any page. It says where reports go
+    and nothing else — the bookmarklet reads it, the add-on reads
+    it, and the widget uses it when nothing on its own tag says
+    otherwise:</p>
+
+    <pre><code>&lt;link rel="corrigenda" href="<%= endpoint %>"&gt;</code></pre>
+
+    <p>A second tag, optional, makes the page carry the widget
+    itself rather than waiting to be asked. It is what buys a
+    report the errors and failed loads from before you noticed
+    anything, because the client is already listening:</p>
+
+    <pre><code>&lt;script src="<%= endpoint %>/corrigenda.js"&gt;&lt;/script&gt;</code></pre>
+
+    <p>A site rendered by
+    <a href="https://gitlab.com/sdalu/moxow">MoXoW</a> gets both
+    from one attribute — the endpoint before the vertical bar, and
+    after it who the script is for, since the link is for
+    everyone:</p>
+
+    <pre><code>&lt;m:framework corrigenda="<%= endpoint.sub(%r{/\.corrigenda\z}, "") %>|yes"/&gt;</code></pre>
+
+    <p>A site that mounts the service itself (<code>Use
+    CorrigendaEndpoint</code> in its vhost) leaves the endpoint
+    out of all three: the paths are then its own, and the POST is
+    same-origin, which needs no CORS.</p>
+</dd>
     <% end %>
 </dl>
 
