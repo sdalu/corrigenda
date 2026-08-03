@@ -1,13 +1,18 @@
-<h1><%= archived ? "Archived reports" : "Reports" %></h1>
+<%# The title and the way to the other list on one line. Stacked they
+    cost a hundred pixels of a window that has a table to show, and the
+    link is a companion to the title rather than a line of its own. %>
+<div class="list-head">
+    <h1><%= archived ? "Archived reports" : "Reports" %></h1>
 
-<p class="switch-list">
-    <% if archived %>
-        <a href="<%= to("/", false) %>">← The working list<%=
-            " (#{other})" if other.positive? %></a>
-    <% elsif other.positive? %>
-        <a href="<%= to("/?archived=1", false) %>">Archived (<%= other %>) →</a>
-    <% end %>
-</p>
+    <p class="switch-list">
+        <% if archived %>
+            <a href="<%= to("/", false) %>">← The working list<%=
+                " (#{other})" if other.positive? %></a>
+        <% elsif other.positive? %>
+            <a href="<%= to("/?archived=1", false) %>">Archived (<%= other %>) →</a>
+        <% end %>
+    </p>
+</div>
 
 <% if entries.empty? %>
     <p class="empty">

@@ -1129,10 +1129,26 @@ svg {
         margin-block-start: 1.25rem;
     }
 
-    /* Between the working list and the archive. A line on its own: the
-       table below is the page, and this only says which table it is. */
+    /* The title of a list, and the way to the other one, on a single
+       line. This page is the table under it: a title stacked over a
+       link over a table spent a hundred pixels saying what the table
+       says in three words. */
+    .list-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.15rem 1.25rem;
+        align-items: baseline;
+        margin-block-end: 0.9rem;
+
+        /* Smaller than a report's title, and deliberately: this one
+           names a list you are already looking at. */
+        h1 { font-size: clamp(1.9rem, 1.5rem + 1vw, 2.4rem); }
+    }
+
+    /* Between the working list and the archive: it only says which
+       table this is. */
     .switch-list {
-        margin-block: 0 0.75rem;
+        margin-block: 0;
         font-family: var(--display);
         font-size: 0.9375rem;
         letter-spacing: 0.04em;
