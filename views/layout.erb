@@ -602,6 +602,34 @@ svg {
         dd { max-inline-size: var(--measure); }
     }
 
+    /* What answers where, and who may ask: the path, the permission, and
+       why, in that order. Relative to the endpoint above it, so nothing
+       here repeats the host. */
+    .paths {
+        border-collapse: collapse;
+        margin-block-start: 0.6rem;
+        font-size: 0.9375rem;
+
+        td, th {
+            padding: 0.35rem 0.9rem 0.35rem 0;
+            border-block-end: 1px solid var(--rule);
+            text-align: start;
+            vertical-align: baseline;
+        }
+
+        th {
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 0.8125rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            color: var(--muted);
+        }
+
+        td:first-child { white-space: nowrap; }
+    }
+
     .listing {
         border-collapse: collapse;
         inline-size: 100%;

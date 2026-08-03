@@ -279,13 +279,38 @@
 <% if endpoint %>
     <dt>This endpoint</dt>
     <dd>
-        <p><code><%= endpoint %></code></p>
-        <p>Where this page came from, and where its reports go. The
-        client is served from <code><%= endpoint %>/corrigenda.js</code>,
-        which is the one path here that needs no login — every page
-        carrying the widget fetches it, visitors included. Reports
-        are posted to <code><%= endpoint %>/report/</code>, which
-        needs one.</p>
+<p><code><%= endpoint %></code></p>
+<p>Where this page came from, and where its reports go. The
+paths below are relative to it.</p>
+
+<table class="paths">
+    <tbody>
+        <tr>
+            <td><code>/corrigenda.js</code></td>
+            <th scope="row">Anyone</th>
+            <td>The widget. Every page carrying it fetches it,
+            visitors included, so this is the one path here that
+            asks for no login.</td>
+        </tr>
+        <tr>
+            <td><code>/report/</code></td>
+            <th scope="row">Signed in</th>
+            <td>Where a report is posted, and
+            <code>/report/health</code> beside it.</td>
+        </tr>
+        <tr>
+            <td><code>/review/</code></td>
+            <th scope="row">Signed in</th>
+            <td>The reports, and everything sent with them.</td>
+        </tr>
+        <tr>
+            <td><code>/extension/…</code></td>
+            <th scope="row">Signed in</th>
+            <td>The add-on packages, the signing notes, and this
+            page.</td>
+        </tr>
+    </tbody>
+</table>
     </dd>
 <% end %>
 
