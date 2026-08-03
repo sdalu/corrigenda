@@ -373,6 +373,29 @@ const check = async (name, browser, executablePath) => {
     else ok(`${name}: an add-on that may not capture here reads as none, and says how to fix it`);
     await page.close();
 
+    // 10. the scope a report starts on. Cropping to the element is the
+    //     default; where it cannot be done the widget falls back to
+    //     "no crop", and when it becomes possible -- an add-on that
+    //     answered late, or one just granted -- the default comes back
+    //     rather than leaving somebody on a scope they never chose.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await open(page, 'rect');
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.waitForSelector('#corrigenda-widget .scope input:not([disabled])');
+    await page.waitForTimeout(400);
+    const chosen = await page.evaluate(() => {
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
+        return r.querySelector('.scope input:checked')?.value;
+    });
+
+    if (chosen !== 'element')
+        fail(`${name}: the scope starts on ${chosen}, not the element crop`);
+    else ok(`${name}: cropping to the element is where a report starts`);
+    await page.close();
+
     await instance.close();
 };
 

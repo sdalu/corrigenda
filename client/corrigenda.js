@@ -2994,6 +2994,11 @@ input:where(:not(:checked)) + .chip {
     /* The chosen scope has no line of its own any more, so it says its
      * name where the status will be anyway -- and steps aside the moment
      * there is a real result to report. */
+    /* The scope a report starts on, and the one it returns to when the
+     * widget has had to leave it. */
+    const DEFAULT_SCOPE = "element";
+    let scopeForced = false;
+
     const showScope = () => {
         if (!SHOT.blob) shotStatus.textContent = SCOPE_NAMES[SHOT.scope];
     };
@@ -3013,9 +3018,24 @@ input:where(:not(:checked)) + .chip {
                  .toggle("is-unavailable", off);
         }
 
+        /* "full" is sometimes a choice and sometimes all that is left,
+         * and only the second is undone. Cropping to the element is the
+         * default because it is what a report is usually about; when it
+         * is taken away -- no add-on, or one that has not answered yet
+         * -- the scope falls back, and when it comes back, so does the
+         * default. Somebody who picked "no crop" while it was theirs to
+         * pick keeps it: scopeForced is only set where the widget
+         * overrode a choice rather than followed one. */
         if (!able) {
+            if (SHOT.scope !== "full") scopeForced = true;
             SHOT.scope = "full";
             root.querySelector(".scope input[value=full]").checked = true;
+        } else if (scopeForced) {
+            scopeForced = false;
+            SHOT.scope = DEFAULT_SCOPE;
+            root.querySelector(`.scope input[value=${DEFAULT_SCOPE}]`)
+                .checked = true;
+            showScope();
         }
 
         /* Said once, in the header, where it belongs: it is a fact
@@ -3056,6 +3076,8 @@ input:where(:not(:checked)) + .chip {
     /* The crop and the redaction happen at capture time, so a new scope
      * needs a new capture rather than silently keeping the old image. */
     $(".scope").addEventListener("change", (event) => {
+        /* Chosen, so nothing here gets to change it back. */
+        scopeForced = false;
         SHOT.scope = event.target.value;
         clearShot();
         showScope();
