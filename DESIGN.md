@@ -529,6 +529,9 @@ prefixes for state and action hooks.
    review UI.
 4. **Deep-link review mode**; the enrichment pass of §8; reports →
    markdown task files in the site repo.
+5. **Refinement after the report** (§12) — proposed, unscheduled, and
+   the one phase that changes what a report *is*: not a complaint, but
+   an agreed rendering with the rules that produce it.
 
 ## 11. Open
 
@@ -546,3 +549,106 @@ prefixes for state and action hooks.
   credentials, or accept that protected pages are not enriched?
 - `console.error`/`warn` capture requires monkey-patching `console`;
   worth it, or too invasive for a tool that must not perturb the page?
+
+## 12. Proposed: refining the fix, in the page, after the report
+
+**Status: proposal. Nothing below is built.**
+
+A report says what is wrong. The thing everyone actually wants next is
+the *right* rendering, agreed while the page is still in front of the
+person who objected to it — and that conversation currently happens in
+a ticket, days later, between people describing a page to each other
+from memory.
+
+The proposal: after Send, the widget offers to keep going. The reporter
+and a model work on the live page together, the page changing as they
+talk, until the reporter approves what they see. What is approved is
+stored beside the report, as rules rather than prose, for whoever
+implements it for real.
+
+### The shape of a session
+
+1. **Send, then an offer.** The panel that today says *Sent* also says
+   *Refine this*. Nothing starts on its own — a report is complete
+   without any of this, and the offer is declinable for good.
+2. **A turn is a message and a patch.** The reporter says what is
+   wrong with what they are looking at ("the caption should clear the
+   photo, and keep the small caps"). The service answers with prose
+   *and* a patch. The widget applies the patch to the page.
+3. **Either side may ask for a measurement.** "Check it at 380
+   pixels", "what is the contrast now", "does anything overflow" — the
+   widget already computes all three for its reports (§6), so the model
+   asks for them rather than guessing, and the answer is a fact from
+   the reporter's own browser, not the model's idea of one.
+4. **Converge.** Each turn is on top of the last. A *before / after*
+   toggle is always one press away, because agreement means nothing if
+   nobody can see the two states side by side.
+5. **Approve.** The final patch, the transcript, the measurements and
+   an after-screenshot are stored beside the report. The state moves to
+   something like `agreed`, and the report is no longer a complaint —
+   it is a specification with a picture.
+
+### What may be applied, and nothing else
+
+This is the part that decides whether the idea is safe enough to build.
+
+A patch is **declarative and parsed, never executed**:
+
+- **CSS**: a list of rules — a selector and declarations, both
+  re-serialised by the widget through the CSSOM before use, so anything
+  that is not a valid declaration disappears rather than being applied.
+  They go into their own cascade layer, appended last, so removing the
+  session is removing one stylesheet.
+- **DOM, constrained**: set text of a node, add or remove a class, set
+  an attribute from an allowlist that excludes every event handler,
+  `src`, `href` and `style`. Applied only within the picked element's
+  subtree.
+- **Never**: `innerHTML`, script injection, network fetches, or
+  anything that survives a reload. The session lives in memory and is
+  gone when the tab is closed. The site on disk is not touched by any
+  of this — that is the "picked up later" part, and it is deliberate.
+
+The model never talks to the page. The widget posts a turn to the
+service, the service talks to the model, and the widget applies what
+comes back after checking it. An API key belongs in the deployment
+config, never in a page (`ai.model:`, beside the `ai:` key that already
+exists).
+
+### What is stored, and what it is for
+
+Beside the report, on approval:
+
+    proposal.json     the agreed patch, the transcript, the
+                      measurements taken, the widths tested
+    proposal.css      the same rules, as a stylesheet somebody can read
+    after.webp        the page as approved
+
+The report already records, for every matched rule, the stylesheet it
+came from and its layer (§6.1). A proposal joins that: *this
+declaration, against that rule, in that file*. Whoever implements it —
+a person, or an agent through `/ai` — starts from a diff-shaped fact
+rather than from "the caption looks wrong".
+
+**A proposal is not a patch to the site**, and the distinction is the
+whole reason this stops at approval. What the browser needed is
+expressed against a rendered page; where it belongs is a MoXoW layer,
+a component, a shared stylesheet, possibly a template. Deciding that is
+the implementation step, and it needs the repository, not the page.
+
+### Open questions
+
+- **Consent.** A turn sends the fragment, the matched rules and
+  possibly a screenshot to a third-party model. That is a new data
+  flow, and it should be stated in the panel and refusable per session
+  rather than assumed from the report's own opt-ins.
+- **Cost and rate.** Turns are cheap individually and unbounded in
+  principle. A per-session ceiling, and a per-day one, decided by the
+  deployment.
+- **Who may refine.** Reading a report and rewriting a page are
+  different permissions, even among staff. Probably a third setting
+  beside `ai.write`, not a consequence of it.
+- **Offline.** The same loop is useful with no model at all: the
+  reporter tweaks declarations by hand and approves the result. If that
+  is built first, the model becomes one participant in an existing
+  mechanism rather than the mechanism itself — which is the safer
+  order, and probably the right one.
