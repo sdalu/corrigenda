@@ -2739,11 +2739,72 @@ input:where(:not(:checked)) + .chip {
         $(".a-shot").textContent = T.capture;
     }
 
+    /* Taken by the button, and taken without one when the add-on is
+     * there. Same routine either way: what differs is who asked. */
+    const takeShot = async () => {
+        const button = $(".a-shot");
+        button.disabled = true;
+        shotStatus.textContent = "…";
+        try {
+            const { mapped } = await capture();
+            if (!SHOT.blob) { shotStatus.textContent = T.shotBig; return; }
+            shotPreview.src = URL.createObjectURL(SHOT.blob);
+            shotPreview.hidden = false;
+            $(".a-drop").hidden = false;
+            button.textContent = T.recapture;
+            const surface = SHOT.surface
+                ? (SURFACES[SHOT.surface] || (() => T.surfaceUnknown))()
+                : null;
+            shotStatus.classList.toggle("is-warning", !mapped);
+            shotStatus.textContent = mapped
+                ? `${T.shotReady}${surface ? ` · ${surface}` : ""} · ` +
+                  `${humanBytes(SHOT.blob.size)} · ${SHOT.redacted} ▮` +
+                  `${SHOT.partial ? ` · ${T.shotViewportOnly}` : ""}`
+                : `${surface ? `${surface} — ` : ""}${T.shotUnmapped}`;
+        } catch {
+            clearShot();
+            shotStatus.textContent = T.shotDenied;
+        } finally {
+            button.disabled = false;
+            refresh();
+        }
+    };
+
+    /* With the add-on there is no dialog to answer and no surface to
+     * pick: the picture is taken in a few milliseconds, of the element
+     * already chosen. Asking for a button press on top of that is asking
+     * someone to confirm the screenshot they just switched on.
+     *
+     * Without it, the button stays. getDisplayMedia raises a share
+     * dialog, and a page that raises one nobody asked for is a page
+     * whose next permission gets refused out of habit.
+     *
+     * `refused` is what makes the remove button mean something: taken
+     * away by hand, a shot is not silently taken again. Switching the
+     * channel off and on, or opening the next report, is a fresh ask.
+     */
+    let refused = false;
+
+    const autoShot = () => {
+        if (refused || SHOT.blob) return;
+        if (provider() !== PROVIDERS.extension) return;
+        if (!enabled().includes("screenshot")) return;
+
+        takeShot();
+    };
+
     const syncShot = () => {
         const wanted = enabled().includes("screenshot");
         $(".shot").hidden = !wanted;
-        if (!wanted) clearShot();
-        if (wanted) syncScopes();
+
+        if (!wanted) {
+            clearShot();
+            refused = false;
+            return;
+        }
+
+        syncScopes();
+        autoShot();
     };
 
     /* A native title is slow to appear, cannot be styled and never shows
@@ -2856,40 +2917,20 @@ input:where(:not(:checked)) + .chip {
         clearShot();
         showScope();
         refresh();
+        /* Choosing a scope is asking for a picture of it, so a scope
+         * changed after a removal counts as asking again. */
+        refused = false;
+        autoShot();
     });
 
     showScope();
 
-    $(".a-shot").addEventListener("click", async () => {
-        const button = $(".a-shot");
-        button.disabled = true;
-        shotStatus.textContent = "…";
-        try {
-            const { mapped } = await capture();
-            if (!SHOT.blob) { shotStatus.textContent = T.shotBig; return; }
-            shotPreview.src = URL.createObjectURL(SHOT.blob);
-            shotPreview.hidden = false;
-            $(".a-drop").hidden = false;
-            button.textContent = T.recapture;
-            const surface = SHOT.surface
-                ? (SURFACES[SHOT.surface] || (() => T.surfaceUnknown))()
-                : null;
-            shotStatus.classList.toggle("is-warning", !mapped);
-            shotStatus.textContent = mapped
-                ? `${T.shotReady}${surface ? ` · ${surface}` : ""} · ` +
-                  `${humanBytes(SHOT.blob.size)} · ${SHOT.redacted} ▮` +
-                  `${SHOT.partial ? ` · ${T.shotViewportOnly}` : ""}`
-                : `${surface ? `${surface} — ` : ""}${T.shotUnmapped}`;
-        } catch {
-            clearShot();
-            shotStatus.textContent = T.shotDenied;
-        } finally {
-            button.disabled = false;
-            refresh();
-        }
-    });
+
+    $(".a-shot").addEventListener("click", takeShot);
+
 
     $(".a-drop").addEventListener("click", () => {
+        refused = true;
         clearShot();
         showScope();
         refresh();

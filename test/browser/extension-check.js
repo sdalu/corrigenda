@@ -76,6 +76,19 @@ const open = async (page, grants, helper) => {
     await page.click('figcaption.caption');
 };
 
+// What the widget shows without anyone touching the capture button.
+const unasked = async (page) => {
+    await page.waitForSelector('#corrigenda-widget .shot-preview:not([hidden])',
+                               { timeout: 5000 }).catch(() => {});
+
+    return page.evaluate(() => {
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
+        return { captured: !r.querySelector('.shot-preview').hidden,
+                 status: r.querySelector('.shot-status').textContent.trim(),
+                 asks: (window.__captureAsks || []).length };
+    });
+};
+
 const shoot = async (page) => {
     // Wait for the capture itself, not for the words next to it: the
     // status already says which scope is selected before the shutter,
@@ -194,6 +207,53 @@ const check = async (name, browser, executablePath) => {
     else if (!old.captured)
         fail(`${name}: fell back from an old helper but captured nothing`);
     else ok(`${name}: an add-on below the required helper is left alone`);
+    await page.close();
+
+    // 6. with the add-on there is nothing to answer and nothing to
+    //    choose, so the picture is taken as soon as the form appears.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await open(page, 'rect');
+    const free = await unasked(page);
+    if (!free.captured)
+        fail(`${name}: nothing was captured without pressing anything`);
+    else if (free.asks !== 1)
+        fail(`${name}: expected one capture, got ${free.asks}`);
+    else ok(`${name}: the add-on captures without being asked — ${free.status}`);
+
+    // 7. removing it means removing it: the button that takes the shot
+    //    away must not be undone by the thing that took it.
+    await page.click('#corrigenda-widget .a-drop');
+    await page.waitForTimeout(300);
+    const gone = await page.evaluate(() => document.querySelector(
+        '#corrigenda-widget').shadowRoot.querySelector('.shot-preview').hidden);
+    if (!gone) fail(`${name}: a removed screenshot came straight back`);
+    else ok(`${name}: removing a screenshot keeps it removed`);
+    await page.close();
+
+    // 8. without the add-on nothing happens on its own: getDisplayMedia
+    //    raises a share dialog, and a page that raises one unasked is a
+    //    page whose next permission gets refused out of habit.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await page.addInitScript(() => {
+        window.__shareAsked = 0;
+        navigator.mediaDevices.getDisplayMedia = async () => {
+            window.__shareAsked += 1;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(innerWidth * devicePixelRatio);
+            canvas.height = Math.round(innerHeight * devicePixelRatio);
+            canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+            return canvas.captureStream(10);
+        };
+    });
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.waitForTimeout(500);
+    const prompts = await page.evaluate(() => window.__shareAsked);
+    if (prompts !== 0)
+        fail(`${name}: the share dialog was raised ${prompts} time(s) unasked`);
+    else ok(`${name}: no add-on, no dialog until the button is pressed`);
     await page.close();
 
     await instance.close();

@@ -23,14 +23,24 @@
         <dd><%= files.join(", ") %></dd>
     </dl>
 
-    <form class="states" method="post" action="<%= to("/#{id}/delete", false) %>">
-        <input type="hidden" name="confirm" value="yes">
-        <button class="is-danger" name="delete" value="yes">Delete for good</button>
-        <a class="button" href="<%= to("/#{id}", false) %>">Keep it</a>
-    </form>
-</div>
+    <%# Three answers, and the safe two are together: keeping it as it
+        is, and keeping it out of the way. Archiving is offered here
+        because wanting a report gone from the list is the usual reason
+        for arriving on this page, and it is the answer that does not
+        destroy anything. %>
+    <div class="states">
+        <form method="post" action="<%= to("/#{id}/delete", false) %>">
+            <input type="hidden" name="confirm" value="yes">
+            <button class="is-danger" name="delete" value="yes">Delete for good</button>
+        </form>
 
-<p class="empty">
-    To take it out of the list without destroying it, go back and
-    archive it instead.
-</p>
+        <a class="button" href="<%= to("/#{id}", false) %>">Keep it</a>
+
+        <% unless archived %>
+            <form method="post" action="<%= to("/#{id}/archive", false) %>">
+                <input type="hidden" name="archived" value="1">
+                <button>Archive instead</button>
+            </form>
+        <% end %>
+    </div>
+</div>

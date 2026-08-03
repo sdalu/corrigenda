@@ -255,6 +255,22 @@ end
         assert_path_exists store.dir_for(@id).to_s
     end
 
+    # The usual reason for arriving on that page is wanting the report
+    # out of the list, which archiving does without destroying it.
+    def test_the_confirmation_offers_archiving_instead
+        post "/#{@id}/delete"
+
+        assert_includes last_response.body, "Archive instead"
+        assert_includes last_response.body, "/#{@id}/archive"
+    end
+
+    def test_an_archived_report_is_not_offered_archiving_again
+        post "/#{@id}/archive", { "archived" => "1" }
+        post "/#{@id}/delete"
+
+        refute_includes last_response.body, "Archive instead"
+    end
+
     def test_a_confirmed_delete_removes_the_report
         post "/#{@id}/delete", { "confirm" => "yes" }
 

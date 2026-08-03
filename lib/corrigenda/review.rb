@@ -139,7 +139,8 @@ module Corrigenda
 
             unless params[:confirm] == "yes"
                 halt erb(:delete, locals: { id:, document:,
-                                            files: store.files(id) })
+                                            files: store.files(id),
+                                            archived: store.archived?(id) })
             end
 
             store.destroy(id)
