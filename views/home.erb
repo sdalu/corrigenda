@@ -60,6 +60,13 @@
     Corrigenda itself, because the screenshot gets better either way.
 </p>
 
+<p>
+    It names no sites. Nothing is granted by installing it: the first
+    time you press the button on a site it asks for that one, and the
+    button works whether you accept or not. So a site added here
+    tomorrow needs no new build and nobody has to reinstall anything.
+</p>
+
 <%
     # Three of the four capabilities are identical in both browsers, so
     # they are said once, above. What is left in each box is the line
@@ -85,13 +92,6 @@
     <li class="is-yes">Crops to the element you picked</li>
     <li class="is-yes">Blacks out form fields before upload</li>
 </ul>
-
-<p>
-    It names no sites. Nothing is granted by installing it: the first
-    time you press the button on a site it asks for that one, and the
-    button works whether you accept or not. So a site added here
-    tomorrow needs no new build and nobody has to reinstall anything.
-</p>
 
 <dl class="packages">
     <% browsers.each do |browser| %>
@@ -151,7 +151,7 @@
             <% else %>
                 <p class="caveat">
                     Not built yet. Run
-                    <code>extension/build <%= browser[:key] %></code>
+                    <code>rake addon:build TARGET=<%= browser[:key] %></code>
                     where this service lives.
                 </p>
             <% end %>
