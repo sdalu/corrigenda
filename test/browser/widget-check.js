@@ -234,6 +234,29 @@ const outcome = async (page, timeout = 8000) => {
         await linkPage.close();
     }
 
+    // --- whose language it speaks ------------------------------------
+    // The page's lang describes what is being reported; the browser's
+    // describes who is reporting it. A French reviewer on an English
+    // gallery gets a French widget, and the other way round, which is
+    // the opposite of what following <html lang> gave.
+    {
+        const french = await browser.newContext({ locale: 'fr-FR' });
+        const reader = await french.newPage();
+        await reader.goto(URL, { waitUntil: 'load' });
+        await reader.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+
+        const menu = await reader.textContent('#corrigenda-widget .menu');
+        const lang = await reader.evaluate(() => document.documentElement.lang);
+
+        if (lang !== 'en')
+            fail('the fixture stopped being an English page: ' + lang);
+        else if (!/Visuel|Contenu|Panne|Idée/.test(menu))
+            fail('a French browser got: ' + menu.trim().split('\n')[0]);
+        else ok('the widget speaks the reader, not the page');
+
+        await french.close();
+    }
+
     // --- the widget must not disturb the page it measures ------------
     const stray = await page.evaluate(() =>
         document.body.querySelectorAll('div#corrigenda-widget').length);

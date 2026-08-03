@@ -25,6 +25,21 @@ const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1
 // captureTab), 'viewport' always answers with the viewport (Chrome's
 // captureVisibleTab), 'refuse' fails the way a sleeping background page
 // does.
+// Announces the marker and then says nothing at all -- an add-on
+// installed but not granted for this page, or a background half that is
+// asleep, revoked or mid-update. The marker is on the element either
+// way, which is exactly why it cannot be the whole answer.
+const mute = `
+    (function mark() {
+        if (document.documentElement) {
+            document.documentElement.dataset.corrigendaCapture = "1";
+        } else {
+            setTimeout(mark, 0);
+        }
+    })();
+    window.__captureAsks = [];
+`;
+
 const stub = (grants, helper = 1) => `
     // A content script at document_start runs once the parser has made
     // the documentElement; an init script here runs before that, so the
@@ -254,6 +269,53 @@ const check = async (name, browser, executablePath) => {
     if (prompts !== 0)
         fail(`${name}: the share dialog was raised ${prompts} time(s) unasked`);
     else ok(`${name}: no add-on, no dialog until the button is pressed`);
+    await page.close();
+
+    // 9. a marker nobody answers is not an add-on this page can use: the
+    //    cropping scopes go, the warning comes back, and nothing is
+    //    captured on its own -- which would mean the share dialog.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await page.addInitScript(() => {
+        window.__shareAsked = 0;
+        navigator.mediaDevices.getDisplayMedia = async () => {
+            window.__shareAsked += 1;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(innerWidth * devicePixelRatio);
+            canvas.height = Math.round(innerHeight * devicePixelRatio);
+            canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+            return canvas.captureStream(10);
+        };
+    });
+    await page.addInitScript(mute);
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    // the ping gives up after two seconds; nothing should happen before
+    // or after it does
+    await page.waitForTimeout(3000);
+    const silent = await page.evaluate(() => {
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
+        return {
+            warned: !r.querySelector('.a-warn').hidden,
+            scopes: [...r.querySelectorAll('.scope input')].map((i) => !i.disabled),
+            shared: window.__shareAsked,
+            captured: !r.querySelector('.shot-preview').hidden
+        };
+    });
+
+    // Chrome can crop through getDisplayMedia, so only Firefox loses the
+    // scopes and gets the warning; what must hold in both is that a
+    // silent bridge takes no picture and raises no dialog.
+    if (silent.shared !== 0)
+        fail(`${name}: a silent bridge sent us to the share dialog`);
+    else if (silent.captured)
+        fail(`${name}: something was captured through a bridge that never answered`);
+    else if (name === 'firefox' && !silent.warned)
+        fail(`${name}: no warning, though nothing here can crop`);
+    else if (name === 'firefox' && silent.scopes.filter(Boolean).length !== 1)
+        fail(`${name}: cropping scopes offered: ${JSON.stringify(silent.scopes)}`);
+    else ok(`${name}: an add-on that does not answer here is not used`);
     await page.close();
 
     await instance.close();

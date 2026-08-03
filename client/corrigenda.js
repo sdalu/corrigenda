@@ -42,7 +42,14 @@
                       "/.corrigenda/report/",
             site:     d.site || location.hostname,
             build:    d.build || meta("build"),
-            lang:     (d.lang || document.documentElement.lang || "en").slice(0, 2),
+            /* The reporter's language, not the page's. A French gallery
+             * read by an English-speaking reviewer used to hand them a
+             * French widget, and an English page shown to a French
+             * reporter an English one -- exactly backwards, since the
+             * page's lang describes the content being reported and the
+             * browser's describes the person reporting it. The tag can
+             * still say, for a deployment where that is wrong. */
+            lang:     (d.lang || navigator.language || "en").slice(0, 2),
             prune:    Number(d.prune || 3),
             cap:      Number(d.cap || 64 * 1024)
         };
@@ -511,8 +518,42 @@
      * kept honest by the calibration that follows every capture anyway.
      * With the extension the question does not arise: every scope is
      * mappable, in every browser. */
+    /* The marker says an add-on is installed and running here. It does
+     * not say the half that takes the picture will answer: the site may
+     * never have been granted, the background half may be asleep,
+     * revoked or mid-update, and a content script registered in a
+     * previous session outlives the permission that put it there.
+     *
+     * So the marker opens the conversation and the reply settles it.
+     * null while nobody has asked yet -- and treated as "no", because
+     * offering a crop that turns out to be impossible is a promise
+     * broken at capture time, while withdrawing the warning a moment
+     * later costs nothing.
+     */
+    let helperAnswers = null;
+
+    const askHelper = async () => {
+        if (!extension()) {
+            helperAnswers = false;
+            return false;
+        }
+
+        try {
+            const pong = await BRIDGE.ask("ping", {}, 2000);
+            /* An add-on that answers but speaks an older contract is one
+             * this page must not talk to. It says which it speaks; a
+             * helper too old to say is helper 1. */
+            helperAnswers = pong?.type === "pong" &&
+                (pong.helper ?? 1) >= HELPER_REQUIRED;
+        } catch {
+            helperAnswers = false;
+        }
+
+        return helperAnswers;
+    };
+
     const tabCapture = () =>
-        Boolean(extension()) || !navigator.userAgent.includes("Firefox");
+        helperAnswers === true || !navigator.userAgent.includes("Firefox");
 
     /* postMessage both ways, because the page and the extension's
      * content script share a window and nothing else. Every exchange
@@ -785,6 +826,12 @@
             /* An extension that is asleep, revoked or mid-update must
              * not take the screenshot away with it. */
             if (provider() !== PROVIDERS.extension) throw error;
+
+            /* And having found out the hard way, say so: the cropping
+             * scopes go and the warning comes back, rather than the next
+             * capture discovering it again. */
+            helperAnswers = false;
+            syncScopes();
 
             frame = await PROVIDERS.display.grab();
         } finally {
@@ -2787,6 +2834,11 @@ input:where(:not(:checked)) + .chip {
 
     const autoShot = () => {
         if (refused || SHOT.blob) return;
+        /* Not "an add-on is installed" but "the add-on answered here".
+         * On the strength of the marker alone this would raise the
+         * browser's share dialog, unasked, on every page where the
+         * add-on is present but the site was never granted. */
+        if (helperAnswers !== true) return;
         if (provider() !== PROVIDERS.extension) return;
         if (!enabled().includes("screenshot")) return;
 
@@ -2804,7 +2856,14 @@ input:where(:not(:checked)) + .chip {
         }
 
         syncScopes();
-        autoShot();
+
+        /* Asked here rather than once at load: an add-on can be
+         * installed, granted, revoked or updated while the page is open,
+         * and this is the moment its answer matters. */
+        askHelper().then(() => {
+            syncScopes();
+            autoShot();
+        });
     };
 
     /* A native title is slow to appear, cannot be styled and never shows
@@ -2909,6 +2968,7 @@ input:where(:not(:checked)) + .chip {
     };
 
     syncScopes();
+    askHelper().then(() => syncScopes());
 
     /* The crop and the redaction happen at capture time, so a new scope
      * needs a new capture rather than silently keeping the old image. */
