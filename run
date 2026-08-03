@@ -57,9 +57,14 @@ cd "$(dirname "$0")"
 : "${conf:=deploy/corrigenda.yml}"
 
 if [ ! -f "$conf" ]; then
-    echo "run: $conf does not exist." >&2
-    echo "     cp deploy/corrigenda-template.yml deploy/corrigenda.yml" >&2
-    echo "     It names this deployment, which is why it is not in git." >&2
+echo "run: $conf does not exist." >&2
+echo >&2
+echo "     cp deploy/corrigenda-template.yml deploy/corrigenda.yml" >&2
+echo "     \$EDITOR deploy/corrigenda.yml" >&2
+echo >&2
+echo "     Copying is not enough: the endpoint, the sites and the" >&2
+echo "     directory server in the template are examples. That file" >&2
+echo "     names this deployment, which is why it is not in git." >&2
     exit 1
 fi
 

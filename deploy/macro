@@ -35,12 +35,15 @@ end
 
 unless config.exist?
     abort <<~SAY
-        macro: #{config} does not exist.
+macro: #{config} does not exist.
 
-            cp deploy/corrigenda-template.yml deploy/corrigenda.yml
+    cp deploy/corrigenda-template.yml deploy/corrigenda.yml
+    $EDITOR deploy/corrigenda.yml
 
-        That file names this deployment -- its hosts, its directory
-        server, its paths -- which is why it is not in the repository.
+Copying is not enough: the endpoint, the sites and the directory
+server in the template are examples. That file names this
+deployment, which is why it is not in the repository and why
+nothing here can guess it.
     SAY
 end
 

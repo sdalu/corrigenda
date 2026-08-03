@@ -23,9 +23,12 @@ task :config do
         #{CONFIG} does not exist.
 
             cp #{TEMPLATE} #{CONFIG}
+            $EDITOR #{CONFIG}
 
-        It names this deployment — its hosts, its directory server, its
-        paths — which is why it is not tracked.
+        Copying is not enough: the endpoint, the sites and the
+        directory server in the template are examples. That file
+        names this deployment, which is why it is not tracked and
+        why nothing here can guess it for you.
     SAY
 end
 
