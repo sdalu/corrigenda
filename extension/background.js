@@ -96,14 +96,41 @@ const remember = async (base) => {
     await api.storage.local.set({ [REMEMBERED]: base });
 };
 
-/* Every origin the user has granted, as a match pattern. Read from the
- * browser rather than kept in storage: the browser is where a
- * permission actually lives, and it can be revoked from the add-ons
- * page without telling us. */
-const granted = async () => {
-    const { origins } = await api.permissions.getAll();
-    return origins || [];
+/* Firefox's tabs.captureTab and Chrome's captureVisibleTab both want
+ * <all_urls> or activeTab -- a permission for the one site being
+ * photographed is not accepted, which is documented and was the whole
+ * fault: activeTab is granted by the click and gone at the next
+ * navigation, so a capture worked until the page was reloaded and then
+ * said "Missing activeTab permission" for ever after.
+ *
+ * So the permission asked for is <all_urls>. What it is not is a
+ * licence to be everywhere: the sites this add-on acts on are the ones
+ * somebody switched on, kept here, and nothing runs anywhere else.
+ * The permission is what the browser demands; the list is what the
+ * add-on does with it.
+ */
+const ALL_URLS = "<all_urls>";
+const ENABLED = "sites";
+
+const mayCapture = () => api.permissions.contains({ origins: [ALL_URLS] });
+
+const enabledSites = async () =>
+    (await api.storage.local.get(ENABLED))[ENABLED] || [];
+
+const enable = async (origin) => {
+    const sites = await enabledSites();
+    if (sites.includes(origin)) return sites;
+
+    const next = [...sites, origin];
+    await api.storage.local.set({ [ENABLED]: next });
+    return next;
 };
+
+/* Every origin switched on, and nothing else -- so revoking <all_urls>
+ * from the add-ons page turns the bridge off everywhere, and the list
+ * survives to mean something again if it is granted back. */
+const granted = async () =>
+    (await mayCapture()) ? await enabledSites() : [];
 
 /* One registration covering everything granted, replaced whenever that
  * set changes. Registered scripts survive restarts, so this is
@@ -264,10 +291,18 @@ api.action.onClicked.addListener((tab) => {
      * Remembering the dismissal made the button dead for the rest of
      * the session on the one site somebody was trying to switch on.
      */
-    api.permissions.request({ origins: [origin] })
+    api.permissions.request({ origins: [ALL_URLS] })
        .then(async (on) => {
-           announce(tab?.id, on);
-           if (on) await arm(tab);
+           if (!on) return announce(tab?.id, false);
+
+           /* Granted once, for the browser; switched on per site, by
+            * this. The prompt says all sites because the capture API
+            * accepts nothing narrower -- what happens on a site nobody
+            * turned on is still nothing at all. */
+           await enable(origin);
+           await registerBridge();
+           await arm(tab);
+           announce(tab?.id, true);
        })
        .catch(() => { /* a prompt the browser would not raise */ });
 
@@ -302,7 +337,8 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return false;
         }
 
-        api.permissions.contains({ origins: [`${origin}/*`] })
+        Promise.all([mayCapture(), enabledSites()])
+           .then(([held, sites]) => held && sites.includes(`${origin}/*`))
            .then((granted) => {
                /* The same answer serves two purposes: the page is told
                 * whether a mapped capture is available, and the button

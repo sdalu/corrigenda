@@ -151,12 +151,20 @@ of the add-on that everyone has to install again.
 - `scripting` — to register the bridge on the sites you have
   granted. (It is what the disabled injector would use too.)
 - `storage` — for the last endpoint seen, and nothing else.
-- `optional_host_permissions: *://*/*` — nothing is granted by
-  installing. Granting a site, at the prompt the first click raises,
-  registers the bridge on it: a page that carries the widget itself then
-  gets a mapped capture without anyone pressing the button first.
-  Revoke the site in the add-on's permissions and it goes back to
-  button-only, which still works — nothing else breaks.
+- `optional_host_permissions: <all_urls>` — nothing is granted by
+  installing, and the prompt the first click raises asks for all sites.
+  It has to: `tabs.captureTab` and `captureVisibleTab` both refuse
+  anything narrower, and take `activeTab` only for as long as the visit
+  that granted it lasts — which is why a per-site grant captured
+  happily until the page was reloaded and then answered "Missing
+  activeTab permission" for ever.
+
+  **The permission is all sites; what the add-on does is not.** The
+  sites it acts on are the ones somebody switched on with the button,
+  kept in the add-on's own storage, and the bridge is registered for
+  those and nowhere else. Revoke the permission from the add-ons page
+  and the bridge goes everywhere at once — the list survives and means
+  something again if it is granted back.
 
 The content script accepts messages only from its own window and origin,
 and only in the shape the widget sends. The background half validates
