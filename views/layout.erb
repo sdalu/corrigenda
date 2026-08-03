@@ -777,11 +777,11 @@ svg {
        and costs one column whatever the words in it are — where three
        buttons cost the width of all three, on every row, for ever.
 
-       What it costs back is a press: this UI runs no script, and
-       submitting on `change` would fire under a keyboard user still
-       arrowing through the options. So the list picks and the button
-       applies, and the button is only interesting when something has
-       been picked.
+       What it costs back is a press, and only where the script at
+       the foot of this page has not run: with it, choosing applies.
+       Without it — and it is one small script, which a browser is
+       entitled not to run — the Set button beside the list is what
+       commits, and everything still works.
 
        The colour is the state's own, and it follows the SELECTION
        rather than the saved value: :has(option:checked) turns the box
@@ -815,9 +815,9 @@ svg {
             &:hover { border-color: var(--ink); }
         }
 
-        /* The press that means it. Quiet until the list has been
-           touched — it is the second half of one action, not a second
-           action. */
+        /* The press that means it, for a page whose script never
+           ran. Quiet: it is the second half of one action, not a
+           second action. */
         button {
             padding: 0.5rem 0.7rem;
             font-family: var(--display);
@@ -838,6 +838,12 @@ svg {
 
             &:active { translate: 0 1px; box-shadow: none; }
         }
+
+        /* Gone once the script has run and choosing is enough. It is
+           the script that hides it, not this sheet on its own: a
+           button hidden by CSS in a page whose JavaScript failed is
+           a form with no way to submit it. */
+        &.is-live button { display: none; }
 
         /* In a table row, where the same control is read down a page. */
         &.is-compact {
@@ -1338,5 +1344,47 @@ svg {
         <p>The widget served from here is this version.</p>
     </footer>
 </div>
+
+<%# The only script in this UI, and it removes a press rather than
+    adding a feature: a state chosen from the list applies itself, and
+    the Set button beside it is only hidden once this has run — a
+    browser that never runs it keeps a form that works.
+
+    Not simply "submit on change". In a closed select, an arrow key
+    moves the value and fires change at every step, so submitting on
+    change sets `wontfix` on a report while somebody is still reading
+    past it to `fixed`. So how the choice was made decides when it is
+    applied: a pointer has finished choosing when the list closes, a
+    keyboard has finished when the reader leaves it (or presses Enter,
+    which submits the form by itself). %>
+<script>
+(() => {
+    "use strict";
+
+    for (const form of document.querySelectorAll("form.pick")) {
+        const list = form.elements.state;
+        if (!list) continue;
+
+        /* Only now: until this runs, the button is the only way. */
+        form.classList.add("is-live");
+
+        let pointer = false;
+        let applied = list.value;
+
+        list.addEventListener("pointerdown", () => { pointer = true; });
+        list.addEventListener("keydown", () => { pointer = false; });
+
+        const apply = () => {
+            if (list.value === applied) return;
+
+            applied = list.value;
+            form.requestSubmit();
+        };
+
+        list.addEventListener("change", () => { if (pointer) apply(); });
+        list.addEventListener("blur", apply);
+    }
+})();
+</script>
 </body>
 </html>
