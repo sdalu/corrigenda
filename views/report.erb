@@ -197,7 +197,8 @@
     <form class="filing" method="post"
           action="<%= to("/#{id}/archive", false) %>">
         <input type="hidden" name="archived" value="<%= archived ? "0" : "1" %>">
-        <button><%= archived ? "Restore" : "Archive" %></button>
+        <button class="toggle" role="switch" aria-checked="<%= archived %>"
+                title="<%= archived ? "Bring it back to the working list" : "Out of the list, keeping everything" %>">Archived</button>
     </form>
 
     <%# At the other end of the row: it is the one press here that

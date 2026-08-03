@@ -288,15 +288,19 @@ end
         assert_includes last_response.body, @id
     end
 
-    def test_the_report_page_offers_the_opposite_of_what_it_is
+    # A switch, so the word beside it stays put and the control says
+    # which way it is: what it posts is the opposite of what it shows.
+    def test_the_archive_switch_shows_where_it_stands
         get "/#{@id}"
 
-        assert_includes last_response.body, "Archive"
+        assert_match %r{role="switch"\s+aria-checked="false"}, last_response.body
+        assert_match %r{name="archived" value="1"}, last_response.body
 
         post "/#{@id}/archive", { "archived" => "1" }
         get "/#{@id}"
 
-        assert_includes last_response.body, "Restore"
+        assert_match %r{aria-checked="true"}, last_response.body
+        assert_match %r{name="archived" value="0"}, last_response.body
     end
 
     def test_archiving_something_that_is_not_there_is_not_found

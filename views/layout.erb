@@ -722,8 +722,8 @@ svg {
         th {
             font-family: var(--display);
             font-weight: 700;
-            font-size: 0.8125rem;
-            letter-spacing: 0.1em;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
             color: var(--muted);
         }
@@ -739,6 +739,12 @@ svg {
 
         /* Inside .scroller, so refusing to wrap costs nothing. */
         td:first-child, .badge { white-space: nowrap; }
+
+        /* The last column pays no trailing gutter: there is
+           nothing to its right to be kept off, and eight columns
+           of it is the difference between the table fitting and
+           scrolling. */
+        th:last-child, td:last-child { padding-inline-end: 0; }
     }
 
     /* The state column, set from the row: the same switch as on the
@@ -750,12 +756,9 @@ svg {
        table wraps it in an anonymous one — and the rule under it then
        lands at its own height instead of the row's. */
     .setting {
-        /* Filing takes the line under the states rather than the width
-           beside them. These rows are already several lines tall, so a
-           second line in one cell costs nothing — where the width did:
-           beside the states it pushed the table past its scroller and
-           left the control off the edge of the page. */
-        .filing button { margin-block-start: 0.3rem; }
+        /* Nothing else lives in this cell: filing has a column
+           of its own now, where a switch reads down a page
+           without being taken for a fourth state. */
     }
 
     /* The state switch: on a report's own page, and on every row of the
@@ -863,10 +866,10 @@ svg {
 
             button {
                 min-block-size: 1.8rem;
-                padding-inline: 0.45rem;
-                gap: 0.25em;
+                padding-inline: 0.35rem;
+                gap: 0.2em;
                 font-size: 0.75rem;
-                letter-spacing: 0.04em;
+                letter-spacing: 0.02em;
 
                 /* No room kept for the tick here. Pressing
                    one reloads the page, so nothing shuffles
@@ -878,28 +881,78 @@ svg {
         }
     }
 
-    /* Filing, which is not a state and never fills: the switch above
-       says what happened to the defect, this says whether anybody still
-       wants it in front of them. */
-    .filing button {
-        padding: 0.15rem 0.5rem;
+    /* Archived or not is one fact with two values, so it is a switch
+       rather than a verb: the knob's side says which way it is, and the
+       word beside it never changes, so nobody has to work out whether
+       "Archive" describes what it is or what pressing it would do.
+
+       A button and not a checkbox, because it posts a form; role and
+       aria-checked carry to a screen reader what the drawing carries to
+       everyone else. */
+    .toggle {
+        --track: 2.2rem;
+        --knob: 0.95rem;
+
+
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.2rem;
         font-family: var(--display);
-        font-size: 0.75rem;
-        letter-spacing: 0.05em;
+        font-size: 0.8125rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
         color: var(--muted);
-        background: var(--paper);
-        border: 1px solid var(--rule);
-        border-radius: 3px;
-        box-shadow: 0 1px 0 var(--rule);
+        background: none;
+        border: 0;
         cursor: pointer;
+
+        /* The track. */
+        &::before {
+            content: "";
+            inline-size: var(--track);
+            block-size: calc(var(--knob) + 0.3rem);
+            background: var(--panel);
+            border: 1px solid var(--rule);
+            border-radius: 1rem;
+        }
+
+        /* And the knob, which is the whole message. */
+        &::after {
+            content: "";
+            position: absolute;
+            inset-block-start: 50%;
+            inset-inline-start: 0.35rem;
+            inline-size: var(--knob);
+            block-size: var(--knob);
+            background: var(--muted);
+            border-radius: 50%;
+            translate: 0 -50%;
+        }
 
         &:hover {
             color: var(--ink);
-            border-color: var(--ink);
-            background: var(--panel);
+
+            &::before { border-color: var(--ink); }
+            &::after { background: var(--ink); }
         }
 
-        &:active { translate: 0 1px; box-shadow: none; }
+        &:active::after { scale: 0.9; }
+
+        &[aria-checked="true"] {
+            color: var(--ink);
+
+            &::before {
+                background: var(--ink);
+                border-color: var(--ink);
+            }
+
+            &::after {
+                background: var(--paper);
+                translate: calc(var(--track) - var(--knob) - 0.3rem) -50%;
+            }
+        }
     }
 
     /* The word carries the state; the mark only seconds it. */
@@ -1005,7 +1058,7 @@ svg {
         /* Archiving and deleting are not states, are not in the switch,
            and are not coloured by one: the same mechanical chrome, and
            no fill to say a report is "in" them. */
-        form:not(.switch) button, .button {
+        form:not(.switch) button:not(.toggle), .button {
             min-block-size: 2.5rem;
             min-inline-size: 3.5rem;
             padding-inline: var(--space);
@@ -1041,18 +1094,7 @@ svg {
            happened to the defect, right of it is what happens to the
            paperwork. A rule was drawn here first and left a stray mark
            at the start of the second line when the row wrapped. */
-        .filing { margin-inline-start: 0.75rem; }
-
-        /* Big enough for the row it lives in, unlike the small one in
-           the listing's cells. */
-        .filing button {
-            padding: 0 var(--space);
-            font-size: 0.875rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--ink);
-            background: var(--panel);
-        }
+        .filing { margin-inline-start: 1.6rem; }
 
         /* Keeping a report is the safe answer and looks like a link;
            destroying it is a button, and says so in its colour. */
@@ -1279,13 +1321,15 @@ svg {
 
 @media (prefers-reduced-motion: no-preference) {
     @layer components {
-        .bookmarklet, .states button, .listing tbody tr { transition: 120ms ease-out; }
+        .bookmarklet, .states button, .listing tbody tr,
+        .toggle::before, .toggle::after { transition: 120ms ease-out; }
     }
 }
 
 @media (forced-colors: active) {
     @layer components {
         .cascade .is-selector { border-inline-start-color: Highlight; }
+        .toggle[aria-checked="true"]::after { background: Highlight; }
         .badge.is-open::before { background: Highlight; }
 
         /* The fill is gone here — the system paints every button the

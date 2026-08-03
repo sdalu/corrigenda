@@ -79,13 +79,15 @@ To see the widget without any of that:
 
 The review UI is at `/review` behind the same login as the endpoint.
 A report is triaged from its row in the listing as well as from its own
-page: **open, fixed or wontfix** for what happened to the defect, and
-**archive** for whether it is still worth looking at. Both are on every
-row, so a morning's reports do not mean opening each one.
+page. Two controls, because they answer two questions: **open, fixed or
+wontfix** says what happened to the defect — the one that is set is
+filled and ticked — and an **archived** switch says whether anybody
+still wants it in front of them. A morning's reports do not mean
+opening each one.
 
-Archiving keeps everything and can be undone — the archived list has
-the same controls and a **restore** on each row. Deleting is on the
-report's own page, at the far end of the row, and asks again.
+Archiving keeps everything: the switch goes back the other way, from
+the archived list or from the report. Deleting is on the report's own
+page, at the far end of the row, and asks again.
 
 From a terminal on the host, the same store, without the proxy:
 

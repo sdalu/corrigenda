@@ -12,8 +12,9 @@
 <% if entries.empty? %>
     <p class="empty">
         <% if archived %>
-            Nothing archived. A report is archived from its own page,
-            which takes it out of the list without destroying it.
+            Nothing archived. The switch in a report’s row — or on
+            its own page — takes it out of this list without
+            destroying anything.
         <% else %>
             Nothing reported yet. Take the
             <a href="<%= mount("/") %>">bookmarklet</a> to a page and pick
@@ -27,6 +28,7 @@
                 <tr>
                     <th>When</th><th>Kind</th><th>Page</th>
                     <th>Summary</th><th>Sent</th><th>By</th><th>State</th>
+                    <th>Archived</th>
                 </tr>
             </thead>
             <tbody>
@@ -71,21 +73,27 @@
                                             title="<%= now ? "Already #{value}" : "Mark #{value}" %>"><%= value %></button>
                                 <% end %>
                             </form>
+                        </td>
 
-                            <%# And filed from the row as well. The state
-                                says what happened to the defect; this
-                                says whether anyone still wants it in
-                                front of them, which is the other half of
-                                triage and was the half that still meant
-                                opening the report. %>
-                            <form class="filing" method="post"
+                        <%# The other half of triage, and it used to mean
+                            opening the report: the state says what
+                            happened to the defect, this says whether
+                            anybody still wants it in front of them. A
+                            switch, because it is one fact with two
+                            values, and its own column, because a
+                            control under the states was read as a
+                            fourth state. %>
+                        <td class="filing">
+                            <form method="post"
                                   action="<%= to("/#{entry['id']}/archive", false) %>">
                                 <input type="hidden" name="from"
                                        value="<%= archived ? "archive" : "list" %>">
                                 <input type="hidden" name="archived"
                                        value="<%= archived ? "0" : "1" %>">
-                                <button
-                                        title="<%= archived ? "Back to the working list" : "Out of the list, keeping everything" %>"><%= archived ? "restore" : "archive" %></button>
+                                <button class="toggle" role="switch"
+                                        aria-checked="<%= archived %>"
+                                        title="<%= archived ? "Bring it back to the working list" : "Out of the list, keeping everything" %>"><span
+                                        class="visually-hidden">Archived</span></button>
                             </form>
                         </td>
                     </tr>
