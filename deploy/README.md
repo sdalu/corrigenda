@@ -38,8 +38,23 @@ and the vhost carries one line:
 
     Use CorrigendaEndpoint
 
-That means **no copy to drift** — editing `macro-corrigenda.conf`
-here changes the live config at the next reload. It also means this repo
+That means **no copy to drift between here and Apache** — but the file
+itself is generated, because two of the things in it were written
+twice. The socket the service binds and the path it is mounted under
+are in `corrigenda.yml`, and Apache cannot read YAML:
+
+    ./macro            rewrite macro-corrigenda.conf from corrigenda.yml
+    ./macro --check    say whether it is current (exit 1 if not)
+
+The result is committed rather than built on deploy: Apache includes it
+straight from the repository, so a checkout has to be complete rather
+than buildable. `rake test` runs `--check`, which is what keeps the
+committed copy honest — a socket in the config and a different one in
+the macro produces a 503 from a proxy talking to nobody, and nothing
+anywhere says why.
+
+Editing the generator, or the config it reads, changes the live
+Apache configuration at the next reload. It also means this repo
 is production configuration: a bad edit, a rename of the directory, or a
 checkout that removes the file breaks *every* vhost the next time httpd
 reloads, not just this one. `httpd -t` before every reload.

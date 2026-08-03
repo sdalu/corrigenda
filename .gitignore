@@ -10,3 +10,6 @@ extension/dist/
 vendor/
 store/
 .bundle/
+
+# FreeBSD writes these where a program crashed; diff did, once.
+*.core
