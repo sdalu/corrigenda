@@ -54,6 +54,16 @@
            .catch(() => {});
     };
 
+    /* Said once on every load, and the answer is not for us: a badge on
+     * the toolbar button is per tab and the browser clears it at every
+     * navigation, so a site that is granted looks unarmed after a
+     * refresh unless something puts it back. This script only runs
+     * where the add-on is granted, so its arrival is the fact worth
+     * announcing. It also wakes the background half before the widget
+     * asks it anything. */
+    api.runtime.sendMessage({ type: READY, origin: window.origin })
+       .catch(() => {});
+
     /* This runs at document_start, where <head> has not been parsed and
      * the link cannot be there yet. The announcement above must stay
      * that early -- the widget reads it synchronously -- but the reading

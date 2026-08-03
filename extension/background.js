@@ -277,7 +277,17 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         api.permissions.contains({ origins: [`${origin}/*`] })
-           .then((granted) => sendResponse({ granted: granted === true }),
+           .then((granted) => {
+               /* The same answer serves two purposes: the page is told
+                * whether a mapped capture is available, and the button
+                * gets its badge back. A badge is per tab and the
+                * browser clears it on every navigation, so without this
+                * a granted site reads as off after a refresh -- which
+                * is how somebody presses the button again on a site
+                * that was never off. */
+               announce(sender.tab?.id, granted === true);
+               sendResponse({ granted: granted === true });
+           },
                  () => sendResponse({ granted: false }));
 
         return true;

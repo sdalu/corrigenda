@@ -349,7 +349,8 @@ const check = async (name, browser, executablePath) => {
             warned: !r.querySelector('.a-warn').hidden,
             scopes: [...r.querySelectorAll('.scope input')].map((i) => !i.disabled),
             asks: window.__captureAsks.length,
-            shared: window.__shareAsked
+            shared: window.__shareAsked,
+            about: r.querySelector('.a-warn').dataset.about || ''
         };
     });
 
@@ -359,7 +360,9 @@ const check = async (name, browser, executablePath) => {
         fail(`${name}: installed but ungranted, and no warning`);
     else if (name === 'firefox' && ungranted.scopes.filter(Boolean).length !== 1)
         fail(`${name}: cropping offered by an ungranted add-on: ${JSON.stringify(ungranted.scopes)}`);
-    else ok(`${name}: an add-on that may not capture here reads as none`);
+    else if (name === 'firefox' && !/toolbar button/.test(ungranted.about))
+        fail(`${name}: the warning does not say the add-on can be allowed here: ${ungranted.about}`);
+    else ok(`${name}: an add-on that may not capture here reads as none, and says how to fix it`);
     await page.close();
 
     await instance.close();

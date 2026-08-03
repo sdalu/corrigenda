@@ -127,6 +127,11 @@
             noTabCapture: "This browser shares a window or a screen, never a " +
                           "single tab, so the image cannot be cropped to the " +
                           "element or masked over form fields.",
+            helperNotHere: "The capture add-on is installed but not allowed " +
+                           "on this site, so the image cannot be cropped to " +
+                           "the element or masked over form fields. Press " +
+                           "its toolbar button here and accept, once: every " +
+                           "later visit is set.",
             screenshot: "Screenshot",
             aboutFragment: "the picked element, sanitised",
             aboutRules: "the rules that matched it, with layer and media",
@@ -180,6 +185,11 @@
             noTabCapture: "Ce navigateur partage une fenêtre ou un écran, " +
                           "jamais un onglet : l'image ne peut être ni recadrée " +
                           "ni masquée.",
+            helperNotHere: "L'extension de capture est installée mais pas " +
+                           "autorisée sur ce site : l'image ne peut être ni " +
+                           "recadrée ni masquée. Cliquez son bouton dans la " +
+                           "barre d'outils et acceptez, une fois : les " +
+                           "visites suivantes sont réglées.",
             screenshot: "Capture d'écran",
             aboutFragment: "l'élément choisi, nettoyé",
             aboutRules: "les règles qui s'y appliquent, layer et media compris",
@@ -2974,9 +2984,22 @@ input:where(:not(:checked)) + .chip {
          * about the browser and not about this report, and as a
          * permanent paragraph it re-explained itself on every
          * screenshot anyone ever took here. */
+        /* Two reasons to be here and only one of them is actionable: a
+         * browser that cannot share a tab is a fact to live with, an
+         * add-on that is installed but not allowed on this site is a
+         * button away from being fixed. Saying the first when the
+         * second is true reads as "nothing to be done" to somebody
+         * holding the remedy.
+         *
+         * The marker is the tell: it is present only where a bridge is
+         * running, and by here it has already been asked and has said
+         * it may not capture. */
         const warn = $(".a-warn");
+        const installed = extension() !== null && helperAnswers === false;
+
         warn.hidden = able;
-        warn.dataset.about = T.noTabCapture;
+        warn.dataset.about = installed ? T.helperNotHere : T.noTabCapture;
+        warn.setAttribute("aria-label", warn.dataset.about);
     };
 
     syncScopes();
