@@ -1,11 +1,34 @@
 # Browser end-to-end test
 
-Drives the real widget in headless Chromium against the real
+Drives the real widget in real headless browsers against the real
 endpoint. Unit tests (`bundle exec rake test`) cover the endpoint;
 this covers the half that only exists in a browser — the picker, the
-CSSOM walk, the sanitiser, and the gzipped POST.
+CSSOM walk, the sanitiser, the add-on bridge, and the gzipped POST.
 
-Three steps, from `ops/Corrigenda`:
+```sh
+bundle exec rake test:browser     # all four checks, both engines
+ONLY="widget" bundle exec rake test:browser
+test/browser/run --list           # what each check covers
+test/browser/run --help           # and what the runner does
+```
+
+`test/browser/run` is the whole recipe below in one command: it starts
+the servers on the ports the checks have written into them, finds the
+toolchain, runs each check, and stops the servers whatever happens. A
+failed run keeps its stores and names the server log; a passing one
+takes them away (`--keep` overrides). It is not part of `rake test`
+because the browsers are a toolchain this repository does not carry:
+a checkout without them should still pass its tests.
+
+It does not go through `../../run`, and deliberately: that script is
+the deployment doorway and wants a config naming a deployment, while an
+absent config is a valid development config. These checks pass in a
+bare checkout.
+
+## By hand
+
+Worth knowing when a check fails and you want to drive the same page
+yourself. Three steps, from `ops/Corrigenda`:
 
 ```sh
 # 1. serve the fixture page, the client, and the endpoint together
@@ -32,7 +55,7 @@ node -r ./shim.js /web/ops/Corrigenda/test/browser/extension-check.js
 ls /var/tmp/corrigenda-browser-store/*/*/*/report.json
 ```
 
-## Two files, and why one of them runs twice
+## Four checks, and why three of them run twice
 
 `widget-check.js` is the end-to-end pass: the picker, the CSSOM walk,
 the sanitiser, the gzipped POST. Chromium only — it is about the

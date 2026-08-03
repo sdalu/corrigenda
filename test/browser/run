@@ -1,0 +1,283 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Runs the browser checks: the servers they need, the engines they ask
+# for, and the environment that finds both.
+#
+#   ./run                   every check
+#   ./run widget selection  only these (a unique prefix will do)
+#   ./run --list            name them and say what each covers
+#   ./run --keep            leave the stores and the server logs behind
+#
+# Why this exists. What it drives is the half of the system the unit
+# suite cannot reach -- the picker, the CSSOM walk, the sanitiser, the
+# add-on bridge, the CORS dance -- and running it meant typing six
+# commands and three environment variables out of a README, one of them
+# a probe for which spelling of a directory holds the real tool today.
+# A suite that costs that much to start is a suite that gets skipped,
+# and the bugs these found (a link's words unselectable in Firefox, a
+# marker read once at load) are exactly the kind nothing else sees.
+#
+# It does not go through ../../run. That script is the deployment
+# doorway: it wants a config naming this deployment and writes Apache's
+# macro at every start. An absent config is a valid development config
+# (see lib/corrigenda/config.rb), and these checks have to pass in a
+# bare checkout, so the servers are started here with the store as the
+# only thing said about them.
+
+require "fileutils"
+require "pathname"
+require "socket"
+
+HERE = Pathname(__dir__)
+ROOT = HERE.parent.parent
+
+# Written into the checks themselves -- the fixture URL in three of
+# them, the cross-origin defaults in the fourth -- so these are facts to
+# honour here, not choices to make.
+PAGE_PORT     = 9393
+ENDPOINT_PORT = 9397
+
+TMP    = Pathname(ENV.fetch("TMPDIR", "/var/tmp"))
+STORE  = TMP / "corrigenda-browser-store"
+XSTORE = TMP / "corrigenda-browser-xorigin"
+
+# `second: true` marks the check that needs an endpoint on another
+# origin. It is the only one that does, and starting a server nothing
+# asked for is a port taken from whoever else wanted it.
+CHECKS = {
+    "widget" => {
+        file:   "widget-check.js",
+        covers: "picker, CSSOM walk, sanitiser, gzipped POST (chromium)"
+    },
+    "selection" => {
+        file:   "selection-check.js",
+        covers: "text selection and window drag, both engines"
+    },
+    "extension" => {
+        file:   "extension-check.js",
+        covers: "the add-on bridge against a stub, both engines"
+    },
+    "cross-origin" => {
+        file:   "cross-origin-check.js",
+        covers: "preflight, credentials and CORS from another origin",
+        second: true
+    }
+}.freeze
+
+# The tools are not in this repository and not installed by it: they are
+# a browser toolchain that happens to be on this host. Probe for a FILE
+# it must contain rather than for the directory -- on 2026-08-02 both
+# spellings of the directory existed and only the /compat/linux one was
+# populated, so a directory test picked the empty husk and node failed
+# on a missing executable. Which side is populated is a property of the
+# moment, not a rule.
+BASES = [
+    "/compat/linux/root/.claude/tools/playwright-chromium",
+    "/root/.claude/tools/playwright-chromium"
+].freeze
+
+keep  = false
+wanted = []
+
+ARGV.each do |arg|
+    case arg
+    when "--keep", "-k" then keep = true
+    when "--list", "-l"
+        CHECKS.each { |name, c| puts format("%-13s %s", name, c[:covers]) }
+        exit 0
+    when "--help", "-h"
+        # The header comment is the manual: past the shebang and the
+        # pragma, up to the first line that is not one.
+        puts File.read(__FILE__).lines.drop(2)
+                 .drop_while { it.strip.empty? }
+                 .take_while { it.start_with?("#") }
+                 .map { it.sub(/\A#[ ]?/, "") }
+                 .join
+        exit 0
+    when /\A-/ then abort "run: unknown flag #{arg} (--help)"
+    else
+        matches = CHECKS.keys.select { it.start_with?(arg) }
+        abort "run: no check matches #{arg.inspect} (--list)" if matches.empty?
+        abort "run: #{arg.inspect} matches #{matches.join(", ")}" if matches.size > 1
+        wanted << matches.first
+    end
+end
+
+wanted = CHECKS.keys if wanted.empty?
+
+base = ENV["CHROMIUM"] || BASES.find { File.exist?(File.join(it, "shim.js")) }
+
+if base.nil? || !File.exist?(File.join(base, "shim.js"))
+    abort <<~SAY
+        run: no browser toolchain found.
+
+            #{BASES.join("\n    ")}
+
+        Neither holds a shim.js. The checks need playwright-core, a
+        Chromium headless shell and a Firefox build; CHROMIUM=/path
+        says where they are if they live somewhere else here.
+    SAY
+end
+
+unless system("bundle", "check", out: File::NULL, err: File::NULL)
+    abort "run: gems are not installed -- run: bundle install"
+end
+
+# A port already answering is almost always a development run of the
+# service, and the check would then drive somebody else's server against
+# somebody else's store. Say which one and stop.
+def port_free!(port)
+    TCPServer.new("127.0.0.1", port).close
+rescue Errno::EADDRINUSE
+    abort "run: something is already listening on #{port} -- " \
+          "stop it, or let it finish"
+end
+
+# node is a native build and the shell here is not, so the two can
+# disagree about what an absolute path means; everything handed to node
+# is therefore spelled the way the probe found it. LD_LIBRARY_PATH
+# carries the Linux libraries the browsers link against, and NODE_PATH
+# is how `require('playwright-core')` resolves from a script that lives
+# in this repository rather than beside the module.
+def node_env(base)
+    libs = ["#{base}/libs/usr/lib64", "#{base}/libs/lib64"].select {
+        Dir.exist?(it)
+    }
+
+    {
+        "CHROMIUM"        => base,
+        "NODE_PATH"       => "#{base}/node_modules",
+        "LD_LIBRARY_PATH" => libs.join(":"),
+        "SHOTS"           => STORE.to_s
+    }
+end
+
+# CORRIGENDA_CONFIG is unset rather than pointed somewhere: a deployment
+# config sitting in deploy/ must not be what a test run reads, and an
+# absent config is exactly the development default these checks want.
+# The empty allowlist is not the same as no allowlist -- the fixture
+# reports itself as fixture.test, which no deployment would accept.
+def serve(port, store, log, host: "127.0.0.1")
+    FileUtils.mkdir_p(store)
+
+    env = {
+        "CORRIGENDA_CONFIG" => nil,
+        "CORRIGENDA_STORE"  => store.to_s,
+        "CORRIGENDA_SITES"  => ""
+    }
+
+    Process.spawn(env, "bundle", "exec", "puma",
+                  "-b", "tcp://#{host}:#{port}",
+                  "test/browser/config.ru",
+                  chdir: ROOT.to_s, out: log.to_s, err: [log.to_s, "a"])
+end
+
+# Puma prints "Listening on" before it accepts, and a check that starts
+# a moment too early fails on a connection refused that says nothing
+# about the widget. So: wait for an accepted connection, and give up on
+# a server that has already died rather than waiting out the timeout.
+def await(pid, port, log, seconds: 20)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds
+
+    loop do
+        if Process.wait(pid, Process::WNOHANG)
+            abort "run: the server on #{port} exited at once:\n\n" +
+                  File.read(log).lines.last(20).join
+        end
+
+        begin
+            TCPSocket.new("127.0.0.1", port).close
+            return
+        rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+            if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+                abort "run: nothing accepted on #{port} within #{seconds}s:\n\n" +
+                      File.read(log).lines.last(20).join
+            end
+            sleep 0.1
+        end
+    end
+end
+
+def stop(pid)
+    Process.kill("TERM", pid)
+    50.times do
+        return if Process.wait(pid, Process::WNOHANG)
+
+        sleep 0.1
+    end
+    Process.kill("KILL", pid)
+    Process.wait(pid)
+rescue Errno::ESRCH, Errno::ECHILD
+    nil
+end
+
+second = wanted.any? { CHECKS.fetch(it)[:second] }
+
+port_free!(PAGE_PORT)
+port_free!(ENDPOINT_PORT) if second
+
+# A fresh store each run: these checks assert on what landed, and a
+# report from the run before is a report that did not land now.
+[STORE, (XSTORE if second)].compact.each { FileUtils.rm_rf(it) }
+
+log  = TMP / "corrigenda-browser-page.log"
+xlog = TMP / "corrigenda-browser-xorigin.log"
+
+puts "corrigenda browser checks"
+puts "tools      #{base}"
+puts "page       http://127.0.0.1:#{PAGE_PORT}  (#{STORE})"
+puts "endpoint   http://localhost:#{ENDPOINT_PORT}  (#{XSTORE})" if second
+puts
+
+pids = []
+failed = []
+
+begin
+    pids << (page = serve(PAGE_PORT, STORE, log))
+    await(page, PAGE_PORT, log)
+
+    if second
+        # 0.0.0.0, because this one is reached by two names: the page is
+        # served from 127.0.0.1 and the endpoint answers on localhost,
+        # which is a different origin to a browser and the same machine
+        # to everyone else.
+        pids << (endpoint = serve(ENDPOINT_PORT, XSTORE, xlog, host: "0.0.0.0"))
+        await(endpoint, ENDPOINT_PORT, xlog)
+    end
+
+    env = node_env(base)
+
+    wanted.each do |name|
+        script = (HERE / CHECKS.fetch(name)[:file]).to_s
+        puts "=== #{name} ==="
+
+        # chdir to the toolchain: playwright-core resolves the browsers
+        # it launches relative to where it is installed, not to where
+        # the script it runs came from.
+        ok = system(env, "node", "-r", "#{base}/shim.js", script, chdir: base)
+        failed << name unless ok
+        puts
+    end
+ensure
+    pids.each { stop(it) }
+end
+
+if failed.empty?
+    puts "#{wanted.size} #{wanted.size == 1 ? "check" : "checks"}, all passed"
+else
+    puts "#{failed.size} of #{wanted.size} failed: #{failed.join(", ")}"
+    puts "server log #{log}"
+    puts "server log #{xlog}" if second
+end
+
+# The stores hold what the checks filed, including the screenshots they
+# took: worth keeping when something failed, noise when nothing did.
+if keep || !failed.empty?
+    puts "stores kept: #{STORE}#{second ? ", #{XSTORE}" : ""}"
+else
+    [STORE, (XSTORE if second)].compact.each { FileUtils.rm_rf(it) }
+    [log, (xlog if second)].compact.each { FileUtils.rm_f(it) }
+end
+
+exit failed.empty? ? 0 : 1

@@ -14,6 +14,19 @@ Rake::TestTask.new(:test) do |t|
     t.pattern = "test/*_test.rb"
 end
 
+# The other half of the suite. The picker, the sanitiser and the CORS
+# dance only exist in a browser, so those checks need a browser
+# toolchain this repository does not carry and cannot install -- which
+# is why they are a task of their own rather than part of `rake test`:
+# a checkout without the tools should still have a test suite that
+# passes, and be told plainly when it asks for the half it cannot run.
+namespace :test do
+    desc %(Drive the widget in real browsers (ONLY="widget" runs one))
+    task :browser do
+        sh(["test/browser/run", *ENV["ONLY"]&.split].shelljoin)
+    end
+end
+
 # Neither the config nor the macro is in the repository: one names this
 # deployment, the other is three of its fields in Apache's syntax. So the
 # first thing anything here does is check that a deployment exists.
