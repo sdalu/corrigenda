@@ -741,6 +741,47 @@ svg {
         td:first-child, .badge { white-space: nowrap; }
     }
 
+    /* The state column, set from the row. Buttons rather than links
+       because they post; shaped like the badge they replace, so the
+       column still reads as a column of states rather than a strip of
+       controls. The one that is disabled is the current state — it is
+       the only one in full ink, which is what makes the column
+       scannable. */
+    .setting {
+        form {
+            display: flex;
+            /* One line: the table is inside a .scroller, so a wide
+               column costs a scroll rather than a taller row, and a
+               row that grows makes the list harder to read down. */
+            flex-wrap: nowrap;
+            gap: 0.15rem;
+        }
+
+        button.badge {
+            /* Comfortably past the 24px a pointer needs, without
+               turning a table row into a toolbar. */
+            min-block-size: 1.75rem;
+            padding-inline: 0.35rem;
+            border: 1px solid transparent;
+            border-radius: 2px;
+            background: none;
+            cursor: pointer;
+
+            &:hover, &:focus-visible {
+                border-color: var(--rule);
+                background: var(--panel);
+                color: var(--ink);
+            }
+
+            &:disabled {
+                cursor: default;
+                color: var(--ink);
+
+                &::before { border-color: var(--ink); }
+            }
+        }
+    }
+
     /* The word carries the state; the mark only seconds it. */
     .badge {
         font-family: var(--display);

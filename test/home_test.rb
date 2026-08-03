@@ -104,12 +104,22 @@ end
     assert_includes last_response.body, "No <code>api:</code> key"
 end
 
-    def test_the_page_says_what_the_api_allows
+def test_the_page_says_what_the_api_allows
     TestSupport.configure("api" => { "write" => true })
     get "/"
 
-    assert_includes last_response.body, "may change reports"
-    assert_includes last_response.body, "may record work"
+    assert_includes last_response.body,
+                    "may record work, archive, set states"
+ensure
+    TestSupport.configure
+end
+
+def test_the_page_says_when_a_scope_bounds_it
+    TestSupport.configure("api" => { "state" => true,
+                                     "sites" => ['a\.test', 'b\.test'] })
+    get "/"
+
+    assert_includes last_response.body, "for 2 site patterns"
 ensure
     TestSupport.configure
 end

@@ -53,6 +53,17 @@ module Corrigenda
                     request.env["REMOTE_USER"]
             end
 
+            # Where a press should leave you. From a report's own page,
+            # back to it; from the listing, back to the listing you were
+            # reading, archive or not — being thrown into a report you
+            # did not open is the thing that made triaging from the list
+            # not worth doing.
+            def back_to(id)
+                return to("/#{id}", false) unless params[:from] == "list"
+
+                to(params[:archived] == "1" ? "/?archived=1" : "/", false)
+            end
+
             def find(id)
                 halt 404, "no such report\n" unless id.match?(ID)
 
@@ -120,7 +131,7 @@ module Corrigenda
             id = params[:id]
             find(id)
             store.mark(id, params[:state], by: acting_user)
-            redirect to("/#{id}", false)
+            redirect back_to(id)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
         end

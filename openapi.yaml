@@ -20,11 +20,15 @@ info:
         The whole interface is optional. With no `api:` key in the
         deployment config every path here answers 404 -- not 403,
         because a route that is switched off should not advertise that
-        it exists. Reading needs nothing further; changing where a
-        report stands needs `write: true`, and adding a line to its
-        journal needs `record: true` — two permissions, because the
-        journal is additive and nothing in it can be edited or
-        removed. Deleting a report is not offered at any setting.
+        it exists. Reading needs nothing further. Changing anything
+        needs a grant, and there are three: `journal` adds a line to a
+        report's trail, `archive` takes it out of the working list or
+        puts it back, `state` says what happened to the defect. They
+        are separate because they are wrong in different ways — a
+        journal line is additive, archiving is reversible, a state is
+        a claim nobody re-checks. `sites:` bounds any of them to the
+        hostnames a regular expression matches. Deleting a report is
+        not offered at any setting.
 
         **Reaching it.** On the host, through the unix socket, which
         meets no Apache and so needs no login:
@@ -54,10 +58,10 @@ info:
         across all of them.
 
         **Start by asking.** `GET /api/` says what routes exist and
-        which changes this deployment allows -- `writable` for a
-        state or the archive, `recordable` for a line in a journal,
-        and they are separate. It is the service in front of you
-        rather than a document that may be older than it.
+        which changes this deployment allows: `allows` holds any of
+        `journal`, `archive` and `state`, and `sites` bounds them to
+        particular hostnames. It is the service in front of you rather
+        than a document that may be older than it.
         If every path answers 404, the interface is switched off in the
         deployment config: say so and stop, rather than guessing
         another base path or scraping the review UI.
@@ -157,12 +161,12 @@ paths:
                 ---
 
                 🤖 **For AI:** Ask this first, every session. It says
-                whether you may change a report (`writable`) and
-                whether you may write in its journal (`recordable`) --
-                two permissions, so a deployment can let you say what
-                you tried without letting you declare a defect fixed.
-                Read them and you do not spend a turn discovering a
-                403. Its `routes` are
+                what this deployment lets you do, in `allows`:
+                `journal`, `archive`, `state`, any of them separately,
+                so it can let you say what you tried without letting
+                you declare a defect fixed. `sites` bounds those to
+                particular hostnames. Read both and you do not spend a
+                turn discovering a 403. Its `routes` are
                 the service in front of you rather than a document that
                 may be older than it. If every path here answers 404 the
                 interface is switched off in the deployment config: say
@@ -714,20 +718,28 @@ components:
                 reports:
                     type: integer
                     description: How many are on disk, including any the index lost
-                writable:
-                    type: boolean
+                allows:
+                    type: array
                     description: >
-                        Whether this deployment allows a report's
-                        state or archive marker to be changed.
-                recordable:
-                    type: boolean
+                        What this deployment permits, out of `journal`
+                        (add a line to a report's trail), `archive`
+                        (take it out of the working list, or back) and
+                        `state` (say what happened to the defect).
+                        Separate because they are wrong in different
+                        ways: a journal line is additive, archiving
+                        hides work and is reversible, a state is a
+                        claim somebody stops checking behind. Reading
+                        is not among them — being here is reading.
+                    items:
+                        type: string
+                        enum: [journal, archive, state]
+                sites:
+                    type: array
                     description: >
-                        Whether it allows a line to be added to a
-                        report's journal. A separate permission: the
-                        journal is additive and nothing in it can be
-                        edited or removed, so a caller may be trusted
-                        with it without being trusted to declare a
-                        defect fixed.
+                        Regular expressions bounding those grants to
+                        the sites a report is about. Empty means every
+                        site. Each must match a whole hostname.
+                    items: { type: string }
                 id: { type: string }
                 states:
                     type: array

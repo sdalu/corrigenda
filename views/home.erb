@@ -441,14 +441,14 @@ paths below are relative to it.</p>
     # Wrapped where it is written: this ends up inside a <pre>, and a
     # paragraph that runs to three hundred characters is one somebody
     # has to scroll sideways to read before deciding whether to send it.
-    doing = if api_allows_writes?
+    doing = if api_allows?("state")
                 <<~SAY.chomp
                     Record what you did on the report as you go, and do not mark
                     anything fixed until you have checked the defect is gone under
                     the conditions the report names. If a report needs a decision
                     rather than a change, leave it open and tell me.
                 SAY
-            elsif api_allows_records?
+            elsif api_allows?("journal")
                 <<~SAY.chomp
                     Record what you find and what you tried on each report as you
                     go. You cannot change a report's state here: say what you

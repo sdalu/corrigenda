@@ -164,11 +164,12 @@ module Corrigenda
                 "openapi"    => mounted("/openapi.json"),
                 "reports"    => store.ids.size,
 
-                # Two answers, because they are two permissions: may a
-                # caller change where a report stands, and may it add to
-                # what has been said about it.
-                "writable"   => api["write"],
-                "recordable" => api["record"],
+                # What it may do, and where it may do it: three grants
+                # rather than one word, since they are wrong in
+                # different ways, and the site patterns they are bounded
+                # by. Reading is not a grant -- being here is reading.
+                "allows"     => api["allows"],
+                "sites"      => api["sites"],
 
                 "id"         => "YYYYMMDDThhmmssZ-xxxxxxxx",
                 "states"     => Store::STATES,
@@ -286,10 +287,10 @@ module Corrigenda
             # PATCH that only says what was tried needs the permission
             # to say things, and a deployment can grant that without
             # granting the one that moves a report to fixed.
-            writable! if changes.key?("state") || changes.key?("archived")
-            recordable! if changes["note"]
-
-            report!(id)
+            document = report!(id)
+            allowed!("state", document)   if changes.key?("state")
+            allowed!("archive", document) if changes.key?("archived")
+            allowed!("journal", document) if changes["note"]
 
             if changes.key?("state")
                 state = changes["state"]
@@ -332,9 +333,8 @@ module Corrigenda
         # into somebody's record of their own defect is a write, even
         # though it changes nothing about the report itself.
         post "/reports/:id/journal" do
-            recordable!
             id = params[:id]
-            report!(id)
+            allowed!("journal", report!(id))
 
             note = body_params["note"].to_s
             fail_with(422, "a journal entry needs a note") if note.strip.empty?
@@ -369,9 +369,8 @@ module Corrigenda
         end
 
         post "/reports/:id/state" do
-            writable!
             id = params[:id]
-            report!(id)
+            allowed!("state", report!(id))
 
             state = body_params["state"]
             unless Store::STATES.include?(state)
@@ -385,9 +384,8 @@ module Corrigenda
         end
 
         post "/reports/:id/archive" do
-            writable!
             id = params[:id]
-            report!(id)
+            allowed!("archive", report!(id))
 
             wanted = body_params.fetch("archived", true)
             store.archive(id, yes: truthy(wanted), by: acting_user,
@@ -416,19 +414,32 @@ module Corrigenda
             # decides the first and can be wrong in a way somebody has
             # to undo; adding to the journal only lengthens the second,
             # and nothing there can be edited or removed.
-            def writable!
-                return if api["write"]
+            GRANTS = {
+                "journal" => "write in a report's journal",
+                "archive" => "archive a report",
+                "state"   => "set a report's state"
+            }.freeze
 
-                fail_with(403, "this endpoint may not change a report " \
-                               "(set api.write in the deployment config)")
-            end
+            # Two questions, and both have to be yes: is this endpoint
+            # allowed to do that at all, and is it allowed near this
+            # report? The second is why a document is wanted here rather
+            # than an id -- the scope is written against the site a
+            # report is about.
+            def allowed!(grant, document)
+                unless api["allows"].include?(grant)
+                    fail_with(403, "this endpoint may not " \
+                                   "#{GRANTS.fetch(grant)} " \
+                                   "(set api.#{grant} in the deployment " \
+                                   "config)")
+                end
 
-            def recordable!
-                return if api["record"]
+                site = document.dig("page", "site").to_s
+                return if config.api_covers?(site)
 
-                fail_with(403, "this endpoint may not write in a report's " \
-                               "journal (set api.record in the deployment " \
-                               "config)")
+                fail_with(403, "this endpoint may not change reports about " \
+                               "#{site.empty? ? "that site" : site} " \
+                               "(api.sites in the deployment config says " \
+                               "which it may)")
             end
 
             # False in the spellings a form post and a JSON body each

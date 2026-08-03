@@ -78,6 +78,9 @@ To see the widget without any of that:
 ## Reading what came in
 
 The review UI is at `/review` behind the same login as the endpoint.
+States are set from the listing as well as from a report's own page,
+so triaging a morning's reports does not mean opening each one.
+
 From a terminal on the host, the same store, without the proxy:
 
     rake data:list                     the working list
@@ -108,11 +111,24 @@ It describes itself: [openapi.yaml](openapi.yaml), served at
 `/api/openapi.json` and rendered at `/apidocs`, where the masthead
 grows an **API** tab on a deployment that has switched it on.
 
-Reading needs nothing further. Changing where a report stands needs
-`write: true`; adding a line to its journal needs `record: true`,
-which can be granted on its own — a program may be trusted to say
-what it tried without being trusted to declare the defect fixed.
-Deleting a report is not offered at any setting.
+Reading needs nothing further. Changing anything needs a grant, and
+there are three, because they are wrong in three different ways:
+
+```yaml
+api:
+    journal: true             # add a line to a report's trail
+    archive: true             # out of the working list, or back
+    state:   true             # say what happened to the defect
+    sites:   ['.*\.example\.com']   # bound those to these hostnames
+```
+
+A journal line is additive — nothing in a trail can be edited or
+removed — so a wrong one costs noise. Archiving hides work and is
+reversible. A state is a claim somebody will trust and stop checking
+behind. `journal: true` alone is where to start. `sites` are regular
+expressions, anchored when read, so the whole hostname must match;
+reading is never scoped. Deleting a report is not offered at any
+setting.
 
 `token: <secret>` adds a Bearer token on top of whatever Apache already
 asked for. With no `api:` key, every path under `/api` answers 404
@@ -140,7 +156,7 @@ Two things worth keeping if you write your own: point it at
 it means "I changed something", which is a different claim and the
 one you will be reading later.
 
-An agent given `record: true` and not `write: true` is a good way to
+An agent given `journal: true` and nothing else is a good way to
 start: it tells you what it found and what it tried, and every state
 on the board still moved because a person moved it.
 

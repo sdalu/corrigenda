@@ -151,6 +151,39 @@ end
         assert_equal "fixed", store.state(@id)
     end
 
+    # Triaging a morning's reports meant opening each one and coming
+    # back. The listing sets a state from the row, and lands you back on
+    # the list you were reading rather than inside the report.
+    def test_the_listing_offers_every_state_on_each_row
+        get "/"
+
+        assert_includes last_response.body, %(name="state" value="fixed")
+        assert_includes last_response.body, %(name="from" value="list")
+    end
+
+    def test_a_state_set_from_the_listing_returns_to_the_listing
+        post "/#{@id}/state", { "state" => "fixed", "from" => "list" }
+
+        assert_equal 302, last_response.status
+        assert_equal "fixed", store.state(@id)
+        assert_match %r{/\z}, last_response.headers["location"]
+    end
+
+    def test_it_returns_to_the_archive_when_that_is_where_you_were
+        store.archive(@id)
+        post "/#{@id}/state", { "state" => "wontfix", "from" => "list",
+                                "archived" => "1" }
+
+        assert_equal "/?archived=1", last_response.headers["location"]
+    end
+
+    # From a report's own page, nothing changes: you stay on the report.
+    def test_a_state_set_from_a_report_stays_on_the_report
+        post "/#{@id}/state", { "state" => "fixed" }
+
+        assert_equal "/#{@id}", last_response.headers["location"]
+    end
+
     def test_an_unknown_state_is_refused
         post "/#{@id}/state", { "state" => "maybe" }
 

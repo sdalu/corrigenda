@@ -496,33 +496,86 @@ end
         assert_equal 403, last_response.status
     end
 
-    # And the other way: a deployment can let a program move a report
-    # without letting it write prose into somebody's record.
-    def test_a_writer_can_be_refused_the_journal
-        enable("write" => true, "record" => false)
+# And the other way round, one grant at a time: a program that may
+# move a report out of the way and nothing else.
+def test_a_grant_reaches_only_its_own_route
+    enable("archive" => true)
 
-        patch "/reports/#{@id}", JSON.generate("state" => "fixed"),
-              { "CONTENT_TYPE" => "application/json" }
+    post "/reports/#{@id}/archive", JSON.generate("archived" => true),
+         { "CONTENT_TYPE" => "application/json" }
 
-        assert_equal 200, last_response.status
-        assert_equal "fixed", store.state(@id)
+    assert_equal 200, last_response.status
+    assert store.archived?(@id)
 
-        # The state change still recorded itself: that line is the
-        # service's, not the caller's.
-        assert_equal ["state"], store.journal(@id).map { it["kind"] }
+    post "/reports/#{@id}/state", JSON.generate("state" => "fixed"),
+         { "CONTENT_TYPE" => "application/json" }
 
-        post "/reports/#{@id}/journal", JSON.generate("note" => "and also"),
-             { "CONTENT_TYPE" => "application/json" }
+    assert_equal 403, last_response.status
+    assert_match(/set a report's state/, body["error"])
+end
 
-        assert_equal 403, last_response.status
-    end
+# The change still recorded itself without the journal grant: that
+# line is the service's, not the caller's.
+def test_a_change_records_itself_without_the_journal_grant
+    enable("archive" => true)
 
-    def test_the_capability_document_answers_both_questions
-        enable("record" => true)
+    post "/reports/#{@id}/archive", JSON.generate("archived" => true),
+         { "CONTENT_TYPE" => "application/json" }
+
+    assert_equal ["archive"], store.journal(@id).map { it["kind"] }
+end
+
+# A grant is bounded by the sites it was given, and a report says
+# which site it is about.
+def test_a_scope_keeps_a_grant_away_from_other_sites
+    TestSupport.configure("api" => { "state" => true,
+                                     "sites" => ['.*\.elsewhere\.test'] })
+
+    post "/reports/#{@id}/state", JSON.generate("state" => "fixed"),
+         { "CONTENT_TYPE" => "application/json" }
+
+    assert_equal 403, last_response.status
+    assert_match(/www\.example\.com/, body["error"])
+    assert_equal "open", store.state(@id)
+ensure
+    TestSupport.configure
+end
+
+def test_a_scope_that_matches_lets_the_grant_through
+    TestSupport.configure("api" => { "state" => true,
+                                     "sites" => ['www\.example\.com'] })
+
+    post "/reports/#{@id}/state", JSON.generate("state" => "fixed"),
+         { "CONTENT_TYPE" => "application/json" }
+
+    assert_equal 200, last_response.status
+    assert_equal "fixed", store.state(@id)
+ensure
+    TestSupport.configure
+end
+
+# Reading is not scoped: the scope is about what may be changed, and
+# a report somebody cannot fix is still one they can look at.
+def test_a_scope_does_not_hide_reports
+    TestSupport.configure("api" => { "state" => true,
+                                     "sites" => ['nothing\.test'] })
+
+    get "/reports/#{@id}"
+
+    assert_equal 200, last_response.status
+ensure
+    TestSupport.configure
+end
+
+    def test_the_capability_document_says_what_it_allows
+        TestSupport.configure("api" => { "journal" => true,
+                                         "sites" => ['.*\.example\.com'] })
         get "/"
 
-        refute body["writable"]
-        assert body["recordable"]
+        assert_equal ["journal"], body["allows"]
+        assert_equal ['.*\.example\.com'], body["sites"]
+    ensure
+        TestSupport.configure
     end
 
     def test_deleting_is_not_offered

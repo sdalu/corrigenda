@@ -95,22 +95,39 @@ sites:
 # Or, with any of these:
 #
 #   api:
-#       write: true        may set a state and archive a report;
-#                          never delete one, at any setting
-#       record: true       may add a line to a report's journal.
-#                          Unset, this follows `write`
+#       journal: true      may add a line to a report's trail
+#       archive: true      may take a report out of the working list,
+#                          or put it back
+#       state: true        may say what happened to the defect
+#       sites: ['...']     regular expressions bounding those grants
+#                          to the sites a report is about
 #       token: <secret>    also require this, as a Bearer token, on
 #                          top of whatever Apache asked for
 #
 # Reading is the default and changing is not: an agent acts on its own
 # reading of a situation, and changing what a person filed about their
-# own site is a different thing from reading it.
+# own site is a different thing from reading it. Deleting is not on
+# offer at any setting.
 #
-# The two changes are separate on purpose. `write` decides where a
-# report stands and can be wrong in a way somebody has to undo;
-# `record` only lengthens what has been said about it, and nothing in
-# a journal can be edited or removed. `record: true` alone is an agent
-# that may say what it tried without declaring the defect fixed.
+# Three grants because they are wrong in three ways. A journal line is
+# additive — nothing there can be edited or removed — so a wrong one
+# costs noise. Archiving hides work and is entirely reversible. A state
+# is a claim somebody will trust and stop checking behind. `journal:
+# true` alone is an agent that says what it tried without declaring
+# anything fixed.
+#
+# `sites` are regular expressions, anchored when they are read: the
+# whole hostname must match, so `alux\.fr` cannot also reach
+# notalux.fr.example.com. Case does not matter. Reading is never
+# scoped — a report somebody may not change is still one they may read.
+#
+#   sites:
+#       - '.*\.example\.com'
+#       - 'www\.example\.org'
+#
+# `write: true` is the old shorthand for all three grants and `record:
+# true` for `journal`; both still work. Mixing `write: true` with a
+# grant set to false is refused rather than guessed at.
 
 # Which pages may post a report from another host. Absent, it is the
 # sites above read as https origins, which is the answer whenever a

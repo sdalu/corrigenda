@@ -46,12 +46,19 @@ module Corrigenda
             "api"            => nil
         }.freeze
 
-        API_KEYS = %w[token write record].freeze
+        # What a caller may be allowed to do, in the order they are
+        # worth thinking about: a journal line is additive, archiving
+        # hides work and is reversible, a state is a claim somebody
+        # stops checking behind. Deleting is not here and never will be.
+        API_GRANTS = %w[journal archive state].freeze
 
-        # `api: true` in full: the interface, and nothing it can
-        # change.
-        READ_ONLY = { "token" => nil, "write" => false,
-                      "record" => false }.freeze
+        # `write` and `record` are the shorthands that came first:
+        # everything, and the journal alone.
+        API_KEYS = (%w[token sites write record] + API_GRANTS).freeze
+
+        # `api: true` in full: the interface, and nothing it can change.
+        READ_ONLY = { "token" => nil, "allows" => [],
+                      "sites" => [], "site_rules" => nil }.freeze
 
         # `archived` is the rule anyone should reach for first: it counts
         # from the moment a person said they were done looking, so it
@@ -222,40 +229,47 @@ module Corrigenda
                       "(#{API_KEYS.join(", ")})"
             end
 
-            write = value["write"] == true
+            { "token" => api_token(value["token"]),
+              "allows" => api_grants(value),
+              "sites" => Array(value["sites"]).map(&:to_s),
+              "site_rules" => api_site_rules(value["sites"]) }.freeze
+        end
 
-            # Two powers, and they are not the same one. Changing a
-            # state or archiving decides where a report *stands*;
-            # writing in its journal only adds a line to what has been
-            # said about it, and nothing there can be edited or removed.
-            #
-            # So `record` is its own setting — a caller may be allowed
-            # to say what it tried without being allowed to declare the
-            # thing fixed. Unset, it follows `write`: somebody who may
-            # change a state may explain it, and a state change writes a
-            # line of its own regardless.
-            record = value.key?("record") ? value["record"] == true : write
+        # Whether this deployment's grants reach a report about `site`.
+        # No `sites:` key is every site: a scope nobody asked for should
+        # not be one that refuses everything.
+        def api_covers?(site)
+            rules = api&.fetch("site_rules")
+            return false if api.nil?
+            return true if rules.nil?
 
-            { "token"  => api_token(value["token"]),
-              "write"  => write,
-              "record" => record }.freeze
+            rules.any? { it.match?(site.to_s) }
         end
 
         # The interface's state in a few words, for a startup line and a
         # page that both have to say it. One sentence, one definition:
         # the rule that `record` follows `write` lives above, and
         # nothing that displays this should be reimplementing it.
+        GRANT_WORDS = { "journal" => "record work",
+                        "archive" => "archive",
+                        "state"   => "set states" }.freeze
+
         def api_state
             settings = api
             return "off" if settings.nil?
 
-            allowed = []
-            allowed << "may change reports" if settings["write"]
-            allowed << "may record work"    if settings["record"]
-            allowed << "read-only"          if allowed.empty?
-            allowed << "token required"     if settings["token"]
+            said = []
+            granted = settings["allows"].map { GRANT_WORDS.fetch(it) }
+            said << (granted.empty? ? "read-only" : "may #{granted.join(", ")}")
 
-            allowed.join(", ")
+            unless settings["sites"].empty?
+                count = settings["sites"].size
+                word = count == 1 ? "pattern" : "patterns"
+                said << "for #{count} site #{word}"
+            end
+
+            said << "token required" unless settings["token"].nil?
+            said.join(", ")
         end
 
         def max_for(part)
@@ -268,6 +282,60 @@ module Corrigenda
         end
 
         private
+
+        # Three powers, named for what they do rather than bundled into
+        # one word, because they are wrong in different ways: a journal
+        # line is additive and costs noise; archiving hides work and is
+        # reversible; a state is a claim somebody will trust and stop
+        # checking behind. Deleting is not among them at any setting.
+        #
+        # `write` and `record` stay as the shorthands they were, so a
+        # config written before the grants existed still says what it
+        # meant: everything, and the journal.
+        def api_grants(value)
+            # `write: true` beside `state: false` is somebody expecting
+            # subtraction, and reading it either way silently changes
+            # what a program may do. Refused: name the grants you want.
+            if value["write"] == true
+                named   = API_GRANTS + ["record"]
+                refused = named.select { value[it] == false }
+                unless refused.empty?
+                    raise ArgumentError,
+                          "api: write is shorthand for " \
+                          "#{API_GRANTS.join(", ")}, so " \
+                          "#{refused.join(", ")} " \
+                          "cannot be false beside it -- name the grants " \
+                          "you want instead"
+                end
+            end
+
+            granted = API_GRANTS.select { value[it] == true }
+            granted |= API_GRANTS         if value["write"] == true
+            granted |= ["journal"]        if value["record"] == true
+
+            API_GRANTS & granted          # a stable order, for display
+        end
+
+        # Regular expressions, anchored here rather than left to whoever
+        # writes the config: this is a permission, and `alux\.fr` as a
+        # substring match would also cover notalux.fr.example.com. The
+        # whole hostname must match. Case-insensitive, because host
+        # names are.
+        def api_site_rules(patterns)
+            return nil if patterns.nil?
+
+            list = Array(patterns).map(&:to_s)
+            raise ArgumentError, "api: sites is empty -- remove the key, " \
+                                 "or name what it may reach" if list.empty?
+
+            list.map do |pattern|
+                Regexp.new("\\A(?:#{pattern})\\z", Regexp::IGNORECASE)
+            rescue RegexpError => e
+                raise ArgumentError,
+                      "api: sites: #{pattern.inspect} is not a regular " \
+                      "expression (#{e.message})"
+            end
+        end
 
         # A token is a secret or it is nothing. An empty string in the
         # file means somebody meant to paste one and did not, and reading

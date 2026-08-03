@@ -38,12 +38,12 @@ module Corrigenda
             false
         end
 
-# The three questions a page asks about it, rather than making a
-# template dig into the settings hash and repeat the rule that
-# `record` follows `write`.
-def api_allows_writes?  = api_settings["write"] == true
-def api_allows_records? = api_settings["record"] == true
-def api_needs_token?    = !api_settings["token"].nil?
+# What a page asks about it, rather than having a template dig
+# through the settings hash: one grant at a time, by the name
+# the config uses.
+def api_allows?(grant) = api_settings["allows"].to_a.include?(grant)
+def api_needs_token?   = !api_settings["token"].nil?
+def api_site_scope     = api_settings["sites"].to_a
 
 def api_settings
     settings.feedback_config.api || {}
