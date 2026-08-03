@@ -21,6 +21,12 @@ module Corrigenda
         # questions, so they are two files.
         ARCHIVE = "archived"
 
+        # What has been done about the report, appended a line at a time.
+        JOURNAL = "journal.jsonl"
+
+        # Kept by this class beside a report, rather than filed with it.
+        MARKERS = ["state", ARCHIVE, JOURNAL].freeze
+
         attr_reader :root
 
         def initialize(root)
@@ -67,20 +73,27 @@ module Corrigenda
             file.exist? ? file.read.strip : "open"
         end
 
-        def mark(id, value)
+        def mark(id, value, by: nil, agent: nil)
             unless STATES.include?(value)
                 raise StorageError, "unknown state: #{value}"
             end
 
+            was = state(id)
             (dir_for(id) / "state").write("#{value}\n")
+            unless was == value
+                record(id, "#{was} → #{value}", kind: "state", by:, agent:)
+            end
+
+            value
         end
 
         def archived?(id) = (dir_for(id) / ARCHIVE).exist?
 
-        def archive(id, yes: true)
+        def archive(id, yes: true, by: nil, agent: nil)
             dir = dir_for(id)
             raise StorageError, "no such report: #{id}" unless dir.exist?
 
+            was  = archived?(id)
             file = dir / ARCHIVE
             if yes
                 file.write("")
@@ -88,8 +101,55 @@ module Corrigenda
                 file.delete
             end
 
+            unless was == yes
+                record(id, yes ? "archived" : "back in the working list",
+                       kind: "archive", by:, agent:)
+            end
+
             yes
         end
+
+        # What has been done about a report, in the order it was done.
+        # Appended and never rewritten: a trail that can be edited is a
+        # trail nobody has to believe, and the whole point of writing
+        # down what an agent changed is that a person can check it.
+        #
+        # The state and the archive marker say where a report stands;
+        # this says how it got there, and it is the only place anything
+        # here keeps prose about work done. Nothing is deleted from it
+        # short of deleting the report.
+        def journal(id)
+            file = dir_for(id) / JOURNAL
+            return [] unless file.exist?
+
+            file.readlines.filter_map { JSON.parse(it) rescue nil }
+        end
+
+        # `by` is who the server knows the caller to be -- Apache's
+        # authenticated user, or whoever runs a task on the host. `agent`
+        # is what the caller says it is, which is not the same fact and
+        # is kept apart from it: a program naming itself is useful, and
+        # it is not identification.
+        def record(id, note, kind: "note", by: nil, agent: nil, refs: nil)
+            dir = dir_for(id)
+            raise StorageError, "no such report: #{id}" unless dir.exist?
+
+            text = note.to_s.strip
+            raise StorageError, "an empty note records nothing" if text.empty?
+
+            entry = { "at" => Time.now.utc.iso8601, "kind" => kind,
+                      "note" => text }
+            entry["by"]    = by    unless by.to_s.empty?
+            entry["agent"] = agent unless agent.to_s.empty?
+            entry["refs"]  = Array(refs) unless Array(refs).empty?
+
+            (dir / JOURNAL).open("a") { it.puts(JSON.generate(entry)) }
+            entry
+        end
+
+        # What was filed with the report, without the markers this keeps
+        # beside it: state, the archive flag, the journal.
+        def attachments(id) = files(id) - MARKERS
 
         # Gone, not hidden: the directory and the index line both. The
         # index is otherwise append-only, so this is the one operation

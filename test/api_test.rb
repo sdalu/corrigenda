@@ -6,8 +6,8 @@ require "test_helper"
 # it refuses: an endpoint that acts on somebody else's bug list on the
 # strength of a request is worth more scepticism than one that renders a
 # page.
-class AITest < CorrigendaTest
-    def app = Corrigenda::AI
+class APITest < CorrigendaTest
+    def app = Corrigenda::API
 
     def setup
         @id = store.save(TestSupport.document("message" => "caption overlaps"))
@@ -18,7 +18,7 @@ class AITest < CorrigendaTest
     end
 
     def enable(**options)
-        TestSupport.configure("ai" => options.empty? ? true : options)
+        TestSupport.configure("api" => options.empty? ? true : options)
     end
 
     def body = JSON.parse(last_response.body)
@@ -224,6 +224,195 @@ class AITest < CorrigendaTest
         header "Authorization", nil
         header "X-Corrigenda-Token", "s3cret"
         get "/reports"
+        assert_equal 200, last_response.status
+    end
+
+    # One resource, one representation: a client that wants to change
+    # both things should not make two requests and hope.
+    def test_patch_sets_a_state_and_the_archive_marker_at_once
+        enable("write" => true)
+        patch "/reports/#{@id}",
+              JSON.generate("state" => "fixed", "archived" => true),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 200, last_response.status
+        assert_equal "fixed", body["state"]
+        assert_equal true, body["archived"]
+        assert_equal "fixed", store.state(@id)
+        assert store.archived?(@id)
+    end
+
+    def test_patch_is_refused_on_a_read_only_deployment
+        enable
+        patch "/reports/#{@id}", JSON.generate("state" => "fixed"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 403, last_response.status
+        assert_equal "open", store.state(@id)
+    end
+
+    # A field a report cannot be told is a client's misunderstanding,
+    # and silence would let it believe the change happened.
+    def test_patch_refuses_a_field_that_is_not_a_report_s_to_change
+        enable("write" => true)
+        patch "/reports/#{@id}", JSON.generate("summary" => "nicer words"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+        assert_match(/summary/, body["error"])
+    end
+
+    def test_patch_refuses_a_state_that_is_not_one
+        enable("write" => true)
+        patch "/reports/#{@id}", JSON.generate("state" => "maybe"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+        assert_equal "open", store.state(@id)
+    end
+
+    # For anything that polls: the report itself never changes, so only
+    # the markers beside it can, and the ETag is those.
+    def test_a_report_answers_304_when_nothing_about_it_changed
+        enable
+        get "/reports/#{@id}"
+        tag = last_response.headers["ETag"]
+
+        refute_nil tag
+        header "If-None-Match", tag
+        get "/reports/#{@id}"
+
+        assert_equal 304, last_response.status
+        assert_empty last_response.body
+    end
+
+    def test_the_tag_changes_when_the_state_does
+        enable
+        get "/reports/#{@id}"
+        was = last_response.headers["ETag"]
+
+        store.mark(@id, "fixed")
+        header "If-None-Match", was
+        get "/reports/#{@id}"
+
+        assert_equal 200, last_response.status
+        refute_equal was, last_response.headers["ETag"]
+    end
+
+    def test_a_file_is_not_sent_twice
+        enable
+        id = store.save(TestSupport.document,
+                        files: { "screenshot.webp" => "RIFF-ish".b })
+
+        get "/reports/#{id}/file/screenshot.webp"
+        tag = last_response.headers["ETag"]
+
+        assert_equal 200, last_response.status
+        header "If-None-Match", tag
+        get "/reports/#{id}/file/screenshot.webp"
+
+        assert_equal 304, last_response.status
+    end
+
+    # A client that tried DELETE guessed something reasonable and is
+    # owed the reason, with the header a program reads.
+    def test_delete_says_405_and_what_is_allowed
+        enable("write" => true)
+        delete "/reports/#{@id}"
+
+        assert_equal 405, last_response.status
+        assert_equal "GET, PATCH", last_response.headers["Allow"]
+        assert_match(/review UI/, body["error"])
+        assert_path_exists store.dir_for(@id)
+    end
+
+    # The trail. What an agent did about a report is the thing a person
+    # will want to check afterwards, so it is recorded rather than
+    # implied by a state that changed at some point.
+    def test_a_note_can_be_recorded_and_read_back
+        enable("write" => true)
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "raised the contrast to 4.8:1",
+                           "agent" => "claude", "refs" => ["abc1234"]),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 201, last_response.status
+        assert_equal "note", body["kind"]
+        assert_equal "claude", body["agent"]
+
+        get "/reports/#{@id}/journal"
+
+        assert_equal 1, body["count"]
+        assert_equal "raised the contrast to 4.8:1",
+                     body["entries"].first["note"]
+    end
+
+    def test_the_journal_comes_with_the_report
+        enable("write" => true)
+        store.record(@id, "looked at it")
+
+        get "/reports/#{@id}"
+
+        assert_equal ["looked at it"], body["journal"].map { it["note"] }
+    end
+
+    # The server's clock and the server's idea of who is calling: a
+    # client cannot backdate an entry or sign it as somebody else.
+    def test_a_client_cannot_write_the_time_or_the_actor
+        enable("write" => true)
+        header "X-Remote-User", "sdalu"
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "did a thing",
+                           "at" => "1999-01-01T00:00:00Z", "by" => "root"),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 201, last_response.status
+        assert_equal "sdalu", body["by"]
+        refute_equal "1999-01-01T00:00:00Z", body["at"]
+    end
+
+    def test_an_empty_note_is_refused
+        enable("write" => true)
+        post "/reports/#{@id}/journal", JSON.generate("note" => "  "),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+    end
+
+    def test_recording_needs_write_access
+        enable
+        post "/reports/#{@id}/journal", JSON.generate("note" => "hello"),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 403, last_response.status
+        assert_empty store.journal(@id)
+    end
+
+    # A change and the reason for it in one request: asking for a second
+    # call is how a trail ends up with states nobody explained.
+    def test_a_patch_can_carry_the_reason_with_the_change
+        enable("write" => true)
+        patch "/reports/#{@id}",
+              JSON.generate("state" => "fixed", "agent" => "claude",
+                            "note" => "padding was 2px, now 8px"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 200, last_response.status
+        kinds = body["journal"].map { it["kind"] }
+
+        assert_equal %w[state note], kinds
+        assert_equal "claude", body["journal"].first["agent"]
+    end
+
+    def test_the_tag_changes_when_something_is_recorded
+        enable("write" => true)
+        get "/reports/#{@id}"
+        was = last_response.headers["ETag"]
+
+        store.record(@id, "an entry")
+        header "If-None-Match", was
+        get "/reports/#{@id}"
+
         assert_equal 200, last_response.status
     end
 

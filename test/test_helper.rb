@@ -10,7 +10,7 @@ require "tmpdir"
 require "zlib"
 
 require "corrigenda"
-require "corrigenda/ai"
+require "corrigenda/api"
 require "corrigenda/home"
 require "corrigenda/intake"
 require "corrigenda/prefix"
@@ -31,7 +31,7 @@ module TestSupport
 
     def self.configure(**overrides)
         config = Corrigenda::Config.new({ "store" => ROOT }.merge(overrides))
-        [Corrigenda::AI, Corrigenda::Home,
+        [Corrigenda::API, Corrigenda::Home,
          Corrigenda::Intake, Corrigenda::Review].each do |app|
             app.set(:feedback_config, config)
         end

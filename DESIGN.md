@@ -388,6 +388,8 @@ store/2026/08/<ulid>/report.json
                      snapshot.html
                      fragment.html
                      state            # open | fixed | wontfix
+                     archived         # present, or not
+                     journal.jsonl    # what has been done about it
 index.jsonl
 ```
 
@@ -464,9 +466,9 @@ Puppeteer 23+ drives it over BiDi.
 
 ### The JSON interface, for a program
 
-`/ai`, optional, absent unless the deployment's config carries an `ai:`
+`/api`, optional, absent unless the deployment's config carries an `api:`
 key. Reference — every route, parameter and refusal — in
-[AI-ENDPOINT.md](AI-ENDPOINT.md); what follows is why it is shaped that
+[API.md](API.md); what follows is why it is shaped that
 way. The review UI is HTML meant for a person; an agent asked to fix
 what was reported would otherwise scrape it, and would be reading a
 layout rather than a report.
@@ -487,9 +489,23 @@ layout rather than a report.
 - **JSON for the refusals too**, including the 404 for an unmatched
   path — a client that has to tell an error from a report by looking at
   it will get it wrong once.
-- **It describes itself** at `/ai/`: routes, states, channel names,
+- **It describes itself** at `/api/`: routes, states, channel names,
   whether it may write, the shape of an id. A client that knows nothing
-  else can start there.
+  else can start there — and `openapi.yaml`, served at
+  `/api/openapi.json`, is the same thing as a schema, hand-written and
+  held to the routes by a test rather than generated from them.
+- **Everything done to a report is written down.** A `journal.jsonl`
+  beside it, appended and never rewritten: state changes and archiving
+  record themselves whichever door they came through — the API, the
+  review UI, a task on the host — and a caller adds the reason. Two
+  names are kept apart in each entry: `by`, the user the server
+  authenticated, and `agent`, what the caller called itself. The second
+  is useful and is not identification.
+
+  This is what makes an agent's work checkable. A state that changed
+  with nobody able to say why is the thing the trail exists to prevent,
+  and it is shown to a person in the review UI and in `rake data:show`,
+  not only to the program that wrote it.
 
 ### Review UI
 
@@ -613,7 +629,7 @@ A patch is **declarative and parsed, never executed**:
 The model never talks to the page. The widget posts a turn to the
 service, the service talks to the model, and the widget applies what
 comes back after checking it. An API key belongs in the deployment
-config, never in a page (`ai.model:`, beside the `ai:` key that already
+config, never in a page (`api.model:`, beside the `api:` key that already
 exists).
 
 ### What is stored, and what it is for
@@ -628,7 +644,7 @@ Beside the report, on approval:
 The report already records, for every matched rule, the stylesheet it
 came from and its layer (§6.1). A proposal joins that: *this
 declaration, against that rule, in that file*. Whoever implements it —
-a person, or an agent through `/ai` — starts from a diff-shaped fact
+a person, or an agent through `/api` — starts from a diff-shaped fact
 rather than from "the caption looks wrong".
 
 **A proposal is not a patch to the site**, and the distinction is the
@@ -648,7 +664,7 @@ the implementation step, and it needs the repository, not the page.
   deployment.
 - **Who may refine.** Reading a report and rewriting a page are
   different permissions, even among staff. Probably a third setting
-  beside `ai.write`, not a consequence of it.
+  beside `api.write`, not a consequence of it.
 - **Offline.** The same loop is useful with no model at all: the
   reporter tweaks declarations by hand and approves the result. If that
   is built first, the model becomes one participant in an existing

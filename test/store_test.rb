@@ -73,6 +73,68 @@ class StoreTest < CorrigendaTest
         assert_empty Corrigenda::Store.new(Dir.mktmpdir).entries
     end
 
+# The trail. A state that changed and nobody can say why is the thing
+# this exists to prevent, so the store writes the entry itself rather
+# than trusting every caller to remember.
+def test_a_state_change_records_itself
+    id = @store.save(TestSupport.document)
+    @store.mark(id, "fixed", by: "sdalu")
+
+    entry = @store.journal(id).last
+
+    assert_equal "state", entry["kind"]
+    assert_equal "open → fixed", entry["note"]
+    assert_equal "sdalu", entry["by"]
+end
+
+def test_marking_the_same_state_twice_records_once
+    id = @store.save(TestSupport.document)
+    @store.mark(id, "fixed")
+    @store.mark(id, "fixed")
+
+    assert_equal 1, @store.journal(id).size
+end
+
+def test_archiving_and_unarchiving_are_both_recorded
+    id = @store.save(TestSupport.document)
+    @store.archive(id)
+    @store.archive(id, yes: false)
+
+    assert_equal ["archived", "back in the working list"],
+                 @store.journal(id).map { it["note"] }
+end
+
+# Two different facts: what the server knows, and what the caller
+# calls itself. Kept apart because the second is not identification.
+def test_a_note_keeps_the_actor_and_the_agent_apart
+    id = @store.save(TestSupport.document)
+    @store.record(id, "raised the contrast to 4.8:1",
+                  by: "sdalu", agent: "claude", refs: ["abc1234"])
+
+    entry = @store.journal(id).last
+
+    assert_equal "note", entry["kind"]
+    assert_equal "sdalu", entry["by"]
+    assert_equal "claude", entry["agent"]
+    assert_equal ["abc1234"], entry["refs"]
+end
+
+def test_an_empty_note_records_nothing
+    id = @store.save(TestSupport.document)
+
+    assert_raises(Corrigenda::StorageError) { @store.record(id, "   ") }
+    assert_empty @store.journal(id)
+end
+
+def test_the_journal_is_not_an_attachment
+    id = @store.save(TestSupport.document,
+                     files: { "screenshot.webp" => "RIFF".b })
+    @store.record(id, "looked at it")
+
+    assert_equal ["report.json", "screenshot.webp"],
+                 @store.attachments(id).sort
+end
+
     # Retention. The clock is not stopped for the tests: a report is aged
     # by moving the marker's mtime and by asking about a `now` further
     # along, which is what the store itself reads.

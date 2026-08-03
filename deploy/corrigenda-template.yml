@@ -85,16 +85,16 @@ sites:
 
 # The JSON interface, for a reader that is a program rather than a
 # person — an agent asked to fix what was reported, a script that files
-# a ticket. Absent, as here, every path under /ai answers 404: a
+# a ticket. Absent, as here, every path under /api answers 404: a
 # deployment that wants no such thing should not have to switch one off.
 #
-#   ai: true      read-only, no token: the endpoint is behind the same
-#                 Apache auth as everything else, and a process on this
-#                 host reaches it through the socket.
+#   api: true      read-only, no token: the endpoint is behind the same
+#                  Apache auth as everything else, and a process on this
+#                  host reaches it through the socket.
 #
 # Or, with either setting or both:
 #
-#   ai:
+#   api:
 #       write: true        may set a state and archive; never delete
 #       token: <secret>    also require this, as a Bearer token, on top
 #                          of whatever Apache asked for

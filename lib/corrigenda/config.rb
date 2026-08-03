@@ -43,10 +43,10 @@ module Corrigenda
             # means it is not there at all, which is the default: a
             # deployment that wants no agent near its reports should not
             # have to switch one off.
-            "ai"             => nil
+            "api"            => nil
         }.freeze
 
-        AI_KEYS = %w[token write].freeze
+        API_KEYS = %w[token write].freeze
 
         # `archived` is the rule anyone should reach for first: it counts
         # from the moment a person said they were done looking, so it
@@ -192,25 +192,25 @@ module Corrigenda
         # one decides whether something that acts on its own reading of
         # a page may change what a person filed, and a typo must not be
         # the thing that decides it.
-        def ai
-            value = @values.fetch("ai")
+        def api
+            value = @values.fetch("api")
             return nil if value.nil? || value == false
             return { "token" => nil, "write" => false } if value == true
 
             unless value.is_a?(Hash)
                 raise ArgumentError,
-                      "ai: expected true, or #{AI_KEYS.join(" and/or ")}, " \
+                      "api: expected true, or #{API_KEYS.join(" and/or ")}, " \
                       "got #{value.class}"
             end
 
-            unknown = value.keys.map(&:to_s) - AI_KEYS
+            unknown = value.keys.map(&:to_s) - API_KEYS
             unless unknown.empty?
                 raise ArgumentError,
-                      "ai: no such setting #{unknown.join(", ")} " \
-                      "(#{AI_KEYS.join(", ")})"
+                      "api: no such setting #{unknown.join(", ")} " \
+                      "(#{API_KEYS.join(", ")})"
             end
 
-            { "token" => ai_token(value["token"]),
+            { "token" => api_token(value["token"]),
               "write" => value["write"] == true }.freeze
         end
 
@@ -229,13 +229,13 @@ module Corrigenda
         # file means somebody meant to paste one and did not, and reading
         # that as "no token wanted" would open the interface at the exact
         # moment they were trying to close it.
-        def ai_token(value)
+        def api_token(value)
             return nil if value.nil?
 
             token = value.to_s
             return token unless token.strip.empty?
 
-            raise ArgumentError, "ai: token is empty -- remove the key, " \
+            raise ArgumentError, "api: token is empty -- remove the key, " \
                                  "or give it a secret"
         end
 

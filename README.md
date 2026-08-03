@@ -25,7 +25,8 @@ screenshot.
     deploy/                config and the Apache macro generated from it
 
 Reports are directories, one per report, under a store you name — the
-report as JSON, the screenshot beside it, a `state` file — plus one
+report as JSON, the screenshot beside it, a `state` file, and a
+`journal.jsonl` of what has been done about it — plus one
 `index.jsonl` line for listing. There is no database, and at tens of
 reports a month there does not need to be.
 
@@ -83,7 +84,7 @@ From a terminal on the host, the same store, without the proxy:
     rake data:list ALL=1               with the archived ones
     rake data:show     ID=<report>     one report in full
     rake data:status   ID=<report>     what happened to it…
-    rake data:status   ID=<report> SET=fixed
+    rake data:status   ID=<report> SET=fixed NOTE="what you changed"
     rake data:archive  ID=<report>     done looking at it (UNDO=1 to undo)
 
 The listing carries a six-character column for what a report holds —
@@ -94,21 +95,21 @@ The same letters appear on the review UI's chips.
 ### For a program
 
 Optional, and absent unless the config asks for it: a JSON interface
-under `/ai`, for a reader that is a program — an agent asked to fix
+under `/api`, for a reader that is a program — an agent asked to fix
 what was reported, a script that files a ticket. Switch it on with
-`ai: true`, and it lists reports, hands over one in full, and serves
-the screenshot as an image. It describes itself at `/ai/`, so a client
+`api: true`, and it lists reports, hands over one in full, and serves
+the screenshot as an image. It describes itself at `/api/`, so a client
 that knows nothing else can start there.
 
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
-         http://localhost/ai/reports
+         http://localhost/api/reports
 
 Everything it answers, every setting and every refusal is in
-[AI-ENDPOINT.md](AI-ENDPOINT.md). In short: it is read-only until the
+[API.md](API.md). In short: it is read-only until the
 config says `write: true`, and even then it can only set a state and
 archive — deleting a report is not offered to a program at all.
 `token: <secret>` adds a Bearer token on top of whatever Apache already
-asked for. With no `ai:` key, every path under `/ai` answers 404 rather
+asked for. With no `api:` key, every path under `/api` answers 404 rather
 than 403 — a route that is switched off should not advertise that it
 exists.
 
@@ -136,7 +137,7 @@ sanitiser and the CORS dance only exist in a browser — see
 |---|---|
 | [DESIGN.md](DESIGN.md) | what it captures and why, the payload, the storage model — the reasoning under all of it |
 | [HISTORY.md](HISTORY.md) | approaches taken and abandoned, and the failures that shaped what is here |
-| [AI-ENDPOINT.md](AI-ENDPOINT.md) | the JSON interface in full: routes, parameters, responses, errors |
+| [API.md](API.md) | the JSON interface in full: routes, parameters, responses, errors |
 | [deploy/README.md](deploy/README.md) | installing it, the Apache wiring, retention in cron |
 | [extension/README.md](extension/README.md) | the add-on: build, install, permissions |
 | [test/browser/README.md](test/browser/README.md) | the browser checks and what each covers |

@@ -97,8 +97,8 @@ same file.
 
 ## Letting a program read the reports
 
-`corrigenda.yml` decides. With no `ai:` key — the state of this
-deployment — every path under `/ai` answers 404. With `ai: true` the
+`corrigenda.yml` decides. With no `api:` key — the state of this
+deployment — every path under `/api` answers 404. With `api: true` the
 service answers JSON there: the listing, one report, the screenshot as
 bytes.
 
@@ -107,10 +107,10 @@ so nothing new is exposed. On the host itself the socket is the shorter
 path and meets no Apache at all:
 
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
-         http://localhost/ai/reports
+         http://localhost/api/reports
 
 The routes, their parameters and what they refuse are in
-[AI-ENDPOINT.md](../AI-ENDPOINT.md).
+[API.md](../API.md).
 
 Add `write: true` to let it set a state and archive; there is no
 delete. Add `token: <secret>` to require a Bearer token as well —

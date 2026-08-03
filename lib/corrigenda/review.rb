@@ -44,6 +44,15 @@ module Corrigenda
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
+            # The same fact the intake records as the reporter:
+            # Apache authenticated somebody, and a state changed by
+            # hand should say who as plainly as one changed by a
+            # program.
+            def acting_user
+                request.env["HTTP_X_REMOTE_USER"] ||
+                    request.env["REMOTE_USER"]
+            end
+
             def find(id)
                 halt 404, "no such report\n" unless id.match?(ID)
 
@@ -88,7 +97,8 @@ module Corrigenda
             erb :report, locals: { id:, document: find(id),
                                    files: store.files(id),
                                    state: store.state(id),
-                                   archived: store.archived?(id) }
+                                   archived: store.archived?(id),
+                                   journal: store.journal(id) }
         end
 
         # Whitelisted, because the name is a path component.
@@ -109,7 +119,7 @@ module Corrigenda
         post "/:id/state" do
             id = params[:id]
             find(id)
-            store.mark(id, params[:state])
+            store.mark(id, params[:state], by: acting_user)
             redirect to("/#{id}", false)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
@@ -120,7 +130,8 @@ module Corrigenda
         post "/:id/archive" do
             id = params[:id]
             find(id)
-            store.archive(id, yes: params[:archived] != "0")
+            store.archive(id, yes: params[:archived] != "0",
+                              by: acting_user)
             redirect to("/#{id}", false)
         rescue StorageError => e
             halt 400, "#{e.message}\n"

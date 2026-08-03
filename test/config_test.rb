@@ -66,43 +66,43 @@ class ConfigTest < Minitest::Test
     # either opens something or lets a program change what a person
     # filed, so nothing here is guessed.
     def test_there_is_no_agent_interface_by_default
-        assert_nil Corrigenda::Config.new.ai
+        assert_nil Corrigenda::Config.new.api
     end
 
     def test_true_is_a_read_only_interface
-        File.write(@file, "ai: true\n")
+        File.write(@file, "api: true\n")
 
         assert_equal({ "token" => nil, "write" => false },
-                     Corrigenda::Config.load(@file).ai)
+                     Corrigenda::Config.load(@file).api)
     end
 
     def test_false_is_the_same_as_absent
-        File.write(@file, "ai: false\n")
+        File.write(@file, "api: false\n")
 
-        assert_nil Corrigenda::Config.load(@file).ai
+        assert_nil Corrigenda::Config.load(@file).api
     end
 
     def test_a_token_and_write_access_are_read_as_written
-        File.write(@file, "ai:\n  token: s3cret\n  write: true\n")
-        ai = Corrigenda::Config.load(@file).ai
+        File.write(@file, "api:\n  token: s3cret\n  write: true\n")
+        api = Corrigenda::Config.load(@file).api
 
-        assert_equal "s3cret", ai["token"]
-        assert ai["write"]
+        assert_equal "s3cret", api["token"]
+        assert api["write"]
     end
 
     # write: yes is YAML's true, but write: "yes" is a string, and a
     # string is not permission.
     def test_write_is_only_true_when_it_is_true
-        File.write(@file, %(ai:\n  write: "yes"\n))
+        File.write(@file, %(api:\n  write: "yes"\n))
 
-        refute Corrigenda::Config.load(@file).ai["write"]
+        refute Corrigenda::Config.load(@file).api["write"]
     end
 
     def test_an_unknown_setting_is_refused
-        File.write(@file, "ai:\n  delete: true\n")
+        File.write(@file, "api:\n  delete: true\n")
 
         error = assert_raises(ArgumentError) {
-            Corrigenda::Config.load(@file).ai
+            Corrigenda::Config.load(@file).api
         }
         assert_match(/delete/, error.message)
     end
@@ -111,9 +111,9 @@ class ConfigTest < Minitest::Test
     # token wanted" would open the endpoint at the moment they were
     # trying to close it.
     def test_an_empty_token_is_refused
-        File.write(@file, %(ai:\n  token: ""\n))
+        File.write(@file, %(api:\n  token: ""\n))
 
-        assert_raises(ArgumentError) { Corrigenda::Config.load(@file).ai }
+        assert_raises(ArgumentError) { Corrigenda::Config.load(@file).api }
     end
 
     def test_an_absent_file_is_a_valid_config

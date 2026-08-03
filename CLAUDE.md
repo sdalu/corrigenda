@@ -73,18 +73,18 @@ you want to drive the same page yourself.
 
 ## Reading the reports as a program
 
-If the deployment's config carries an `ai:` key, the service answers
-JSON under `/ai` — the listing, one report in full, and the screenshot
+If the deployment's config carries an `api:` key, the service answers
+JSON under `/api` — the listing, one report in full, and the screenshot
 as bytes. On this host, reach it through the socket rather than through
 Apache, which saves needing a login:
 
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
-         http://localhost/ai/reports
+         http://localhost/api/reports
 
-`GET /ai/` describes itself: the routes, whether writes are allowed,
+`GET /api/` describes itself: the routes, whether writes are allowed,
 the id format. The written-out version, with every parameter and
-refusal, is [AI-ENDPOINT.md](AI-ENDPOINT.md). Writes
-(`POST /ai/reports/:id/state`, `.../archive`) answer 403 unless the
+refusal, is [API.md](API.md). Writes
+(`POST /api/reports/:id/state`, `.../archive`) answer 403 unless the
 config says `write: true`, and there is no delete at all — that stays
 in the review UI, which asks twice.
 
@@ -92,6 +92,13 @@ Without the key every path there is a 404, so the first thing to check
 when it seems missing is the config and not the code. From a terminal
 `rake data:list` and friends read the same store with no service at
 all.
+
+**Say what you did.** Every report carries a journal, appended and
+never rewritten; state changes write their own line, and the reason is
+yours to add — `PATCH` with a `note`, or `rake data:status ID=… SET=…
+NOTE="…"`. A person reads that trail to decide whether to believe the
+state, so write for them: what changed, where, and how you checked it.
+Work that changed nothing is worth a line too.
 
 ## The host splits paths
 

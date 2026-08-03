@@ -200,6 +200,34 @@
     asks once more, then removes the report and its files from disk.
 </p>
 
+<%# What has been done about it. Only shown when there is something to
+    show: an empty heading on every report nobody has touched is a page
+    that trains you to skip a section. %>
+<% unless journal.empty? %>
+    <h2>What has been done</h2>
+
+    <dl class="railed trail">
+        <% journal.each do |entry| %>
+            <dt><time datetime="<%= entry["at"] %>"><%= entry["at"].to_s[0, 16].tr("T", " ") %></time></dt>
+            <dd>
+                <%= entry["note"] %>
+                <% who = [entry["by"], entry["agent"]].compact %>
+                <% unless who.empty? %>
+                    <span class="by"><%= who.join(" · ") %></span>
+                <% end %>
+                <% if entry["refs"] %>
+                    <span class="by"><%= entry["refs"].join(", ") %></span>
+                <% end %>
+            </dd>
+        <% end %>
+    </dl>
+
+    <p class="empty">
+        Appended, never rewritten. A state changed through the API or on
+        the command line writes its own line here.
+    </p>
+<% end %>
+
 <p class="empty">
     <a href="<%= to("/#{id}/file/report.json", false) %>">report.json</a>
     — everything above, as it was received.

@@ -179,10 +179,30 @@ def show_report(store, id, document)
     puts message.empty? ? "(no message)" : message
     puts
 
-    files = store.files(id).reject { it == "state" }
-    puts format("%-10s %s", "files", files.join(", "))
+    puts format("%-10s %s", "files", store.attachments(id).join(", "))
     puts format("%-10s %s", "at",    store.dir_for(id))
+
+    journal = store.journal(id)
+    return if journal.empty?
+
+    puts
+    journal.each { puts journal_line(it) }
 end
+
+# What has been done about it, in the order it was done. The actor and
+# the agent are shown together and kept apart, because they are two
+# facts: who the server knew, and what the caller called itself.
+def journal_line(entry)
+    who  = [entry["by"], entry["agent"]].compact.join("/")
+    refs = entry["refs"] ? "  (#{entry["refs"].join(", ")})" : ""
+
+    format("%-17s %-8s %-14s %s%s",
+           entry["at"].to_s[0, 16].tr("T", " "), entry["kind"],
+           who.empty? ? "—" : who, entry["note"], refs)
+end
+
+# Whoever is at the terminal, which is the only actor a task has.
+def actor = ENV["SUDO_USER"] || ENV["USER"] || ENV["LOGNAME"]
 
 def report_line(entry)
     format("%-33s %s, %d days", entry[:id], entry[:rule], entry[:days])
@@ -360,14 +380,14 @@ namespace :data do
         id, = report_for(store, "data:archive")
 
         back = !ENV["UNDO"].nil?
-        store.archive(id, yes: !back)
+        store.archive(id, yes: !back, by: actor, agent: ENV["AGENT"])
         puts "#{id}: #{back ? "back in the working list" : "archived"}"
     end
 
     # Asking and answering are one task: SET= changes it, and without
     # SET= this says what it is. Reading a state should not mean
     # remembering a second task name.
-    desc "Say what happened to a report, or set it (ID=<report> SET=fixed)"
+    desc "Say or set what happened (ID=<report> SET=fixed NOTE=\"…\")"
     task :status do
         store, = deployment
         id, = report_for(store, "data:status")
@@ -385,7 +405,14 @@ namespace :data do
         end
 
         was = store.state(id)
-        store.mark(id, want)
+        store.mark(id, want, by: actor, agent: ENV["AGENT"])
+
+        # A reason, if there is one to give. The state change records
+        # itself either way; this is the sentence beside it.
+        if ENV["NOTE"]
+            store.record(id, ENV["NOTE"], by: actor, agent: ENV["AGENT"])
+        end
+
         puts "#{id}: #{was} -> #{want}"
     end
 
