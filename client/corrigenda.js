@@ -1152,6 +1152,48 @@ input:where(:not(:checked)) + .chip {
         }
     }
 
+    /* Where a report ends. The window closes on success -- the thing it
+     * was opened to do is done, and leaving it standing invites a second
+     * report about the same defect -- so the reference number has to be
+     * said somewhere the window no longer is. It sits above the
+     * launcher, where the window was, and goes away by itself; hovering
+     * holds it, since the number is the one thing worth copying. */
+    .toast {
+        position: absolute;
+        inset-block-end: calc(100% + 0.5rem);
+        inset-inline-end: 0;
+        inline-size: max-content;
+        max-inline-size: min(21rem, calc(100vw - 1.5rem));
+        padding: 0.5rem 0.7rem;
+        color: var(--ink);
+        font-size: 0.875rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-inline-start: 3px solid var(--accent);
+        border-radius: 0.4rem;
+        box-shadow: 0 2px 16px rgb(0 0 0 / 0.35);
+        cursor: pointer;
+        animation: toast-in 160ms ease-out;
+
+        &.is-leaving {
+            animation: toast-out 200ms ease-in forwards;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            animation: none;
+
+            &.is-leaving { animation: none; }
+        }
+    }
+
+    @keyframes toast-in {
+        from { opacity: 0; translate: 0 0.4rem; }
+    }
+
+    @keyframes toast-out {
+        to { opacity: 0; translate: 0 0.4rem; }
+    }
+
     .result {
         margin-block-start: var(--space);
         padding: 0.5rem;
@@ -1160,8 +1202,9 @@ input:where(:not(:checked)) + .chip {
         background: var(--raised);
         font-size: 0.875rem;
 
-        /* A refusal and a reference number were the same grey box, and
-         * the difference between them is the whole message. */
+        /* Everything the panel itself still says is a refusal -- what
+         * went right is said by the toast, after the panel has closed --
+         * and a refusal must not read as a grey aside. */
         &.is-error {
             color: var(--ink);
             background: color-mix(in oklab, var(--danger) 14%, transparent);
@@ -1673,6 +1716,7 @@ input:where(:not(:checked)) + .chip {
             </form>
             <p class="result" hidden></p>
         </div>
+        <div class="toast" role="status" hidden></div>
         <div class="pop" popover="manual"></div>
         <div class="text-help" hidden>
             <span><kbd>drag</kbd> ${T.helpSelectWords}</span>
@@ -2545,9 +2589,58 @@ input:where(:not(:checked)) + .chip {
         form.message.focus();
     };
 
+    /* -------------------------------------------------------------
+     * The toast. It says one thing, once, after the window has gone.
+     * ------------------------------------------------------------- */
+    const toast = $(".toast");
+    let toastTimer = null;
+
+    const LINGER = 8000;
+
+    const dismiss = () => {
+        clearTimeout(toastTimer);
+        toastTimer = null;
+        toast.hidden = true;
+        toast.classList.remove("is-leaving");
+    };
+
+    /* With motion turned off there is no fade to end, so the timer has
+     * to remove it itself; otherwise the toast would sit there for good.
+     */
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+
+    const linger = () => {
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(
+            () => (still.matches ? dismiss()
+                                 : toast.classList.add("is-leaving")),
+            LINGER);
+    };
+
+    const notify = (text) => {
+        toast.textContent = text;
+        toast.classList.remove("is-leaving");
+        toast.hidden = false;
+        linger();
+    };
+
+    /* The animation is what ends it, not a second timer: a toast the
+     * pointer rested on has had its timer restarted, and only the
+     * animation it actually finished should remove it. */
+    toast.addEventListener("animationend", (event) => {
+        if (event.animationName === "toast-out") dismiss();
+    });
+    toast.addEventListener("click", dismiss);
+    toast.addEventListener("pointerenter", () => {
+        clearTimeout(toastTimer);
+        toast.classList.remove("is-leaving");
+    });
+    toast.addEventListener("pointerleave", linger);
+
     /* moveFocus is false when the widget opens itself: taking focus from
      * whatever the page had is rude, and nobody asked for it by clicking. */
     const openPanel = (moveFocus = true) => {
+        dismiss();
         /* The launcher is the way back in, so it has nothing to say
          * while you are already in. */
         $(".launcher").hidden = true;
@@ -2888,10 +2981,12 @@ input:where(:not(:checked)) + .chip {
         button.textContent = T.sending;
         try {
             const answer = await send(build());
-            result.textContent = `${T.thanks} ${answer.id}`;
-            result.classList.remove("is-error");
-            result.hidden = false;
-            form.hidden = true;
+            /* Done is done: the window closes, and what it has to
+             * say afterwards is one line and a reference number.
+             * Left open, it invited a second report about the
+             * same defect. */
+            closePanel();
+            notify(`${T.thanks} ${answer.id}`);
         } catch (error) {
             result.textContent = `${T.failed} ${error.message}`;
             result.classList.add("is-error");

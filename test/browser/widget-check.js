@@ -19,6 +19,16 @@ const setChannel = (page, key, on) => page.evaluate(([k, want]) => {
 
 const ok   = (message) => console.log('ok   ' + message);
 
+// A sent report closes the window and says so in a toast; a refused one
+// leaves the window open and says so in the panel. Waiting for either
+// keeps a refusal readable instead of timing out on the other selector.
+const outcome = async (page, timeout = 8000) => {
+    const box = await page.waitForSelector(
+        '#corrigenda-widget .toast:not([hidden]), ' +
+        '#corrigenda-widget .result:not([hidden])', { timeout });
+    return (await box.textContent()).trim();
+};
+
 (async () => {
     const browser = await chromium.launch({
         executablePath: BASE +
@@ -69,15 +79,13 @@ const ok   = (message) => console.log('ok   ' + message);
 
     await page.screenshot({ path: SHOTS + '/corrigenda-form.png' });
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
-    const first = await page.textContent('#corrigenda-widget .result');
+    const first = await outcome(page);
     if (!/Sent\. Reference: \d{8}T/.test(first)) fail('no reference returned: ' + first);
     else ok('report 1 accepted: ' + first.trim());
 
     await page.screenshot({ path: SHOTS + '/corrigenda-widget.png' });
 
     // --- report 2: pick with the keyboard ----------------------------
-    await page.click('#corrigenda-widget .a-close');
     await page.click('#corrigenda-widget .launcher');
     await page.click('#corrigenda-widget .a-type[value="broken"]');
     await page.hover('figcaption.caption');       // mousemove selects the leaf
@@ -85,13 +93,11 @@ const ok   = (message) => console.log('ok   ' + message);
     await page.keyboard.press('Enter');
     await page.fill('#corrigenda-widget textarea', 'Whole figure is misaligned');
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
-    const second = await page.textContent('#corrigenda-widget .result');
+    const second = await outcome(page);
     if (!/Sent\. Reference:/.test(second)) fail('second report rejected: ' + second);
     else ok('report 2 accepted (keyboard pick)');
 
     // --- report 3: the audit switch, on pale text --------------------
-    await page.click('#corrigenda-widget .a-close');
     await page.click('#corrigenda-widget .launcher');
     await page.click('#corrigenda-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
@@ -100,11 +106,11 @@ const ok   = (message) => console.log('ok   ' + message);
     // no image wanted here either
     await setChannel(page, 'screenshot', false);
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
-    ok('report 3 accepted (audit switch on)');
+    const third = await outcome(page);
+    if (!/Sent\. Reference:/.test(third)) fail('report 3 rejected: ' + third);
+    else ok('report 3 accepted (audit switch on)');
 
     // --- report 4: a form must not leak what was typed into it -------
-    await page.click('#corrigenda-widget .a-close');
     await page.click('#corrigenda-widget .launcher');
     await page.click('#corrigenda-widget .a-type[value="broken"]');
     await page.hover('input[type="password"]');
@@ -113,11 +119,11 @@ const ok   = (message) => console.log('ok   ' + message);
     await page.keyboard.press('Enter');
     await page.fill('#corrigenda-widget textarea', 'The form does nothing');
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
-    ok('report 4 accepted (form picked)');
+    const fourth = await outcome(page);
+    if (!/Sent\. Reference:/.test(fourth)) fail('report 4 rejected: ' + fourth);
+    else ok('report 4 accepted (form picked)');
 
     // --- report 5: the screenshot channel ----------------------------
-    await page.click('#corrigenda-widget .a-close');
     await page.click('#corrigenda-widget .launcher');
     await page.click('#corrigenda-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
@@ -136,13 +142,11 @@ const ok   = (message) => console.log('ok   ' + message);
     await page.screenshot({ path: SHOTS + '/corrigenda-shot.png' });
     await page.fill('#corrigenda-widget textarea', 'With a screenshot');
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
-    const fifth = await page.textContent('#corrigenda-widget .result');
+    const fifth = await outcome(page);
     if (!/Sent\. Reference:/.test(fifth)) fail('multipart send failed: ' + fifth);
     else ok('report 5 accepted (multipart with screenshot)');
 
     // --- report 6: "the text is wrong" uses the selection -------------
-    await page.click('#corrigenda-widget .a-close');
     await page.evaluate(() => {
         const node = document.querySelector('figcaption.caption').firstChild;
         const range = document.createRange();
@@ -176,8 +180,9 @@ const ok   = (message) => console.log('ok   ' + message);
 
     await page.fill('#corrigenda-widget textarea', 'Wrong year');
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
-    ok('report 6 accepted (content, from a selection)');
+    const sixth = await outcome(page);
+    if (!/Sent\. Reference:/.test(sixth)) fail('report 6 rejected: ' + sixth);
+    else ok('report 6 accepted (content, from a selection)');
 
 // --- injected from <head>, as MoXoW emits it ---------------------
 // Undeferred and before <body> exists: the widget has to survive
@@ -220,11 +225,7 @@ const ok   = (message) => console.log('ok   ' + message);
         await linkPage.fill('#corrigenda-widget textarea',
                             'found the endpoint on the page');
         await linkPage.click('#corrigenda-widget .a-send');
-        await linkPage.waitForFunction(() => !document.querySelector('#corrigenda-widget')
-            .shadowRoot.querySelector('.result').hidden, null, { timeout: 8000 })
-            .catch(() => {});
-
-        const said = (await linkPage.textContent('#corrigenda-widget .result')).trim();
+        const said = await outcome(linkPage).catch(() => '(nothing was said)');
         if (!/Sent\. Reference: \d{8}T/.test(said))
             fail('a link-only page could not send: ' + said);
         else if (!posted.includes('/.corrigenda/report/'))

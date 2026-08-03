@@ -61,12 +61,15 @@ const check = async (name, browser, executablePath, args) => {
     await page.fill('#corrigenda-widget textarea',
                     'sent across origins');
     await page.click('#corrigenda-widget .a-send');
-    await page.waitForFunction(() => {
-        const r = document.querySelector('#corrigenda-widget').shadowRoot;
-        return !r.querySelector('.result').hidden;
-    }, null, { timeout: 10000 }).catch(() => {});
+    // Sent, and the window closes behind it: the reference lands in the
+    // toast. A refusal leaves the window open and lands in the panel, so
+    // both are waited for and whichever arrived is what gets reported.
+    const box = await page.waitForSelector(
+        '#corrigenda-widget .toast:not([hidden]), ' +
+        '#corrigenda-widget .result:not([hidden])',
+        { timeout: 10000 }).catch(() => null);
 
-    const said = (await page.textContent('#corrigenda-widget .result')).trim();
+    const said = box ? (await box.textContent()).trim() : '(nothing was said)';
 
     if (!/Sent\. Reference: \d{8}T/.test(said))
         fail(`${name}: a cross-origin report did not land: ${said}`);
