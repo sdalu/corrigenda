@@ -99,6 +99,41 @@ namespace :addon do
         # is a download that still says the old one.
         sh "extension/build"
     end
+
+    desc "Build the add-on packages (TARGET=firefox builds just one)"
+    task :build do
+        sh(["extension/build", *ENV["TARGET"]].shelljoin)
+    end
+
+    # Signing is what makes the Firefox download install in one click and
+    # stay installed; unsigned, it is a temporary add-on that is gone at
+    # the next restart. The keys are Mozilla's, personal to whoever runs
+    # this, and never in the repository -- so they arrive in the
+    # environment and are checked here rather than a third of the way
+    # through an upload.
+    desc "Sign the Firefox package (needs AMO_JWT_ISSUER and AMO_JWT_SECRET)"
+    task :sign do
+        missing = %w[AMO_JWT_ISSUER AMO_JWT_SECRET].reject { ENV[it] }
+
+        unless missing.empty?
+            abort <<~SAY
+                addon:sign: #{missing.join(" and ")} not set.
+
+                    addons.mozilla.org -> Tools -> Manage API keys
+                    export AMO_JWT_ISSUER=user:1234567:890
+                    export AMO_JWT_SECRET=...
+
+                They are your credentials, not the project's, which is why
+                nothing here can supply them. An unlisted submission is
+                reviewed automatically and never appears on
+                addons.mozilla.org; what comes back is the .xpi this
+                service then offers. The /signing page of a running
+                service has the whole procedure.
+            SAY
+        end
+
+        sh "extension/sign"
+    end
 end
 
 # rake takes anything that looks like a task name for itself, so flags

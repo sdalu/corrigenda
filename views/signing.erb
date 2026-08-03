@@ -46,10 +46,10 @@
         On the machine that runs this service:
 <pre><code>export AMO_JWT_ISSUER=user:1234567:890
 export AMO_JWT_SECRET=…
-cd <%= root %>/extension
-./sign</code></pre>
+cd <%= root %>
+rake addon:sign</code></pre>
         It builds the Firefox package, sends it, waits, and puts the
-        signed result at <code>dist/firefox.xpi</code>.
+        signed result at <code>extension/dist/firefox.xpi</code>.
     </li>
 
     <li>
@@ -68,7 +68,7 @@ cd <%= root %>/extension
     <dt>Updating</dt>
     <dd>
         <code>rake addon:version TO=0.2.0</code> writes both manifests and
-        rebuilds the packages; then run <code>./sign</code> again. Firefox
+        rebuilds the packages; then <code>rake addon:sign</code> again. Firefox
         does not update a self-hosted add-on by itself unless the package
         names an update URL, so whoever has it installed installs the new
         one from the same link.

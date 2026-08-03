@@ -46,6 +46,12 @@ browser they think they are running in.
     ./build              # both
     ./build firefox      # one
 
+or from the checkout root, where everything else is a rake task:
+
+    rake addon:build
+    rake addon:build TARGET=firefox
+    rake addon:sign                    # Firefox, signed by AMO
+
 Each target lands in `dist/<target>/` as a loadable directory, and in
 `dist/<target>.zip` for signing or handing over. `icon-48.png` and
 `icon-128.png` are rendered from `icon.svg` and committed, so a build
@@ -56,9 +62,13 @@ needs no browser.
 **Firefox, for a session:** `about:debugging` → This Firefox → Load
 Temporary Add-on → pick `dist/firefox/manifest.json`. Gone at restart.
 
-**Firefox, permanently:** the package has to be signed. Submit
-`dist/firefox.zip` to addons.mozilla.org as an *unlisted* add-on; AMO
-returns a signed `.xpi` that installs anywhere without being published.
+**Firefox, permanently:** the package has to be signed. `rake
+addon:sign` does it -- it submits to addons.mozilla.org as an
+*unlisted* add-on, which is reviewed automatically and never
+published, and leaves the returned `.xpi` at `dist/firefox.xpi` for
+the landing page to offer. It needs `AMO_JWT_ISSUER` and
+`AMO_JWT_SECRET` in the environment, and says where to get them if
+they are missing.
 
 **Chrome:** `chrome://extensions` → Developer mode → Load unpacked →
 pick `dist/chrome/`.
