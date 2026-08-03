@@ -32,7 +32,7 @@ const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1
 const mute = `
     (function mark() {
         if (document.documentElement) {
-            document.documentElement.dataset.corrigendaCapture = "1";
+            document.documentElement.dataset.corrigendaCapture = "2";
         } else {
             setTimeout(mark, 0);
         }
@@ -213,8 +213,11 @@ const check = async (name, browser, executablePath) => {
             return canvas.captureStream(10);
         };
     });
-    await open(page, 'rect', 0);
+    await open(page, 'rect', 1);
     const old = await shoot(page);
+    const oldAbout = await page.evaluate(() =>
+        document.querySelector('#corrigenda-widget').shadowRoot
+                .querySelector('.a-warn').dataset.about || '');
     const sent = await page.evaluate(() => window.__captureAsks.length);
     if (sent !== 0)
         fail(`${name}: an old helper was sent ${sent} capture request(s)`);
@@ -222,7 +225,9 @@ const check = async (name, browser, executablePath) => {
         fail(`${name}: an old helper was ignored but nothing took over`);
     else if (!old.captured)
         fail(`${name}: fell back from an old helper but captured nothing`);
-    else ok(`${name}: an add-on below the required helper is left alone`);
+    else if (name === 'firefox' && !/older than/.test(oldAbout))
+        fail(`${name}: an old helper is ignored without saying so: ${oldAbout}`);
+    else ok(`${name}: an add-on below the required helper is left alone, and said why`);
     await page.close();
 
     // 6. with the add-on there is nothing to answer and nothing to
@@ -301,14 +306,17 @@ const check = async (name, browser, executablePath) => {
             warned: !r.querySelector('.a-warn').hidden,
             scopes: [...r.querySelectorAll('.scope input')].map((i) => !i.disabled),
             shared: window.__shareAsked,
-            captured: !r.querySelector('.shot-preview').hidden
+            captured: !r.querySelector('.shot-preview').hidden,
+            about: r.querySelector('.a-warn').dataset.about || ''
         };
     });
 
     // Chrome can crop through getDisplayMedia, so only Firefox loses the
     // scopes and gets the warning; what must hold in both is that a
     // silent bridge takes no picture and raises no dialog.
-    if (silent.shared !== 0)
+    if (name === 'firefox' && !/toolbar button/.test(silent.about))
+        fail(`${name}: the warning does not mention allowing the add-on here`);
+    else if (silent.shared !== 0)
         fail(`${name}: a silent bridge sent us to the share dialog`);
     else if (silent.captured)
         fail(`${name}: something was captured through a bridge that never answered`);
