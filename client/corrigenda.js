@@ -2970,6 +2970,7 @@ input:where(:not(:checked)) + .chip {
     const takeShot = async () => {
         const button = $(".a-shot");
         button.disabled = true;
+        shotError = null;
         shotStatus.textContent = "…";
         try {
             const { mapped } = await capture();
@@ -2998,9 +2999,10 @@ input:where(:not(:checked)) + .chip {
             console.warn("corrigenda: capture failed", error);
 
             clearShot();
-            shotStatus.textContent = why
+            shotError = why
                 ? `${T.shotDenied} — ${why.slice(0, 80)}`
                 : T.shotDenied;
+            shotStatus.textContent = shotError;
         } finally {
             button.disabled = false;
             refresh();
@@ -3041,6 +3043,9 @@ input:where(:not(:checked)) + .chip {
 
         if (!wanted) {
             clearShot();
+            /* Switched off and on is a fresh question, so last time's
+               answer goes with it. */
+            shotError = null;
             refused = false;
             return;
         }
@@ -3129,8 +3134,18 @@ input:where(:not(:checked)) + .chip {
     const DEFAULT_SCOPE = "element";
     let scopeForced = false;
 
+    /* What went wrong last time, if anything, held until something
+     * happens that could put it right. Without this the message lasted
+     * as long as it took the next redraw to run -- and the redraw that
+     * follows a late answer from the add-on is exactly the one that
+     * follows a failed capture, so the reason was written and wiped
+     * inside the same second and the reader saw nothing at all. */
+    let shotError = null;
+
     const showScope = () => {
-        if (!SHOT.blob) shotStatus.textContent = SCOPE_NAMES[SHOT.scope];
+        if (SHOT.blob || shotError) return;
+
+        shotStatus.textContent = SCOPE_NAMES[SHOT.scope];
     };
 
     /* Offering a crop this browser cannot perform is a promise it will
@@ -3223,6 +3238,7 @@ input:where(:not(:checked)) + .chip {
     $(".scope").addEventListener("change", (event) => {
         /* Chosen, so nothing here gets to change it back. */
         scopeForced = false;
+        shotError = null;
         SHOT.scope = event.target.value;
         clearShot();
         showScope();

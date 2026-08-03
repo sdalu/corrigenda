@@ -396,6 +396,36 @@ const check = async (name, browser, executablePath) => {
     else ok(`${name}: cropping to the element is where a report starts`);
     await page.close();
 
+    // 11. a capture that fails says why, and goes on saying it. The
+    //     reason used to be swallowed by a bare catch, and then -- once
+    //     it was not -- wiped by the next redraw, which is the one a
+    //     late answer from the add-on triggers. Both faults looked the
+    //     same from the outside: a screenshot that did not happen and
+    //     nothing on the panel about it.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await page.addInitScript(() => {
+        // no share dialog to fall back to, so the failure is the answer
+        navigator.mediaDevices.getDisplayMedia = async () => {
+            throw new Error("no sharing in this test");
+        };
+    });
+    await open(page, 'refuse');
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.waitForTimeout(1500);
+    const said = await page.evaluate(() => document
+        .querySelector('#corrigenda-widget').shadowRoot
+        .querySelector('.shot-status').textContent.trim());
+
+    if (!said)
+        fail(`${name}: a capture failed and the panel said nothing`);
+    else if (!/asleep|refused|sharing|—/.test(said))
+        fail(`${name}: the panel says "${said}", with no reason in it`);
+    else ok(`${name}: a failed capture says why — ${said}`);
+    await page.close();
+
     await instance.close();
 };
 
