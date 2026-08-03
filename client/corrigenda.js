@@ -135,6 +135,8 @@
             helperOutdated: "No cropping or masking: the add-on here is " +
                             "older than this page needs. Install the current " +
                             "build from the Corrigenda page.",
+            helperNone: "no add-on",
+            helperSilent: "add-on silent",
             screenshot: "Screenshot",
             aboutFragment: "the picked element, sanitised",
             aboutRules: "the rules that matched it, with layer and media",
@@ -197,6 +199,8 @@
                             "est plus ancienne que cette page ne l'exige. " +
                             "Installez la version courante depuis la page " +
                             "Corrigenda.",
+            helperNone: "sans extension",
+            helperSilent: "extension muette",
             screenshot: "Capture d'écran",
             aboutFragment: "l'élément choisi, nettoyé",
             aboutRules: "les règles qui s'y appliquent, layer et media compris",
@@ -554,17 +558,56 @@
      */
     let helperAnswers = null;
 
+    /* What the bridge said it was, for the line under the title: the
+     * add-on is installed rather than served, so its build is a fact
+     * about this browser that nothing else here knows. */
+    let helperVersion = null;
+
     /* Set by the panel once it exists, so an add-on switched on while
      * somebody is looking at the panel reaches the controls it changes.
      */
     let helperArrived = null;
 
-    const askHelper = async () => {
+    /* Three things ask this -- the panel when it is built, the
+     * screenshot section when it opens, and a bridge that has just been
+     * injected -- and their answers used to race. A ping that timed out
+     * after five seconds would land after a later one that succeeded in
+     * one, and write its stale "no" over a live "yes": the scopes went
+     * grey, the scope fell back to "no crop", and nothing on the page
+     * had changed to explain it. That is what "random" looked like.
+     *
+     * So: one ask in flight at a time, and an answer that arrives after
+     * a newer ask has started is dropped rather than believed.
+     */
+    let asking = null;
+    let askCount = 0;
+
+    const askHelper = async ({ fresh = false } = {}) => {
         if (!extension()) {
             helperAnswers = false;
+            asking = null;
             return false;
         }
 
+        /* Already on its way: wait for that one rather than adding a
+         * second wake-up to a background half that is busy waking.
+         *
+         * Unless the world changed under it -- a bridge injected into a
+         * page that was already open is exactly the case where the ask
+         * in flight was addressed to nobody and will time out. That one
+         * starts again, and the doomed answer is dropped when it lands.
+         */
+        if (asking && !fresh) return asking;
+
+        const mine = (askCount += 1);
+        asking = askOnce(mine).finally(() => {
+            if (mine === askCount) asking = null;
+        });
+
+        return asking;
+    };
+
+    const askOnce = async (mine) => {
         try {
             /* Five seconds rather than two: this is a wake-up, not a
              * round trip -- an event page that has been idle takes its
@@ -582,10 +625,20 @@
              * marker alone cannot tell you -- an add-on installed but
              * never granted this site answers cheerfully and cannot
              * take the picture. */
-            helperAnswers = pong?.type === "pong" &&
+            const answer = pong?.type === "pong" &&
                 (pong.helper ?? 1) >= HELPER_REQUIRED &&
                 pong.granted === true;
+
+            if (pong?.type === "pong") helperVersion = pong.version || null;
+
+            /* Stale: something newer has been asked since, and its
+             * answer is the one to keep. */
+            if (mine !== askCount) return helperAnswers;
+
+            helperAnswers = answer;
         } catch {
+            if (mine !== askCount) return helperAnswers;
+
             helperAnswers = false;
         }
 
@@ -625,7 +678,7 @@
              * that was already open. Nothing asked for this, so there is
              * no promise waiting on it -- it is a nudge to ask again. */
             if (event.data.type === "hello") {
-                askHelper().then(() => helperArrived?.());
+                askHelper({ fresh: true }).then(() => helperArrived?.());
                 return;
             }
 
@@ -1018,6 +1071,23 @@
         cursor: move;
         /* the pointer belongs to the drag, not to the page scroller */
         touch-action: none;
+
+        .titles {
+            flex: 1 1 auto;
+            min-inline-size: 0;
+        }
+
+        .colophon {
+            margin: 0;
+            font-size: 0.6875rem;
+            line-height: 1.3;
+            color: var(--muted);
+            user-select: text;
+            /* It is information, not a control, and the header is the
+               drag handle: selecting it should not move the window. */
+            cursor: text;
+            overflow-wrap: anywhere;
+        }
 
         h2 {
             flex: 1 1 auto;
@@ -1773,7 +1843,15 @@ input:where(:not(:checked)) + .chip {
         <button class="launcher a-open" aria-haspopup="dialog">${T.open}</button>
         <div class="panel" role="dialog" aria-label="${T.title}" hidden>
             <header>
-                <h2 class="target">${T.title}</h2>
+                <div class="titles">
+                    <h2 class="target">${T.title}</h2>
+                    <!-- What is actually running, in the smallest type
+                         the panel has. A report about a page is often a
+                         report about a build, and the first question
+                         anybody asks of an odd capture is which widget
+                         and which add-on took it. -->
+                    <p class="colophon"></p>
+                </div>
                 <!-- triangle-exclamation, solid weight, from Font Awesome Free
                      7.3.1. Icons are CC BY 4.0, so the source is named here:
                      https://fontawesome.com/license/free. Drawn rather than
@@ -3007,8 +3085,23 @@ input:where(:not(:checked)) + .chip {
      * break at capture time, so the two cropping scopes are taken away
      * rather than left to fail -- and given back the moment an add-on
      * makes them real. */
+    /* What is running, under the title. Two builds and no prose.
+     *
+     * The add-on's build is not the widget's: it is installed rather
+     * than served, so the two move separately and a report that came
+     * out oddly is usually a question about which pair was in play.
+     */
+    const sayWhatIsRunning = () => {
+        const helper = helperVersion
+            ? `add-on ${helperVersion}`
+            : (extension() ? T.helperSilent : T.helperNone);
+
+        $(".colophon").textContent = `corrigenda ${VERSION} · ${helper}`;
+    };
+
     const syncScopes = () => {
         const able = tabCapture();
+        sayWhatIsRunning();
 
         for (const input of root.querySelectorAll(".scope input")) {
             const off = !able && input.value !== "full";
