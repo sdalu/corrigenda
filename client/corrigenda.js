@@ -1162,13 +1162,19 @@ input:where(:not(:checked)) + .chip {
     /* Where a report ends. The window closes on success -- the thing it
      * was opened to do is done, and leaving it standing invites a second
      * report about the same defect -- so the reference number has to be
-     * said somewhere the window no longer is. It sits above the
-     * launcher, where the window was, and goes away by itself; hovering
-     * holds it, since the number is the one thing worth copying. */
+     * said somewhere the window no longer is. Top right, away from the
+     * launcher the eye has just left, and gone in a few seconds;
+     * hovering holds it, since the number is the one thing worth
+     * copying.
+     *
+     * Fixed with both insets written out. Left to inset:auto while
+     * hidden it would resolve to its static position inside the host --
+     * bottom right -- and every reveal would fly up the page from the
+     * launcher. */
     .toast {
-        position: absolute;
-        inset-block-end: calc(100% + 0.5rem);
-        inset-inline-end: 0;
+        position: fixed;
+        inset-block-start: 1rem;
+        inset-inline-end: 1rem;
         inline-size: max-content;
         max-inline-size: min(21rem, calc(100vw - 1.5rem));
         padding: 0.5rem 0.7rem;
@@ -1194,11 +1200,11 @@ input:where(:not(:checked)) + .chip {
     }
 
     @keyframes toast-in {
-        from { opacity: 0; translate: 0 0.4rem; }
+        from { opacity: 0; translate: 0 -0.4rem; }
     }
 
     @keyframes toast-out {
-        to { opacity: 0; translate: 0 0.4rem; }
+        to { opacity: 0; translate: 0 -0.4rem; }
     }
 
     .result {
@@ -2603,7 +2609,10 @@ input:where(:not(:checked)) + .chip {
     const toast = $(".toast");
     let toastTimer = null;
 
-    const LINGER = 8000;
+    /* Long enough to read a reference number, short enough that it is
+     * gone before it is in the way. The pointer holds it for anyone
+     * who wants to copy the number. */
+    const LINGER = 4000;
 
     const dismiss = () => {
         clearTimeout(toastTimer);
