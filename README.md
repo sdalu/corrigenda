@@ -106,10 +106,13 @@ that knows nothing else can start there.
 
 It describes itself: [openapi.yaml](openapi.yaml), served at
 `/api/openapi.json` and rendered at `/apidocs`, where the masthead
-grows an **API** tab on a deployment that has switched it on. In
-short: read-only until the config says `write: true`, and even then
-it can only set a state, archive, and record what was done —
-deleting a report is not offered to a program at all.
+grows an **API** tab on a deployment that has switched it on.
+
+Reading needs nothing further. Changing where a report stands needs
+`write: true`; adding a line to its journal needs `record: true`,
+which can be granted on its own — a program may be trusted to say
+what it tried without being trusted to declare the defect fixed.
+Deleting a report is not offered at any setting.
 `token: <secret>` adds a Bearer token on top of whatever Apache already
 asked for. With no `api:` key, every path under `/api` answers 404 rather
 than 403 — a route that is switched off should not advertise that it

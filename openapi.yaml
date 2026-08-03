@@ -20,9 +20,11 @@ info:
         The whole interface is optional. With no `api:` key in the
         deployment config every path here answers 404 -- not 403,
         because a route that is switched off should not advertise that
-        it exists. It is read-only until the config says
-        `write: true`, and deleting a report is not offered at any
-        setting.
+        it exists. Reading needs nothing further; changing where a
+        report stands needs `write: true`, and adding a line to its
+        journal needs `record: true` — two permissions, because the
+        journal is additive and nothing in it can be edited or
+        removed. Deleting a report is not offered at any setting.
 
         **Reaching it.** On the host, through the unix socket, which
         meets no Apache and so needs no login:
@@ -51,9 +53,11 @@ info:
         Each operation below carries its own note; this is what applies
         across all of them.
 
-        **Start by asking.** `GET /api/` says whether writes are
-        allowed here and what routes exist, and it is the service in
-        front of you rather than a document that may be older than it.
+        **Start by asking.** `GET /api/` says what routes exist and
+        which changes this deployment allows -- `writable` for a
+        state or the archive, `recordable` for a line in a journal,
+        and they are separate. It is the service in front of you
+        rather than a document that may be older than it.
         If every path answers 404, the interface is switched off in the
         deployment config: say so and stop, rather than guessing
         another base path or scraping the review UI.
@@ -146,15 +150,19 @@ paths:
             operationId: describeService
             summary: What is here, for a client that knows nothing else
             description: |
-                What this endpoint is, what it will answer, and whether
-                this deployment allows writes. Read by a client before
-                anything else.
+                What this endpoint is, what it will answer, and which
+                changes this deployment allows. Read by a client
+                before anything else.
 
                 ---
 
                 🤖 **For AI:** Ask this first, every session. It says
-                whether writes are allowed on this deployment, so you do
-                not spend a turn discovering a 403, and its `routes` are
+                whether you may change a report (`writable`) and
+                whether you may write in its journal (`recordable`) --
+                two permissions, so a deployment can let you say what
+                you tried without letting you declare a defect fixed.
+                Read them and you do not spend a turn discovering a
+                403. Its `routes` are
                 the service in front of you rather than a document that
                 may be older than it. If every path here answers 404 the
                 interface is switched off in the deployment config: say
@@ -285,8 +293,11 @@ paths:
             operationId: updateReport
             summary: Set the state, the archive marker, or both
             description: |
-                The two things about a report that can change. Requires
-                `write: true` in the deployment config.
+                The two things about a report that can change, and the
+                reason for the change. `state` and `archived` need
+                `write: true`; a body carrying only `note` needs
+                `record: true` instead — the permission asked for is
+                the one the body actually uses.
 
                 ---
 
@@ -479,9 +490,10 @@ paths:
             operationId: addJournalEntry
             summary: Record what was done
             description: |
-                Requires `write: true` — writing into somebody's record
-                of their own defect is a write, even though it changes
-                nothing about the report itself. `at` and `by` are the
+                Requires `record: true`, which a deployment can grant
+                without granting `write`: this only lengthens what has
+                been said about a report, and nothing already in the
+                journal can be edited or removed. `at` and `by` are the
                 server's to set; a client cannot backdate an entry or
                 sign it as somebody else.
 
@@ -611,7 +623,10 @@ components:
                 application/json:
                     schema: { $ref: "#/components/schemas/Error" }
         ReadOnly:
-            description: A write, on a deployment that did not allow writes
+            description: >
+                A change on a deployment that did not allow it: a
+                state or archive without `write: true`, or a journal
+                entry without `record: true`.
             content:
                 application/json:
                     schema: { $ref: "#/components/schemas/Error" }
@@ -659,7 +674,18 @@ components:
                     description: How many are on disk, including any the index lost
                 writable:
                     type: boolean
-                    description: Whether a write is worth attempting
+                    description: >
+                        Whether this deployment allows a report's
+                        state or archive marker to be changed.
+                recordable:
+                    type: boolean
+                    description: >
+                        Whether it allows a line to be added to a
+                        report's journal. A separate permission: the
+                        journal is additive and nothing in it can be
+                        edited or removed, so a caller may be trusted
+                        with it without being trusted to declare a
+                        defect fixed.
                 id: { type: string }
                 states:
                     type: array

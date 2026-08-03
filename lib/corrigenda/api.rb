@@ -159,15 +159,21 @@ module Corrigenda
         # `openapi` is where one that would rather read a schema goes.
         get "/" do
             json({
-                "service"  => "corrigenda",
-                "version"  => VERSION,
-                "openapi"  => mounted("/openapi.json"),
-                "reports"  => store.ids.size,
-                "writable" => api["write"],
-                "id"       => "YYYYMMDDThhmmssZ-xxxxxxxx",
-                "states"   => Store::STATES,
-                "channels" => CHANNELS.transform_values { |(_, label)| label },
-                "routes"   => routes_description
+                "service"    => "corrigenda",
+                "version"    => VERSION,
+                "openapi"    => mounted("/openapi.json"),
+                "reports"    => store.ids.size,
+
+                # Two answers, because they are two permissions: may a
+                # caller change where a report stands, and may it add to
+                # what has been said about it.
+                "writable"   => api["write"],
+                "recordable" => api["record"],
+
+                "id"         => "YYYYMMDDThhmmssZ-xxxxxxxx",
+                "states"     => Store::STATES,
+                "channels"   => CHANNELS.transform_values { |(_, l)| l },
+                "routes"     => routes_description
             })
         end
 
@@ -230,9 +236,7 @@ module Corrigenda
         # anyone still wants to see it, and a client that wants to change
         # both should not have to make two requests and hope.
         patch "/reports/:id" do
-            writable!
             id = params[:id]
-            report!(id)
             changes = body_params
 
             # What a report can be told: where it stands, and what was
@@ -244,6 +248,15 @@ module Corrigenda
                 fail_with(422, "not something a report can be told: " \
                                "#{unknown.join(", ")}")
             end
+
+            # Asked for by what the body carries, not by the verb: a
+            # PATCH that only says what was tried needs the permission
+            # to say things, and a deployment can grant that without
+            # granting the one that moves a report to fixed.
+            writable! if changes.key?("state") || changes.key?("archived")
+            recordable! if changes["note"]
+
+            report!(id)
 
             if changes.key?("state")
                 state = changes["state"]
@@ -286,7 +299,7 @@ module Corrigenda
         # into somebody's record of their own defect is a write, even
         # though it changes nothing about the report itself.
         post "/reports/:id/journal" do
-            writable!
+            recordable!
             id = params[:id]
             report!(id)
 
@@ -365,11 +378,24 @@ module Corrigenda
         end
 
         helpers do
+            # Where a report stands is one permission; what has been
+            # said about it is another. Changing a state or archiving
+            # decides the first and can be wrong in a way somebody has
+            # to undo; adding to the journal only lengthens the second,
+            # and nothing there can be edited or removed.
             def writable!
                 return if api["write"]
 
-                fail_with(403, "this endpoint is read-only " \
+                fail_with(403, "this endpoint may not change a report " \
                                "(set api.write in the deployment config)")
+            end
+
+            def recordable!
+                return if api["record"]
+
+                fail_with(403, "this endpoint may not write in a report's " \
+                               "journal (set api.record in the deployment " \
+                               "config)")
             end
 
             # False in the spellings a form post and a JSON body each

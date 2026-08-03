@@ -72,7 +72,8 @@ class ConfigTest < Minitest::Test
     def test_true_is_a_read_only_interface
         File.write(@file, "api: true\n")
 
-        assert_equal({ "token" => nil, "write" => false },
+        assert_equal({ "token" => nil, "write" => false,
+                       "record" => false },
                      Corrigenda::Config.load(@file).api)
     end
 
@@ -88,6 +89,32 @@ class ConfigTest < Minitest::Test
 
         assert_equal "s3cret", api["token"]
         assert api["write"]
+    end
+
+    # Changing where a report stands and adding to what has been said
+    # about it are two powers. Unset, the second follows the first --
+    # somebody who may change a state may explain it -- and it can be
+    # granted alone, which is the point of it being its own key.
+    def test_recording_follows_writing_unless_it_is_said
+        File.write(@file, "api:\n  write: true\n")
+
+        assert Corrigenda::Config.load(@file).api["record"]
+    end
+
+    def test_recording_can_be_granted_on_its_own
+        File.write(@file, "api:\n  record: true\n")
+        api = Corrigenda::Config.load(@file).api
+
+        assert api["record"]
+        refute api["write"]
+    end
+
+    def test_recording_can_be_refused_to_a_writer
+        File.write(@file, "api:\n  write: true\n  record: false\n")
+        api = Corrigenda::Config.load(@file).api
+
+        assert api["write"]
+        refute api["record"]
     end
 
     # write: yes is YAML's true, but write: "yes" is a string, and a

@@ -46,7 +46,12 @@ module Corrigenda
             "api"            => nil
         }.freeze
 
-        API_KEYS = %w[token write].freeze
+        API_KEYS = %w[token write record].freeze
+
+        # `api: true` in full: the interface, and nothing it can
+        # change.
+        READ_ONLY = { "token" => nil, "write" => false,
+                      "record" => false }.freeze
 
         # `archived` is the rule anyone should reach for first: it counts
         # from the moment a person said they were done looking, so it
@@ -195,7 +200,7 @@ module Corrigenda
         def api
             value = @values.fetch("api")
             return nil if value.nil? || value == false
-            return { "token" => nil, "write" => false } if value == true
+            return READ_ONLY if value == true
 
             unless value.is_a?(Hash)
                 raise ArgumentError,
@@ -210,8 +215,23 @@ module Corrigenda
                       "(#{API_KEYS.join(", ")})"
             end
 
-            { "token" => api_token(value["token"]),
-              "write" => value["write"] == true }.freeze
+            write = value["write"] == true
+
+            # Two powers, and they are not the same one. Changing a
+            # state or archiving decides where a report *stands*;
+            # writing in its journal only adds a line to what has been
+            # said about it, and nothing there can be edited or removed.
+            #
+            # So `record` is its own setting — a caller may be allowed
+            # to say what it tried without being allowed to declare the
+            # thing fixed. Unset, it follows `write`: somebody who may
+            # change a state may explain it, and a state change writes a
+            # line of its own regardless.
+            record = value.key?("record") ? value["record"] == true : write
+
+            { "token"  => api_token(value["token"]),
+              "write"  => write,
+              "record" => record }.freeze
         end
 
         def max_for(part)

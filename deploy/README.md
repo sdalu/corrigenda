@@ -114,7 +114,17 @@ path and meets no Apache at all:
 | *(absent)* | — | The endpoint does not exist: 404 everywhere under `/api` |
 | `api: true` | — | Read-only, with whatever authentication Apache already asks for |
 | `write` | `false` | Allow a state to be set and a report archived. Never delete |
+| `record` | follows `write` | Allow a line to be added to a report's journal |
 | `token` | none | A shared secret, required as a Bearer token as well |
+
+Two permissions rather than one, because they are not the same
+power. `write` decides where a report stands and can be wrong in a
+way somebody has to undo; `record` only lengthens what has been said
+about it, and nothing in a journal can be edited or removed. A
+deployment can hand out the second alone — an agent that may say
+what it tried, but not declare the defect fixed. Unset, `record`
+follows `write`, since somebody who may change a state may explain
+it.
 
 A token is worth it if the endpoint is ever reachable by anything you
 would not hand the LDAP password to. `write` is only true when it is

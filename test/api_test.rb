@@ -416,6 +416,71 @@ class APITest < CorrigendaTest
         assert_equal 200, last_response.status
     end
 
+    # The distinction this exists for: a caller may be trusted to say
+    # what it tried without being trusted to declare something fixed.
+    def test_a_recorder_may_write_in_the_journal_and_nothing_else
+        enable("record" => true)
+
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "reproduced at 380px", "agent" => "claude"),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 201, last_response.status
+        assert_equal 1, store.journal(@id).size
+
+        post "/reports/#{@id}/state", JSON.generate("state" => "fixed"),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 403, last_response.status
+        assert_equal "open", store.state(@id)
+    end
+
+    # A PATCH is answered by what its body carries, not by its verb: one
+    # that only says what was tried needs the permission to say things.
+    def test_a_recorder_may_patch_a_note_but_not_a_state
+        enable("record" => true)
+
+        patch "/reports/#{@id}", JSON.generate("note" => "looked, no change"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 200, last_response.status
+        assert_equal ["looked, no change"], body["journal"].map { it["note"] }
+
+        patch "/reports/#{@id}", JSON.generate("state" => "fixed"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 403, last_response.status
+    end
+
+    # And the other way: a deployment can let a program move a report
+    # without letting it write prose into somebody's record.
+    def test_a_writer_can_be_refused_the_journal
+        enable("write" => true, "record" => false)
+
+        patch "/reports/#{@id}", JSON.generate("state" => "fixed"),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 200, last_response.status
+        assert_equal "fixed", store.state(@id)
+
+        # The state change still recorded itself: that line is the
+        # service's, not the caller's.
+        assert_equal ["state"], store.journal(@id).map { it["kind"] }
+
+        post "/reports/#{@id}/journal", JSON.generate("note" => "and also"),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 403, last_response.status
+    end
+
+    def test_the_capability_document_answers_both_questions
+        enable("record" => true)
+        get "/"
+
+        refute body["writable"]
+        assert body["recordable"]
+    end
+
     def test_deleting_is_not_offered
         enable("write" => true)
         post "/reports/#{@id}/delete"

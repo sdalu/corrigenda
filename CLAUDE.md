@@ -84,10 +84,12 @@ Apache, which saves needing a login:
 `GET /api/` describes itself: the routes, whether writes are allowed,
 the id format. In full, with a note to an agent on every operation:
 [openapi.yaml](openapi.yaml), served at `/api/openapi.json` and
-rendered at `/apidocs`. Writes
-(`POST /api/reports/:id/state`, `.../archive`) answer 403 unless the
-config says `write: true`, and there is no delete at all — that stays
-in the review UI, which asks twice.
+rendered at `/apidocs`. Changing a report (`PATCH`, `.../state`,
+`.../archive`) answers 403 unless the config says `write: true`;
+adding to a report's journal answers 403 unless it says
+`record: true`, which is a separate permission because the journal
+is additive. There is no delete at all — that stays in the review
+UI, which asks twice.
 
 Without the key every path there is a 404, so the first thing to check
 when it seems missing is the config and not the code. From a terminal

@@ -92,16 +92,25 @@ sites:
 #                  Apache auth as everything else, and a process on this
 #                  host reaches it through the socket.
 #
-# Or, with either setting or both:
+# Or, with any of these:
 #
 #   api:
-#       write: true        may set a state and archive; never delete
-#       token: <secret>    also require this, as a Bearer token, on top
-#                          of whatever Apache asked for
+#       write: true        may set a state and archive a report;
+#                          never delete one, at any setting
+#       record: true       may add a line to a report's journal.
+#                          Unset, this follows `write`
+#       token: <secret>    also require this, as a Bearer token, on
+#                          top of whatever Apache asked for
 #
-# Reading is the default and writing is not: an agent acts on its own
+# Reading is the default and changing is not: an agent acts on its own
 # reading of a situation, and changing what a person filed about their
 # own site is a different thing from reading it.
+#
+# The two changes are separate on purpose. `write` decides where a
+# report stands and can be wrong in a way somebody has to undo;
+# `record` only lengthens what has been said about it, and nothing in
+# a journal can be edited or removed. `record: true` alone is an agent
+# that may say what it tried without declaring the defect fixed.
 
 # Which pages may post a report from another host. Absent, it is the
 # sites above read as https origins, which is the answer whenever a
