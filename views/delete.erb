@@ -1,0 +1,36 @@
+<h1>Delete this report?</h1>
+
+<p class="caveat is-warning">
+    There is no undo. The report, its screenshot and whatever else it
+    carried are removed from disk, and the line that says it existed is
+    taken out of the index.
+</p>
+
+<div class="confirm">
+    <dl class="railed">
+        <dt>Reported</dt>
+        <dd><%= id %></dd>
+
+        <dt>Page</dt>
+        <dd><%= document.dig("page", "url") %></dd>
+
+        <% unless document["message"].to_s.empty? %>
+            <dt>Message</dt>
+            <dd><%= document["message"] %></dd>
+        <% end %>
+
+        <dt>Files</dt>
+        <dd><%= files.join(", ") %></dd>
+    </dl>
+
+    <form class="states" method="post" action="<%= to("/#{id}/delete", false) %>">
+        <input type="hidden" name="confirm" value="yes">
+        <button class="is-danger" name="delete" value="yes">Delete for good</button>
+        <a class="button" href="<%= to("/#{id}", false) %>">Keep it</a>
+    </form>
+</div>
+
+<p class="empty">
+    To take it out of the list without destroying it, go back and
+    archive it instead.
+</p>

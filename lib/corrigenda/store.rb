@@ -15,6 +15,12 @@ module Corrigenda
         INDEX  = "index.jsonl"
         STATES = %w[open fixed wontfix].freeze
 
+        # Archiving is not a fourth state: a report is archived *and*
+        # fixed, or archived and wontfix. What happened to the defect and
+        # whether anyone still wants it in front of them are two
+        # questions, so they are two files.
+        ARCHIVE = "archived"
+
         attr_reader :root
 
         def initialize(root)
@@ -69,21 +75,60 @@ module Corrigenda
             (dir_for(id) / "state").write("#{value}\n")
         end
 
+        def archived?(id) = (dir_for(id) / ARCHIVE).exist?
+
+        def archive(id, yes: true)
+            dir = dir_for(id)
+            raise StorageError, "no such report: #{id}" unless dir.exist?
+
+            file = dir / ARCHIVE
+            if yes
+                file.write("")
+            elsif file.exist?
+                file.delete
+            end
+
+            yes
+        end
+
+        # Gone, not hidden: the directory and the index line both. The
+        # index is otherwise append-only, so this is the one operation
+        # that rewrites it -- through a temporary file and a rename, so a
+        # reader sees either the old index or the new one, never half of
+        # one.
+        def destroy(id)
+            dir = dir_for(id)
+            raise StorageError, "no such report: #{id}" unless dir.exist?
+
+            FileUtils.rm_rf(dir)
+            forget(id)
+            id
+        end
+
         def count
             index = @root / INDEX
             index.exist? ? index.readlines.size : 0
         end
 
-        # Newest first. Reads the state file per entry, which is cheap at
-        # this volume and keeps the index immutable.
-        def entries(limit: 100)
+        # Newest first. Reads the state and archive markers per entry,
+        # which is cheap at this volume and keeps the index immutable.
+        #
+        # archived: false is the working list, true the archive, nil
+        # both. The filter runs before the limit -- filtering after it
+        # would answer "the archive" with whichever of the last hundred
+        # reports happened to be archived.
+        def entries(limit: 100, archived: false)
             index = @root / INDEX
             return [] unless index.exist?
 
-            index.readlines.last(limit).reverse.map do |line|
+            index.readlines.reverse.filter_map { |line|
                 entry = JSON.parse(line)
-                entry.merge("state" => state(entry.fetch("id")))
-            end
+                id    = entry.fetch("id")
+                mark  = archived?(id)
+                next if !archived.nil? && mark != archived
+
+                entry.merge("state" => state(id), "archived" => mark)
+            }.first(limit)
         end
 
         private
@@ -100,6 +145,18 @@ module Corrigenda
                 "reporter" => reporter,
                 "channels" => document.fetch("capture", {}).select { |_, on| on }.keys
             }
+        end
+
+        # Rewritten rather than marked: a deleted report should leave
+        # nothing behind, and a tombstone in the index is something.
+        def forget(id)
+            index = @root / INDEX
+            return unless index.exist?
+
+            kept = index.readlines.reject { JSON.parse(it).fetch("id") == id }
+            temp = @root / "#{INDEX}.new"
+            temp.write(kept.join)
+            temp.rename(index.to_s)
         end
 
         def append_index(entry)

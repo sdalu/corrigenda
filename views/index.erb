@@ -1,10 +1,24 @@
-<h1>Reports</h1>
+<h1><%= archived ? "Archived reports" : "Reports" %></h1>
+
+<p class="switch-list">
+    <% if archived %>
+        <a href="<%= to("/", false) %>">← The working list<%=
+            " (#{other})" if other.positive? %></a>
+    <% elsif other.positive? %>
+        <a href="<%= to("/?archived=1", false) %>">Archived (<%= other %>) →</a>
+    <% end %>
+</p>
 
 <% if entries.empty? %>
     <p class="empty">
-        Nothing reported yet. Take the
-        <a href="<%= mount("/") %>">bookmarklet</a> to a page and pick
-        something.
+        <% if archived %>
+            Nothing archived. A report is archived from its own page,
+            which takes it out of the list without destroying it.
+        <% else %>
+            Nothing reported yet. Take the
+            <a href="<%= mount("/") %>">bookmarklet</a> to a page and pick
+            something.
+        <% end %>
     </p>
 <% else %>
     <div class="scroller">

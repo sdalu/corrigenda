@@ -8,6 +8,7 @@
 
 <p class="lede">
     <span class="badge is-<%= state %>"><%= state %></span>
+    <% if archived %><span class="badge is-archived">archived</span><% end %>
     <a href="<%= document.dig("page", "url") %>"><%= document.dig("page", "url") %></a>
 </p>
 
@@ -174,11 +175,30 @@
 
 <h2>State</h2>
 
-<form class="states" method="post" action="<%= to("/#{id}/state", false) %>">
-    <% Corrigenda::Store::STATES.each do |value| %>
-        <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
-    <% end %>
-</form>
+<div class="states">
+    <form method="post" action="<%= to("/#{id}/state", false) %>">
+        <% Corrigenda::Store::STATES.each do |value| %>
+            <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
+        <% end %>
+    </form>
+
+    <%# Archiving says nothing about the defect -- a report is archived
+        and fixed, or archived and wontfix -- so it is its own control,
+        and deleting is not a state at all. %>
+    <form method="post" action="<%= to("/#{id}/archive", false) %>">
+        <input type="hidden" name="archived" value="<%= archived ? "0" : "1" %>">
+        <button><%= archived ? "Unarchive" : "Archive" %></button>
+    </form>
+
+    <form method="post" action="<%= to("/#{id}/delete", false) %>">
+        <button class="is-danger">Delete…</button>
+    </form>
+</div>
+
+<p class="empty">
+    Archiving takes it out of the list and keeps everything. Deleting
+    asks once more, then removes the report and its files from disk.
+</p>
 
 <p class="empty">
     <a href="<%= to("/#{id}/file/report.json", false) %>">report.json</a>

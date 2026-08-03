@@ -38,6 +38,7 @@ conf=""
 port=""
 socket=""
 store=""
+store_given=""
 fixture=""
 
 while getopts "c:p:s:d:fh" opt; do
@@ -45,7 +46,7 @@ while getopts "c:p:s:d:fh" opt; do
         c) conf="$OPTARG"   ;;
         p) port="$OPTARG"   ;;
         s) socket="$OPTARG" ;;
-        d) store="$OPTARG"  ;;
+        d) store="$OPTARG" ; store_given=1 ;;
         f) fixture=1 ;;
         h) usage ; exit 0 ;;
         *) usage >&2 ; exit 2 ;;
@@ -100,6 +101,15 @@ case "${fixture:-$cfg_fixture}" in
     1|true|yes|on) rackup="test/browser/config.ru" ; fixture=1  ;;
     *)             rackup="config.ru"              ; fixture="" ;;
 esac
+
+# The fixture is a test page and what it files are test reports. They
+# used to land in the configured store, beside the real ones, where
+# telling them apart afterwards meant reading URLs -- so a run serving
+# the fixture writes elsewhere. -d still wins: asking for a store is
+# asking for that store.
+if [ -n "$fixture" ] && [ -z "$store_given" ]; then
+    store="${TMPDIR:-/var/tmp}/corrigenda-fixture"
+fi
 
 # Directories are made with ruby for the shadow reason above. The socket
 # directory is group www so the socket created inside it is too: a new

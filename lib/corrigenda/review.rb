@@ -75,15 +75,22 @@ module Corrigenda
             end
         end
 
+        # Two lists, the same table: what is in front of you, and what has
+        # been put away. Archived reports are not a different kind of
+        # thing and do not get a different page.
         get "/" do
-            erb :index, locals: { entries: store.entries }
+            archived = params[:archived] == "1"
+            erb :index, locals: { entries: store.entries(archived:),
+                                  archived:,
+                                  other: store.entries(archived: !archived).size }
         end
 
         get "/:id" do
             id = params[:id]
             erb :report, locals: { id:, document: find(id),
                                    files: store.files(id),
-                                   state: store.state(id) }
+                                   state: store.state(id),
+                                   archived: store.archived?(id) }
         end
 
         # Whitelisted, because the name is a path component.
@@ -106,6 +113,37 @@ module Corrigenda
             find(id)
             store.mark(id, params[:state])
             redirect to("/#{id}", false)
+        rescue StorageError => e
+            halt 400, "#{e.message}\n"
+        end
+
+        # Out of the working list and back into it. Nothing is lost
+        # either way, which is why this needs no confirming.
+        post "/:id/archive" do
+            id = params[:id]
+            find(id)
+            store.archive(id, yes: params[:archived] != "0")
+            redirect to("/#{id}", false)
+        rescue StorageError => e
+            halt 400, "#{e.message}\n"
+        end
+
+        # Asked twice, and the second time on a page of its own. There is
+        # no undo: the directory goes, the screenshot with it, and the
+        # index line that would have said it ever existed. A confirm
+        # step in the browser would need script; this needs none, works
+        # the same everywhere, and shows what is about to go.
+        post "/:id/delete" do
+            id = params[:id]
+            document = find(id)
+
+            unless params[:confirm] == "yes"
+                halt erb(:delete, locals: { id:, document:,
+                                            files: store.files(id) })
+            end
+
+            store.destroy(id)
+            redirect to("/", false)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
         end

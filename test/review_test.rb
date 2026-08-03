@@ -5,6 +5,10 @@ require "test_helper"
 class ReviewTest < CorrigendaTest
     def app = Corrigenda::Review
 
+    # Every id the index still carries, archived or not.
+    def listed = store.entries(archived: nil, limit: 1000)
+                      .map { it.fetch("id") }
+
     def setup
         TestSupport.configure
         @id = store.save(
@@ -180,5 +184,120 @@ end
 
         assert_includes last_response.body,
                         "&lt;base href=&quot;https://www.example.com/&quot;&gt;"
+    end
+
+    # ----------------------------------------------------------------
+    # Archiving: out of the list, still on disk. Two questions, two
+    # files -- a report is archived AND fixed, or archived and wontfix.
+    # ----------------------------------------------------------------
+    def test_archiving_takes_a_report_out_of_the_working_list
+        post "/#{@id}/archive", { "archived" => "1" }
+
+        assert_equal 302, last_response.status
+
+        get "/"
+
+        refute_includes last_response.body, @id
+    end
+
+    def test_an_archived_report_is_in_the_archive
+        post "/#{@id}/archive", { "archived" => "1" }
+
+        get "/?archived=1"
+
+        assert_includes last_response.body, @id
+    end
+
+    def test_archiving_keeps_the_state_it_had
+        post "/#{@id}/state", { "state" => "fixed" }
+        post "/#{@id}/archive", { "archived" => "1" }
+
+        assert_equal "fixed", store.state(@id)
+        assert store.archived?(@id)
+    end
+
+    def test_unarchiving_brings_it_back
+        post "/#{@id}/archive", { "archived" => "1" }
+        post "/#{@id}/archive", { "archived" => "0" }
+
+        refute store.archived?(@id)
+
+        get "/"
+
+        assert_includes last_response.body, @id
+    end
+
+    def test_the_report_page_offers_the_opposite_of_what_it_is
+        get "/#{@id}"
+
+        assert_includes last_response.body, "Archive"
+
+        post "/#{@id}/archive", { "archived" => "1" }
+        get "/#{@id}"
+
+        assert_includes last_response.body, "Unarchive"
+    end
+
+    def test_archiving_something_that_is_not_there_is_not_found
+        post "/20260101T000000Z-deadbeef/archive", { "archived" => "1" }
+
+        assert_equal 404, last_response.status
+    end
+
+    # ----------------------------------------------------------------
+    # Deleting: gone. Asked twice, because there is no undo.
+    # ----------------------------------------------------------------
+    def test_the_first_delete_asks_rather_than_deletes
+        post "/#{@id}/delete"
+
+        assert_predicate last_response, :ok?
+        assert_includes last_response.body, "Delete this report?"
+        assert_path_exists store.dir_for(@id).to_s
+    end
+
+    def test_a_confirmed_delete_removes_the_report
+        post "/#{@id}/delete", { "confirm" => "yes" }
+
+        assert_equal 302, last_response.status
+        refute_path_exists store.dir_for(@id).to_s
+    end
+
+    # One store serves the whole process, so what matters is the
+    # difference this made, not the total.
+    def test_a_deleted_report_leaves_no_line_behind
+        before = store.count
+
+        post "/#{@id}/delete", { "confirm" => "yes" }
+
+        assert_equal before - 1, store.count
+        refute_includes listed, @id
+    end
+
+    def test_a_deleted_report_is_no_longer_a_page
+        post "/#{@id}/delete", { "confirm" => "yes" }
+
+        get "/#{@id}"
+
+        assert_equal 404, last_response.status
+    end
+
+    # The one that would matter: deleting one report must not take the
+    # others with it, since the index is rewritten to do it.
+    def test_deleting_one_keeps_the_rest
+        other  = store.save(TestSupport.document("message" => "the second one"))
+        before = store.count
+
+        post "/#{@id}/delete", { "confirm" => "yes" }
+
+        assert_equal before - 1, store.count
+        assert_includes listed, other
+        refute_includes listed, @id
+        assert_path_exists store.dir_for(other).to_s
+    end
+
+    def test_deleting_something_that_is_not_there_is_not_found
+        post "/20260101T000000Z-deadbeef/delete", { "confirm" => "yes" }
+
+        assert_equal 404, last_response.status
     end
 end
