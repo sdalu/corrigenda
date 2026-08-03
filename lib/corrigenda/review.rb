@@ -41,8 +41,6 @@ module Corrigenda
 
         helpers MountPath
 
-        helpers MountPath
-
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
