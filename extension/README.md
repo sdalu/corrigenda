@@ -124,6 +124,30 @@ held is granted silently. A refusal is remembered in memory for as long
 as the background context lives, which is what keeps a second click
 from nagging; storage would have to be awaited.
 
+## Its version is its own
+
+The add-on is versioned separately from the service, and the separation
+is the point: this is *installed*, not served. A browser may be carrying
+any build ever handed out, while the service is only ever the one it is
+running — and AMO requires the number to rise with every upload, on a
+cadence that has nothing to do with how often the endpoint changes.
+Tying the two together would either invalidate a signed package you have
+already distributed or stamp a number on code that has not changed.
+
+The number lives in each manifest, because a manifest must be readable
+on its own — by a browser loading it, by `addons-linter` checking it —
+with nothing generated first. Both must say the same thing, since the
+two packages are one add-on, so there is one command:
+
+```sh
+rake addon:version              # what they say now
+rake addon:version TO=0.2.0     # write both, rebuild the packages
+```
+
+`test/version_test.rb` fails if they ever disagree, and the landing page
+prints the version out of the package it is offering, so a reader can
+see which build they are downloading.
+
 ## What the browsers require
 
 `extension/build` produces a package for each, and `npx addons-linter

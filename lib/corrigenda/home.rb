@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 require "sinatra/base"
 
 require_relative "../corrigenda"
@@ -52,6 +54,19 @@ module Corrigenda
             end
 
             def signed?(target) = package(target).to_s.end_with?(".xpi")
+
+            # The add-on's version, which is its own and not this
+            # service's: it is installed rather than served, so a browser
+            # may be carrying any of them, and the only honest answer to
+            # "which build is this download" is the one in the build.
+            def package_version(target)
+                manifest = File.join(PACKAGES, target, "manifest.json")
+                return nil unless File.exist?(manifest)
+
+                JSON.parse(File.read(manifest))["version"]
+            rescue JSON::ParserError
+                nil
+            end
         end
 
         # How to make the download install for good rather than for one
@@ -79,7 +94,8 @@ module Corrigenda
                 packages: %w[firefox chrome].to_h { |target|
                     path = package(target)
                     [target, path && { bytes: File.size(path),
-                                       signed: signed?(target) }]
+                                       signed: signed?(target),
+                                       version: package_version(target) }]
                 }
             }
         end

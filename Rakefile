@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "shellwords"
 
 require "rake/testtask"
@@ -56,6 +57,47 @@ namespace :macro do
     desc "Print the macro instead of writing it"
     task show: :config do
         sh "deploy/macro --stdout"
+    end
+end
+
+# The add-on has a version of its own, and deliberately: it is installed
+# rather than served, so a browser may be carrying any of them while the
+# service is only ever the one it is running. What it must not have is
+# two versions -- the Firefox and Chrome packages are one add-on -- and
+# the number is written in each manifest because a manifest has to be
+# readable on its own, by a browser and by addons-linter, with nothing
+# generated first. So: one command that writes both.
+MANIFESTS = FileList["extension/manifest.*.json"]
+
+namespace :addon do
+    desc %(Show the add-on's version, or raise it (TO="1.2.0"))
+    task :version do
+        want = ENV["TO"]
+
+        current = MANIFESTS.to_h { |path|
+            [path, JSON.parse(File.read(path))]
+        }
+
+        if want.nil?
+            current.each { |path, m| puts "#{m["version"]}  #{path}" }
+            next
+        end
+
+        unless want.match?(/\A\d+(\.\d+){1,3}\z/)
+            abort "addon:version: #{want.inspect} is not a version " \
+                  "(both stores want digits and dots, nothing else)"
+        end
+
+        current.each do |path, manifest|
+            was = manifest["version"]
+            manifest["version"] = want
+            File.write(path, JSON.pretty_generate(manifest) + "\n")
+            puts "#{path}: #{was} -> #{want}"
+        end
+
+        # The packages carry the number; a raised version nobody rebuilt
+        # is a download that still says the old one.
+        sh "extension/build"
     end
 end
 

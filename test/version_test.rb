@@ -47,4 +47,19 @@ class VersionTest < CorrigendaTest
     def test_the_manifests_carry_a_release_number
         assert_match(/\A\d+\.\d+(\.\d+)?\z/, manifest("firefox").fetch("version"))
     end
+
+    # The landing page reads the version out of the built package, which
+    # is the honest answer to "which build is this download" only while
+    # the build is current. rake addon:version rebuilds for this reason.
+    def test_a_built_package_is_not_older_than_its_manifest
+        %w[firefox chrome].each do |target|
+            built = File.join(ROOT, "extension", "dist", target, "manifest.json")
+            next unless File.exist?(built)
+
+            assert_equal manifest(target).fetch("version"),
+                         JSON.parse(File.read(built)).fetch("version"),
+                         "extension/dist/#{target} was built before the " \
+                         "version was raised -- run extension/build"
+        end
+    end
 end

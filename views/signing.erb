@@ -67,11 +67,21 @@ cd <%= root %>/extension
 <dl class="railed">
     <dt>Updating</dt>
     <dd>
-        Raise <code>version</code> in both manifests and run
-        <code>./sign</code> again. Firefox does not update a self-hosted
-        add-on by itself unless the package names an update URL, so
-        whoever has it installed installs the new one from the same
-        link.
+        <code>rake addon:version TO=0.2.0</code> writes both manifests and
+        rebuilds the packages; then run <code>./sign</code> again. Firefox
+        does not update a self-hosted add-on by itself unless the package
+        names an update URL, so whoever has it installed installs the new
+        one from the same link.
+    </dd>
+
+    <dt>Its own number</dt>
+    <dd>
+        The add-on's version is not the service's. It is installed rather
+        than served, so a browser may be carrying any build while the
+        service is only ever the one it is running — and AMO wants the
+        number to rise with every upload, which has nothing to do with how
+        often the endpoint changes. <code>rake addon:version</code> with no
+        <code>TO</code> says what the manifests claim now.
     </dd>
 
     <dt>The add-on id</dt>
