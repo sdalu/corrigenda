@@ -16,6 +16,7 @@ route that is switched off should not advertise that it exists.
 - [Errors](#errors)
 - [A worked session](#a-worked-session)
 - [What it will not do](#what-it-will-not-do)
+- [If you are the agent reading this](#if-you-are-the-agent-reading-this)
 
 ## Switching it on
 
@@ -273,3 +274,105 @@ programmatic.
   what was filed.
 - **Tell you it is switched off.** That is what the 404 is: a route
   that does not exist looks like a route that does not exist.
+
+## If you are the agent reading this
+
+This file is meant to be handed to you as context. What follows is how
+to use the endpoint well, and what not to conclude from it.
+
+### Start by asking, not by assuming
+
+`GET /ai/` before anything else. It tells you the version, how many
+reports exist, and **whether you may write** — attempting a write that
+the deployment forbids wastes a turn and produces a 403 you then have
+to explain. Read `routes` from it rather than from memory: this file
+describes the endpoint at the time it was written, and the service in
+front of you is the authority.
+
+If every path answers **404**, the endpoint is switched off. That is a
+configuration fact, not a routing puzzle: say so, name the `ai:` key,
+and stop. Do not go looking for another base path, and do not fall back
+to scraping `/review`.
+
+### Reading a report properly
+
+The listing is a summary; `summary` is only the first line of what
+somebody typed. Fetch the report itself before forming any view of it,
+and **look at the screenshot** — the defect is usually visible in it and
+often not describable without it.
+
+Inside `report`, the parts worth your attention:
+
+| Key | What it gives you |
+|---|---|
+| `page.url`, `page.site`, `page.build` | where it happened, and which deploy |
+| `message` | what the reporter saw, in their words. A symptom, not a diagnosis |
+| `target.selector`, `target.xpath` | how to find the element again |
+| `target.html` | the element as it was, so you can recognise it after a rebuild |
+| `target.rules[]` | every CSS rule that matched, with `href` (the stylesheet), `context` (`@layer …`, `@media …`) and `css` (the rule as written) |
+| `target.computed` | what the browser actually resolved — box, type, colour, overflow |
+| `target.audit` | `contrast`, `targetSize`, `targetTooSmall`: measured, not guessed |
+| `environment.viewport`, `device-pixel-ratio`, `color-scheme`, `pointer` | the conditions. A defect at `380x800` is not reproducible at your default width |
+| `diagnostics.errors`, `.resources`, `.overflow` | what the page was complaining about at the time |
+| `capture` | which channels the reporter switched on. A key absent from here was never captured, and its absence says nothing about the page |
+
+`target.rules[].href` and `context` are the bridge from the browser to
+the repository: they name the stylesheet and the cascade layer the rule
+came from, which is where a real fix belongs. `css` is cut at 400
+characters and `target.html` at the payload cap, both marked where they
+end — treat a long one as an identifier and read the real thing in the
+repository. `target.fingerprint` (tag, id, classes, text, index) is
+what recognises the element again after the selector has stopped
+matching.
+
+### Turning a report into a change
+
+1. Reproduce at the reported width, colour scheme and pointer type
+   before touching anything. Most "cannot reproduce" is a viewport.
+2. Prefer the rule the report already found. `href` plus `selector`
+   plus `context` usually locates the exact declaration; changing it
+   where it lives beats adding an override somewhere else.
+3. `target.audit` is measurement. If `contrast` is 2.37 and
+   `targetTooSmall` is true, those are the two things to fix, whatever
+   the message said.
+4. Verify in the same conditions. The report says what the browser did;
+   your fix has to change what the browser does, not what the stylesheet
+   looks like.
+
+### Writing back, carefully
+
+Only after the change exists and you have checked it:
+
+```sh
+curl -X POST -H 'Content-Type: application/json' \
+     -d '{"state": "fixed"}' .../ai/reports/<id>/state
+```
+
+- `fixed` means the defect is gone where it was reported, not that a
+  commit exists.
+- `wontfix` is a decision a person makes. If you believe a report
+  should be closed unfixed, say so to whoever asked you and leave it
+  `open`.
+- Archiving takes it out of the working list. Do that after `fixed`,
+  not instead of it.
+- **There is no field for a note.** The endpoint stores states, not
+  comments, so anything you want the next reader to know belongs in the
+  commit message or wherever your work is recorded — do not encode it
+  in the state.
+- Both writes are idempotent. Setting `fixed` twice is not an error,
+  and neither is archiving an archived report.
+
+### Boundaries worth respecting
+
+- You cannot delete a report through this endpoint at any setting, and
+  should not ask a human to do it for you as a way around that.
+- The screenshot may show real content and real people. It is already
+  redacted for form fields and nothing off-screen; treat the rest as
+  material belonging to the site's owner.
+- The store is small — tens of reports a month. Fetch what you need and
+  cache it for the length of your task; there is no pagination beyond
+  `limit`, and no rate limit to discover by hitting it.
+- If you are running on the host itself, `rake data:list`, `rake
+  data:show ID=…` and `rake data:status ID=… SET=…` read and write the
+  same store with no service involved. Prefer them when the service is
+  down or the question is not programmatic.
