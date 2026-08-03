@@ -173,6 +173,14 @@ fi
 
 echo "config     ${conf}"
 echo "store      ${store}"
+
+# Asked of the library rather than worked out here: whether `record`
+# follows `write` is a rule with one home, and a startup line that
+# disagreed with the service it is starting would be worse than no line.
+# No gems are involved, so this needs no bundler.
+api=$(CORRIGENDA_CONFIG="$conf" ruby -I lib -r corrigenda/config \
+          -e 'print Corrigenda::Config.load.api_state' 2>/dev/null)
+echo "api        ${api:-unknown}"
 echo
 
 exec bundle exec puma -b "$bind" "$rackup"

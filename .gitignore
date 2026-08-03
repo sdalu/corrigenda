@@ -30,3 +30,8 @@ deploy/corrigenda.yml
 # see test/tracked_files_test.rb, which is what keeps such things out
 # of the tracked files in the first place.
 test/local.rb
+
+# Editor backups. One of these — a copy of the deployment config,
+# hostnames and directory server and all — reached a commit, which
+# is the whole reason corrigenda.yml itself is not tracked.
+*~

@@ -37,6 +37,15 @@ module Corrigenda
         rescue ArgumentError
             false
         end
+
+        # What it will let a caller do, in the words the startup
+        # line uses. Both come from Config, so a page and a terminal
+        # cannot describe the same deployment differently.
+        def api_state
+            settings.feedback_config.api_state
+        rescue ArgumentError => e
+            "misconfigured — #{e.message}"
+        end
     end
 
     class Prefix

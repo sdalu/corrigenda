@@ -234,6 +234,23 @@ module Corrigenda
               "record" => record }.freeze
         end
 
+        # The interface's state in a few words, for a startup line and a
+        # page that both have to say it. One sentence, one definition:
+        # the rule that `record` follows `write` lives above, and
+        # nothing that displays this should be reimplementing it.
+        def api_state
+            settings = api
+            return "off" if settings.nil?
+
+            allowed = []
+            allowed << "may change reports" if settings["write"]
+            allowed << "may record work"    if settings["record"]
+            allowed << "read-only"          if allowed.empty?
+            allowed << "token required"     if settings["token"]
+
+            allowed.join(", ")
+        end
+
         def max_for(part)
             case part
             when :report     then max_report

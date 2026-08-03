@@ -113,6 +113,53 @@ Reading needs nothing further. Changing where a report stands needs
 which can be granted on its own — a program may be trusted to say
 what it tried without being trusted to declare the defect fixed.
 Deleting a report is not offered at any setting.
+
+The landing page and the service's own startup line both say which of
+those a deployment allows, so you never have to read the config to find
+out what is switched on.
+
+### Setting an agent to work
+
+Nothing here needs a plugin or an integration: the endpoint describes
+itself, so an agent with a shell and this paragraph has enough. Give it
+something like this, with the paths edited for your deployment.
+
+> There is a defect-report service on this host called Corrigenda. Its
+> JSON interface answers on the unix socket
+> `/var/run/corrigenda/corrigenda.sock`, under `/api`:
+>
+> ```sh
+> curl --unix-socket /var/run/corrigenda/corrigenda.sock \
+>      http://localhost/api/
+> ```
+>
+> Start with that — it says what routes exist and which changes this
+> deployment allows. `GET /api/openapi.json` is the full schema, and it
+> carries notes addressed to you on every operation; read it before
+> deciding how to use anything.
+>
+> Work through the open reports for `<site>`. For each one: read the
+> report, look at its screenshot, reproduce the defect at the viewport
+> and colour scheme it names, then fix it in `<path to the site's
+> repository>`. The report names the stylesheet and cascade layer each
+> matching rule came from — fix it where it lives rather than adding an
+> override.
+>
+> Record what you did on the report as you go, and do not mark anything
+> `fixed` until you have checked the defect is gone under the reported
+> conditions. If a report needs a decision rather than a change, leave
+> it open and tell me.
+
+Two things worth keeping in whatever you write. **Point it at the
+capability document first**, so it learns what it may do rather than
+discovering a 403 halfway through; the schema's own per-operation notes
+do the rest of the teaching. And **say what `fixed` means to you** —
+otherwise it means "I changed something", which is not the same claim
+and is the one you will be reading later.
+
+An agent given `record: true` and not `write: true` is a good way to
+start: it can tell you what it found and what it tried, and every state
+on the board still moved because a person moved it.
 `token: <secret>` adds a Bearer token on top of whatever Apache already
 asked for. With no `api:` key, every path under `/api` answers 404 rather
 than 403 — a route that is switched off should not advertise that it

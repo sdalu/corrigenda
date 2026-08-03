@@ -7,14 +7,14 @@ class HomeTest < CorrigendaTest
 
     def setup
         TestSupport.configure
-    end
+        end
 
     def test_the_mount_point_is_a_page_not_a_404
         get "/"
 
         assert_predicate last_response, :ok?
         assert_includes last_response.body, "Corrigenda"
-    end
+        end
 
     # Built in the browser from location.origin, because the app is not
     # told its public URL by the proxy. The path itself comes from the
@@ -25,7 +25,7 @@ class HomeTest < CorrigendaTest
 
         assert_includes last_response.body, "location.origin"
         assert_includes last_response.body, "/corrigenda.js"
-    end
+        end
 
     # Served by this app rather than from the shared asset tree, so the
     # client and the endpoint that reads its reports ship together.
@@ -39,11 +39,11 @@ class HomeTest < CorrigendaTest
         # refuse to mix the two encodings.
         assert_includes last_response.body.force_encoding("UTF-8"),
                         "page-defect reporting widget"
-    end
+        end
 
-# Written for whoever runs the service, and reachable from the box
-# that tells a reader their install is temporary.
-def test_the_signing_page_answers
+    # Written for whoever runs the service, and reachable from the box
+    # that tells a reader their install is temporary.
+    def test_the_signing_page_answers
     get "/signing"
 
     assert_predicate last_response, :ok?
@@ -51,7 +51,7 @@ def test_the_signing_page_answers
     assert_includes last_response.body, "extension"
 end
 
-def test_the_add_on_box_links_to_it
+    def test_the_add_on_box_links_to_it
     get "/"
 
     assert_includes last_response.body, %(href="/signing")
@@ -65,7 +65,7 @@ end
 
         assert_includes last_response.headers["cache-control"].to_s, "max-age=300"
         refute_nil last_response.headers["last-modified"]
-    end
+        end
 
     # Built from the mount root, so the same masthead works from Home
     # (mounted at /) and Review (mounted at /review).
@@ -73,7 +73,7 @@ end
         get "/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
 
         assert_includes last_response.body, %(href="/.corrigenda/review/")
-    end
+        end
 
     # The suite shares one store, so a count is only meaningful relative
     # to whatever the tests before this one already put there. Asserting
@@ -84,7 +84,7 @@ end
         get "/"
 
         assert_includes last_response.body, "#{before + 1} stored"
-    end
+        end
 
     def test_it_names_the_allowlist_when_there_is_one
         TestSupport.configure("sites" => ["tools.example.com"])
@@ -93,7 +93,35 @@ end
         assert_includes last_response.body, "tools.example.com"
     ensure
         TestSupport.configure
-    end
+        end
+
+    # Whoever started the service read one line, hours ago; whoever is
+    # reading this page is asking now. Both sentences come from Config,
+    # so they cannot describe the same deployment differently.
+    def test_the_page_says_the_api_is_off_when_it_is
+    get "/"
+
+    assert_includes last_response.body, "No <code>api:</code> key"
+end
+
+    def test_the_page_says_what_the_api_allows
+    TestSupport.configure("api" => { "write" => true })
+    get "/"
+
+    assert_includes last_response.body, "may change reports"
+    assert_includes last_response.body, "may record work"
+ensure
+    TestSupport.configure
+end
+
+    def test_a_read_only_api_says_so
+    TestSupport.configure("api" => true)
+    get "/"
+
+    assert_includes last_response.body, "read-only"
+ensure
+    TestSupport.configure
+end
 
     # The schema viewer. A tab leading to a 404 is worse than no tab, so
     # both the tab and the page follow the deployment: with no `api:`
@@ -107,7 +135,7 @@ end
         get "/apidocs"
 
         assert_equal 404, last_response.status
-    end
+        end
 
     def test_the_tab_and_the_viewer_arrive_with_the_endpoint
         TestSupport.configure("api" => true)
@@ -122,7 +150,7 @@ end
         assert_includes last_response.body, "/api/openapi.json"
     ensure
         TestSupport.configure
-    end
+        end
 
     # Vendored, whitelisted by name: the path is a path component, and
     # the directory holds a licence and a README nobody should be able
@@ -144,5 +172,5 @@ end
         assert_equal 404, last_response.status
     ensure
         TestSupport.configure
-    end
+        end
 end

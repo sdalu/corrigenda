@@ -326,6 +326,24 @@ paths below are relative to it.</p>
             <td>The add-on packages, the signing notes, and this
             page.</td>
         </tr>
+        <%# Listed only where they answer: with no api: key in the
+            config every path under /api is a 404, and a table that
+            names one would be describing a different deployment. %>
+        <% if api_offered? %>
+        <tr>
+            <td><code>/api/</code></td>
+            <th scope="row">Signed in</th>
+            <td>The same reports as JSON, for a program —
+            <%= api_state %>. Its schema is
+            <code>/api/openapi.json</code>.</td>
+        </tr>
+        <tr>
+            <td><code>/apidocs</code></td>
+            <th scope="row">Signed in</th>
+            <td>That schema, rendered: every route, what it takes
+            and what it answers.</td>
+        </tr>
+        <% end %>
     </tbody>
 </table>
 </div>
@@ -416,6 +434,20 @@ paths below are relative to it.</p>
 
     <dt>Endpoint</dt>
     <dd><a href="<%= mount("/report/health") %>">health</a></dd>
+
+    <%# Said here as well as at startup, because the two audiences never
+        overlap: whoever started the service saw one line hours ago, and
+        whoever is reading this page is asking now. %>
+    <dt>API</dt>
+    <dd>
+        <% if api_offered? %>
+            <a href="<%= mount("/apidocs") %>">JSON at <code>/api</code></a>
+            — <%= api_state %>.
+        <% else %>
+            Off. No <code>api:</code> key in this deployment's config, so
+            every path under <code>/api</code> answers 404.
+        <% end %>
+    </dd>
 </dl>
 
 <script>
