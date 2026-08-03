@@ -189,30 +189,45 @@ const inject = async (tab) => {
     await remember(result?.result?.replace(/\/+$/, ""));
 };
 
-/* Inject first, ask second. The injection needs nothing but activeTab,
- * which the click itself grants, so the widget appears whatever the
- * answer to the question is. The question is only about later visits:
- * with the origin granted, the bridge runs at document_start and a
- * page that already carries the widget gets a mapped capture without
- * anyone pressing anything.
+/* Ask first, and ask synchronously: a handler that has awaited anything
+ * is no longer a user input handler. Firefox says so outright ("if a
+ * user input handler waits on a promise, then its status as a user
+ * input handler is lost") and Chrome throws "This function must be
+ * called during a user gesture" -- so permissions.request has to be the
+ * first thing this listener does, before the injection and before any
+ * check of what is already granted. That rules out asking
+ * permissions.contains beforehand, and nothing is lost by it: an origin
+ * already held is granted silently, with no prompt.
  *
- * Asked once per origin -- permissions.request resolves true straight
- * away for one already held -- and never for a page that is not http.
+ * The injection needs nothing but activeTab, which the click itself
+ * grants, so the widget appears whatever the answer is. The question is
+ * only about later visits: with the origin granted, the bridge runs at
+ * document_start and a page that already carries the widget gets a
+ * mapped capture without anyone pressing anything.
+ *
+ * `asked` keeps a refusal from being re-asked at every click. It is
+ * memory, not storage, because storage would have to be awaited: it
+ * lasts as long as this background context does, and a refuser is asked
+ * again at most once per browser session.
  */
-api.action.onClicked.addListener(async (tab) => {
-    await inject(tab);
+const asked = new Set();
 
+api.action.onClicked.addListener((tab) => {
     const origin = originOf(tab?.url || "");
-    if (!origin) return;
 
-    if (await api.permissions.contains({ origins: [origin] })) return;
-
-    try {
-        await api.permissions.request({ origins: [origin] });
-    } catch {
-        /* Refused, or asked outside a gesture the browser accepts.
-         * The button still works; only the automatic bridge is lost. */
+    if (origin && !asked.has(origin)) {
+        asked.add(origin);
+        /* Not awaited, for the same reason it is called first. */
+        api.permissions.request({ origins: [origin] })?.catch?.(() => {
+            /* Refused, or asked where the browser will not ask. The
+             * button still works; only the automatic bridge is lost. */
+        });
     }
+
+    inject(tab).catch(() => {
+        /* A page no extension may script -- about:, the add-ons page,
+         * another extension's page. Nothing to do and nothing to say. */
+    });
 });
 
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {

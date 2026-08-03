@@ -113,6 +113,45 @@ and only in the shape the widget sends. The background half validates
 the rectangle and bounds the scale before handing anything to the
 browser.
 
+The prompt is raised as the first statement of the click handler,
+before the injection and before any check of what is already granted.
+That is not a preference: a handler that has awaited anything is no
+longer a user input handler, so `permissions.request` after an `await`
+fails outright — Firefox drops the handler's privileged status,
+Chrome throws *This function must be called during a user gesture*.
+Asking without checking first costs nothing, since an origin already
+held is granted silently. A refusal is remembered in memory for as long
+as the background context lives, which is what keeps a second click
+from nagging; storage would have to be awaited.
+
+## What the browsers require
+
+`extension/build` produces a package for each, and `npx addons-linter
+dist/firefox` reports it clean. The floors are set by the newest key
+each manifest carries:
+
+- **Firefox 140** (Android 142) — `data_collection_permissions`, which
+  AMO now requires of new extensions. `optional_host_permissions`
+  itself only needs 128.
+- **Chrome 102** — `optional_host_permissions`, declared as
+  `minimum_chrome_version`.
+
+The Firefox package declares `websiteContent` as data it collects: the
+picture it takes is what a website is showing, and it is taken so that
+the picture can be filed. Strictly the add-on transmits nothing itself
+— it hands the capture to the page in the tab it came from, and the
+page uploads it when you press Send — so `"required": ["none"]` is
+arguable. Declaring the content is the honest reading of what happens
+next, and under-declaring is what fails a review.
+
+Neither store has seen this. Two things would come up if one did: the
+toolbar button adds a `<script src>` from the endpoint to the page,
+which is remote code by the letter of both policies (it is the same
+script the site serves itself, and the same one the bookmarklet
+loads), and a broad `*://*/*` optional permission needs a justification
+in the listing. Both are reasons this is distributed as an unlisted
+signed build rather than through a store.
+
 ## Why there is no bookmarklet installer
 
 There is no way for a web page to install a bookmarklet: browsers refuse

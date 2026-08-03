@@ -28,10 +28,22 @@
      * behind the same login, a static page, anything never prepared for
      * this. Sent once per page and ignored if it fails: the button
      * still asks the page directly when it is pressed. */
-    const advertised = document.querySelector('link[rel="corrigenda"]')?.href;
-    if (advertised) {
+    const learn = () => {
+        const advertised = document.querySelector('link[rel="corrigenda"]')?.href;
+        if (!advertised) return;
+
         api.runtime.sendMessage({ type: LEARN, endpoint: advertised })
            .catch(() => {});
+    };
+
+    /* This runs at document_start, where <head> has not been parsed and
+     * the link cannot be there yet. The announcement above must stay
+     * that early -- the widget reads it synchronously -- but the reading
+     * of the page waits for a page to read. */
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", learn, { once: true });
+    } else {
+        learn();
     }
 
     const reply = (id, payload) => {
