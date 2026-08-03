@@ -82,10 +82,13 @@ end
 # doorways, and the reason there are two is that this is the one
 # operation with nothing behind it: `data:purge:show` is how you find
 # out what a rule means before it means it.
-def retention
+def deployment
     $LOAD_PATH.unshift("lib") unless $LOAD_PATH.include?("lib")
-    require "corrigenda/config"
-    require "corrigenda/store"
+
+    # The umbrella file, not the two pieces: it is what defines the error
+    # family the store raises, and rescuing a constant that was never
+    # loaded turns a bad id into a NameError and a rake backtrace.
+    require "corrigenda"
 
     # CORRIGENDA_CONFIG the way ./run passes it, so a cron entry can
     # purge the installed deployment's store from a working copy, and so
@@ -94,8 +97,8 @@ def retention
 
     unless File.exist?(file)
         abort <<~SAY
-            data:purge: #{file} does not exist, so there is no store to purge
-            and no rule to purge it by.
+            data: #{file} does not exist, so there is no store to work on
+            and no rule to work by.
 
                 cp #{TEMPLATE} #{CONFIG}
                 $EDITOR #{CONFIG}
@@ -103,20 +106,94 @@ def retention
     end
 
     config = Corrigenda::Config.load(file)
-    [Corrigenda::Store.new(config.store_path), config.retention]
+    [Corrigenda::Store.new(config.store_path), config.retention, file]
 rescue ArgumentError => e
     # The config said something about retention that cannot be obeyed.
     # Refusing beats guessing when the guess deletes things.
-    abort "data:purge: #{e.message}"
+    abort "data: #{e.message}"
+end
+
+# One report to a line, newest first: id, when it was filed, its state,
+# what it is about. The summary is the reporter's first line, cut where
+# a terminal stops being able to show it.
+def listing_line(entry)
+    # "2026-08-03T10:48:08Z" -> "2026-08-03 10:48": the seconds are in
+    # the id for anyone who needs them.
+    at      = entry["at"].to_s[0, 16].tr("T", " ")
+    marks   = entry["archived"] ? "archived" : entry["state"]
+    summary = entry["summary"].to_s
+    summary = "#{summary[0, 39]}…" if summary.length > 40
+
+    format("%-33s %-16s %-9s %-6s %-26s %s",
+           entry["id"], at, marks, channel_marks(entry),
+           entry["site"], summary)
+end
+
+# What the report carried, in one column: the same letters the review UI
+# puts on its chips, in the same order every time, with a dot where a
+# channel is missing. Fixed positions are the point -- a column you can
+# read down tells you which reports have a screenshot without reading a
+# word of it.
+def channel_marks(entry)
+    carried = Array(entry["channels"])
+    Corrigenda::CHANNELS.map { |key, (mark, _label)|
+        carried.include?(key) ? mark : "·"
+    }.join
+end
+
+# ID= names one report. Every task that takes one comes through here,
+# so the refusal is the same words each time and nothing is done to a
+# report before it is known to exist.
+def report_for(store, task)
+    id = ENV["ID"].to_s.strip
+    abort "#{task}: ID=<report> is required (rake data:list to find one)" \
+        if id.empty?
+
+    document = begin
+        store.read(id)
+    rescue Corrigenda::StorageError => e
+        abort "#{task}: #{e.message}"
+    end
+
+    abort "#{task}: no such report: #{id}" if document.nil?
+
+    [id, document]
+end
+
+# One report laid out rather than dumped: the fields somebody reaches
+# for, the message in full, then what arrived with it and where it
+# sits, since the next question is usually about a screenshot.
+def show_report(store, id, document)
+    page  = document["page"] || {}
+    state = store.archived?(id) ? "#{store.state(id)} (archived)"
+                                : store.state(id)
+
+    puts format("%-10s %s", "id",    id)
+    puts format("%-10s %s", "state", state)
+    puts format("%-10s %s", "type",  document["type"])
+    puts format("%-10s %s", "site",  page["site"])
+    puts format("%-10s %s", "url",   page["url"])
+    puts
+
+    message = document["message"].to_s.strip
+    puts message.empty? ? "(no message)" : message
+    puts
+
+    files = store.files(id).reject { it == "state" }
+    puts format("%-10s %s", "files", files.join(", "))
+    puts format("%-10s %s", "at",    store.dir_for(id))
 end
 
 def report_line(entry)
     format("%-33s %s, %d days", entry[:id], entry[:rule], entry[:days])
 end
 
-def nothing_expires
+# Named with the file it read, which is not always the deployment's:
+# CORRIGENDA_CONFIG may have pointed this somewhere else entirely, and
+# quoting the wrong path is how somebody edits a file nothing reads.
+def nothing_expires(file)
     puts <<~SAY
-        #{CONFIG} sets no retention, so nothing expires and this has
+        #{file} sets no retention, so nothing expires and this has
         nothing to do. What it would read:
 
             retention:
@@ -235,10 +312,87 @@ namespace :addon do
 end
 
 namespace :data do
+    # The review UI is behind the proxy and its login; this is the same
+    # listing for whoever is already on the host -- and the only way to
+    # see what a store holds on the day Apache is the broken thing.
+    desc "List the reports (ALL=1 adds archived, ARCHIVED=1 only those)"
+    task :list do
+        store, = deployment
+
+        # Three answers rather than one flag: the working list is what
+        # somebody wants nine times in ten, and the archive is a place
+        # you go to on purpose.
+        archived = if    ENV["ARCHIVED"] then true
+                   elsif ENV["ALL"]      then nil
+                   else                       false
+                   end
+
+        entries = store.entries(limit: Integer(ENV.fetch("N", 50)),
+                                archived:)
+
+        if entries.empty?
+            puts case archived
+                 when true then "nothing archived"
+                 when nil  then "no reports"
+                 else "no open reports (ALL=1 to include archived ones)"
+                 end
+            next
+        end
+
+        entries.each { puts listing_line(it) }
+        puts "#{entries.size} shown, #{store.ids.size} in the store"
+    end
+
+    desc "Show one report in full (ID=<report>)"
+    task :show do
+        store, = deployment
+        id, document = report_for(store, "data:show")
+        show_report(store, id, document)
+    end
+
+    # Archiving says nothing about the defect -- a report is archived
+    # *and* fixed, or archived and wontfix. It only says whether anyone
+    # still wants it in front of them, which is why it is its own task
+    # rather than a value data:status could take.
+    desc "Archive one report, or bring it back (ID=<report> UNDO=1)"
+    task :archive do
+        store, = deployment
+        id, = report_for(store, "data:archive")
+
+        back = !ENV["UNDO"].nil?
+        store.archive(id, yes: !back)
+        puts "#{id}: #{back ? "back in the working list" : "archived"}"
+    end
+
+    # Asking and answering are one task: SET= changes it, and without
+    # SET= this says what it is. Reading a state should not mean
+    # remembering a second task name.
+    desc "Say what happened to a report, or set it (ID=<report> SET=fixed)"
+    task :status do
+        store, = deployment
+        id, = report_for(store, "data:status")
+        want = ENV["SET"]
+
+        if want.nil?
+            archived = store.archived?(id) ? ", archived" : ""
+            puts "#{id}: #{store.state(id)}#{archived}"
+            next
+        end
+
+        unless Corrigenda::Store::STATES.include?(want)
+            abort "data:status: no such state #{want.inspect} -- " \
+                  "#{Corrigenda::Store::STATES.join(", ")}"
+        end
+
+        was = store.state(id)
+        store.mark(id, want)
+        puts "#{id}: #{was} -> #{want}"
+    end
+
     desc "Remove the reports the config's retention says have expired"
     task :purge do
-        store, rules = retention
-        next nothing_expires if rules.nil?
+        store, rules, file = deployment
+        next nothing_expires(file) if rules.nil?
 
         gone = store.purge(rules)
         gone.each { puts report_line(it) }
@@ -252,8 +406,8 @@ namespace :data do
     namespace :purge do
         desc "Say what data:purge would remove, and remove nothing"
         task :show do
-            store, rules = retention
-            next nothing_expires if rules.nil?
+            store, rules, file = deployment
+            next nothing_expires(file) if rules.nil?
 
             going = store.expired(rules)
             going.each { puts report_line(it) }

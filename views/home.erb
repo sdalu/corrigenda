@@ -333,9 +333,11 @@ paths below are relative to it.</p>
     <% if sites.nil? %>
         <p>Any site — no allowlist configured.</p>
     <% else %>
-        <% sites.each do |site| %>
-            <code><%= site %></code><br>
-        <% end %>
+        <ul class="sites">
+            <% sites.each do |site| %>
+                <li><code><%= site %></code></li>
+            <% end %>
+        </ul>
         <p>One list, two checks. A report may only say it is about
         one of these, so a stray endpoint cannot be used as free
         storage. And only a page served from one of them may post

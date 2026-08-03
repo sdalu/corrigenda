@@ -640,6 +640,31 @@ svg {
 
     .railed dd .term:first-child { margin-block-start: 0; }
 
+    /* An estate's worth of hostnames is a wall when it is one column
+       per name. These are names, not sentences: they take as many
+       columns as the box can hold, each track wide enough for the
+       longest name here, and fall back to one column when it cannot
+       hold two. No query — the track width decides. */
+    .sites {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 29ch), 1fr));
+        gap: 0.15rem 1.5rem;
+        margin-block: 0.2rem;
+        padding: 0;
+        list-style: none;
+        /* The mono face is also what makes `ch` above mean a hostname's
+           character, and 29 of them covers a long third-level name
+           (an exhibition subdomain under a two-label domain). A track
+           that never has to wrap a name is the whole trick: two columns
+           fit the narrower box, three the wide one, and neither breaks
+           a hostname across lines. */
+        font-family: var(--mono);
+        font-size: 0.875rem;
+    }
+
+    /* The measure is for prose. This list wants the width it is in. */
+    .railed dd:has(> .sites) { max-inline-size: none; }
+
     .paths {
         border-collapse: collapse;
         margin-block-start: 0.6rem;
