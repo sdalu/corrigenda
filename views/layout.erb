@@ -741,69 +741,165 @@ svg {
         td:first-child, .badge { white-space: nowrap; }
     }
 
-    /* The state column, set from the row. Buttons rather than links
-       because they post; shaped like the badge they replace, so the
-       column still reads as a column of states rather than a strip of
-       controls. The one that is disabled is the current state — it is
-       the only one in full ink, which is what makes the column
-       scannable. */
-    /* Two forms, one under the other, and the cell itself left alone: a
+    /* The state column, set from the row: the same switch as on the
+       report's own page, in its small size, so the column reads down as
+       a column of states rather than as a strip of controls.
+
+       Two forms, one under the other, and the cell itself left alone: a
        td asked to be a flex container stops being the row's cell — the
        table wraps it in an anonymous one — and the rule under it then
        lands at its own height instead of the row's. */
     .setting {
-        form {
-            display: flex;
-            /* One line: the table is inside a .scroller, so a wide
-               column costs a scroll rather than a taller row, and a
-               row that grows makes the list harder to read down. */
-            flex-wrap: nowrap;
-            gap: 0.15rem;
-        }
+        /* Filing takes the line under the states rather than the width
+           beside them. These rows are already several lines tall, so a
+           second line in one cell costs nothing — where the width did:
+           beside the states it pushed the table past its scroller and
+           left the control off the edge of the page. */
+        .filing button { margin-block-start: 0.3rem; }
+    }
 
-        button.badge {
-            /* Comfortably past the 24px a pointer needs, without
-               turning a table row into a toolbar. */
-            min-block-size: 1.75rem;
-            padding-inline: 0.35rem;
-            border: 1px solid transparent;
-            border-radius: 2px;
-            background: none;
+    /* The state switch: on a report's own page, and on every row of the
+       listing. It has two jobs and must not need reading twice for
+       either — can I press this, and which one is set.
+
+       Pressable is said the way a physical control says it: a border, a
+       ground of its own, a hard lip of shadow underneath, and a press
+       that drops the button onto that lip. No gradient, no glow; this
+       is an instrument, and the affordance is mechanical.
+
+       Which one is set is said in colour, which this sheet otherwise
+       keeps for state alone — and this is where state lives. One hue
+       per state, on the state that is SET and nowhere else, so a row
+       still carries a single saturated mark and the column can be read
+       down for what is still open. The tick is there because a colour
+       on its own is not an answer for everyone, and because the fill
+       and the tick agree under forced-colors, where the fill is gone.
+
+       Open is the estate's amber: it wants somebody. Fixed is green.
+       Wontfix closes in graphite — deciding not to act is not news. */
+    .switch {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+
+        button {
+            /* Light in both schemes, so the ink on a filled
+               one is dark either way and the stamp is the
+               same object at night as by day. */
+            --fill: var(--panel);
+
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35em;
+            min-block-size: 2.5rem;
+            padding-inline: 0.7rem;
+            font-family: var(--display);
+            font-size: 0.8125rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: var(--ink);
+            background: var(--panel);
+            border: 1px solid var(--rule);
+            border-radius: 3px;
+            box-shadow: 0 1px 0 var(--rule);
             cursor: pointer;
 
-            &:hover, &:focus-visible {
-                border-color: var(--rule);
-                background: var(--panel);
-                color: var(--ink);
+            /* The tick keeps its room whether or not it is shown, so
+               pressing one does not shuffle the others sideways. */
+            &::before {
+                content: "✓";
+                visibility: hidden;
+                font-size: 0.9em;
             }
 
-            &:disabled {
+            &.is-open  { --fill: light-dark(oklch(84% 0.135 78),
+                                            oklch(76% 0.135 78)); }
+            &.is-fixed { --fill: light-dark(oklch(84% 0.13 152),
+                                            oklch(74% 0.13 152)); }
+            /* Graphite: a decision not to act is not news. */
+            &.is-wontfix { --fill: light-dark(oklch(79% 0.015 265),
+                                              oklch(68% 0.02 265)); }
+
+            /* A taste of the colour it would set: the control shows
+               what pressing it does before it is pressed. */
+            &:hover {
+                border-color: var(--ink);
+                background: color-mix(in oklab, var(--fill) 14%,
+                                      var(--panel));
+            }
+
+            &:active {
+                translate: 0 1px;
+                box-shadow: none;
+            }
+
+            /* The state it is in. Disabled because pressing it would
+               ask for what is already true — and filled, so nobody has
+               to compare it with its neighbours to find it. */
+            &[aria-current] {
+                color: oklch(21% 0.02 265);
+                background: var(--fill);
+                /* A rim a shade darker than the fill: a
+                   stamp pressed into the paper, and the
+                   grey one still reads as set. */
+                border-color: color-mix(in oklab, var(--fill),
+                                        black 25%);
+                box-shadow: none;
                 cursor: default;
-                color: var(--ink);
 
-                &::before { border-color: var(--ink); }
+                &::before { visibility: visible; }
             }
         }
 
-        /* Filing, which is not a state and does not read as one: no
-           dot, lower case, the muted ink. The words above it say what
-           happened to the defect; this one says whether anybody still
-           wants it in front of them.
+        /* In a table row, where the same control has to fit a column
+           and be read down a page of them. */
+        &.is-compact {
+            /* One line per row: the table is inside a
+               .scroller, and three stacked buttons per row
+               make a page of reports twice as long to read
+               down. */
+            flex-wrap: nowrap;
+            gap: 0.2rem;
 
-           And it takes the line under them rather than the width beside
-           them. These rows are already several lines tall, so a second
-           line in one cell costs nothing — where the width did: beside
-           the states it pushed the table past its scroller and left the
-           control off the edge of the page. */
-        .filing button {
-            margin-block-start: 0.1rem;
-            font-size: 0.75rem;
-            letter-spacing: 0.04em;
-            text-transform: none;
-            color: var(--muted);
+            button {
+                min-block-size: 1.8rem;
+                padding-inline: 0.45rem;
+                gap: 0.25em;
+                font-size: 0.75rem;
+                letter-spacing: 0.04em;
 
-            &::before { display: none; }
+                /* No room kept for the tick here. Pressing
+                   one reloads the page, so nothing shuffles
+                   under the hand, and the column is the
+                   width this pays for. */
+                &::before { display: none; }
+                &[aria-current]::before { display: inline; }
+            }
         }
+    }
+
+    /* Filing, which is not a state and never fills: the switch above
+       says what happened to the defect, this says whether anybody still
+       wants it in front of them. */
+    .filing button {
+        padding: 0.15rem 0.5rem;
+        font-family: var(--display);
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        box-shadow: 0 1px 0 var(--rule);
+        cursor: pointer;
+
+        &:hover {
+            color: var(--ink);
+            border-color: var(--ink);
+            background: var(--panel);
+        }
+
+        &:active { translate: 0 1px; box-shadow: none; }
     }
 
     /* The word carries the state; the mark only seconds it. */
@@ -824,9 +920,24 @@ svg {
             border-radius: 50%;
         }
 
+        /* The same three colours as the switch below it, on
+           a dot rather than a fill: this one is a label and
+           not a control, and should not look pressable. */
         &.is-open { color: var(--ink); }
         &.is-open::before { background: var(--signal); border-color: var(--signal); }
-        &.is-wontfix { font-style: italic; }
+
+        &.is-fixed {
+            color: var(--ink);
+
+            &::before {
+                background: light-dark(oklch(60% 0.13 152),
+                                       oklch(74% 0.13 152));
+                border-color: light-dark(oklch(60% 0.13 152),
+                                         oklch(74% 0.13 152));
+            }
+        }
+
+        &.is-wontfix::before { background: var(--muted); }
 
         /* Not a state, and it should not read as one: no dot, and set
            apart from the word that says what happened to the defect. */
@@ -877,38 +988,70 @@ svg {
         dt, dd { margin: 0; }
     }
 
+    /* The row under "State" on a report: the switch, then what to do
+       with the report itself. */
     .states {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 0.5rem;
 
-        /* The three states are one form, archiving another, deleting a
-           third. They sit in one row and the gap between groups says
-           they are not three choices of the same kind. */
         form {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-
-            & + form { margin-inline-start: 0.5rem; }
         }
 
-        button, .button {
-            min-block-size: 2.75rem;
+        /* Archiving and deleting are not states, are not in the switch,
+           and are not coloured by one: the same mechanical chrome, and
+           no fill to say a report is "in" them. */
+        form:not(.switch) button, .button {
+            min-block-size: 2.5rem;
             min-inline-size: 3.5rem;
             padding-inline: var(--space);
             font-family: var(--display);
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--ink);
             background: var(--panel);
             border: 1px solid var(--rule);
-            border-radius: 2px;
+            border-radius: 3px;
+            box-shadow: 0 1px 0 var(--rule);
             cursor: pointer;
 
             &:hover { border-color: var(--ink); }
-            &:disabled { color: var(--muted); cursor: default; }
+            &:active { translate: 0 1px; box-shadow: none; }
+
+            /* Nested rather than beside, because the rule
+               above it is the more specific of the two and
+               was quietly painting this one back to ink. */
+            &.is-danger {
+                color: var(--danger);
+                border-color: currentcolor;
+
+                &:hover {
+                    background: color-mix(in oklab, currentcolor 10%,
+                                          transparent);
+                }
+            }
+        }
+
+        /* Space, because the question changed: left of it is what
+           happened to the defect, right of it is what happens to the
+           paperwork. A rule was drawn here first and left a stray mark
+           at the start of the second line when the row wrapped. */
+        .filing { margin-inline-start: 0.75rem; }
+
+        /* Big enough for the row it lives in, unlike the small one in
+           the listing's cells. */
+        .filing button {
+            padding: 0 var(--space);
+            font-size: 0.875rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink);
+            background: var(--panel);
         }
 
         /* Keeping a report is the safe answer and looks like a link;
@@ -919,54 +1062,12 @@ svg {
             text-decoration: none;
         }
 
-        /* The three states are one control: a segment each, sharing a
-           border, and the current one filled rather than greyed out. A
-           selected item a shade paler than its neighbours has to be
-           compared with them to be read, and this row is read far more
-           often than it is pressed. The tick is there because the fill
-           is a colour, and a colour on its own is not an answer for
-           everyone. */
-        .segment {
-            gap: 0;
-            border: 1px solid var(--rule);
-            border-radius: 3px;
-            /* So the fill on an end segment stops at the rounded corner
-               instead of squaring it off. */
-            overflow: clip;
-
-            button {
-                border: 0;
-                border-radius: 0;
-                background: var(--paper);
-
-                & + button { border-inline-start: 1px solid var(--rule); }
-
-                &:hover { background: var(--panel); }
-
-                &[aria-current] {
-                    color: var(--paper);
-                    background: var(--ink);
-
-                    &::before {
-                        content: "✓";
-                        margin-inline-end: 0.4em;
-                    }
-                }
-            }
-        }
-
         /* At the far end of the row. The one press here that cannot be
            taken back should not sit against the one that files the
            report, and when the row runs out of width this is what wraps
            away from the rest rather than into it. */
         .apart { margin-inline-start: auto; }
 
-        .is-danger {
-            color: var(--danger);
-            border-color: currentcolor;
-
-            &:hover { background: color-mix(in oklab, currentcolor 10%, transparent); }
-        }
     }
 
     /* The page that asks before destroying something: what is about
@@ -1186,6 +1287,16 @@ svg {
     @layer components {
         .cascade .is-selector { border-inline-start-color: Highlight; }
         .badge.is-open::before { background: Highlight; }
+
+        /* The fill is gone here — the system paints every button the
+           same. The tick says which one is set, and a heavier border
+           seconds it. */
+        .switch button[aria-current] {
+            border: 2px solid Highlight;
+            forced-color-adjust: none;
+            color: HighlightText;
+            background: Highlight;
+        }
     }
 }
 </style>

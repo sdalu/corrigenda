@@ -49,23 +49,26 @@
                             the report's own page: triaging a morning's
                             reports meant opening each one and coming
                             back, and the answer is usually obvious from
-                            the summary. The current state is the
-                            disabled button, so the row still says what
-                            it is without a second control saying it.
+                            the summary. The same switch as there, in
+                            its small size — the filled one is the state
+                            the report is in, so the column says what
+                            each report is without a second control
+                            beside it saying so.
 
-                            `from=list` is what sends you back here
-                            rather than into the report — the same
-                            handler, told where the press came from. %>
+                            `from` is what sends you back here rather
+                            than into the report: the same handler, told
+                            where the press came from. %>
                         <td class="setting">
-                            <form method="post"
+                            <form class="switch is-compact" method="post"
                                   action="<%= to("/#{entry['id']}/state", false) %>">
                                 <input type="hidden" name="from"
                                        value="<%= archived ? "archive" : "list" %>">
                                 <% Corrigenda::Store::STATES.each do |value| %>
+                                    <% now = value == entry["state"] %>
                                     <button name="state" value="<%= value %>"
-                                            class="badge is-<%= value %>"
-                                            <%= " disabled" if value == entry["state"] %>
-                                            title="<%= value == entry["state"] ? "Already #{value}" : "Mark #{value}" %>"><%= value %></button>
+                                            class="is-<%= value %>"
+                                            <%= now ? %(aria-current="true" disabled) : "" %>
+                                            title="<%= now ? "Already #{value}" : "Mark #{value}" %>"><%= value %></button>
                                 <% end %>
                             </form>
 
@@ -81,7 +84,7 @@
                                        value="<%= archived ? "archive" : "list" %>">
                                 <input type="hidden" name="archived"
                                        value="<%= archived ? "0" : "1" %>">
-                                <button class="badge a-archive"
+                                <button
                                         title="<%= archived ? "Back to the working list" : "Out of the list, keeping everything" %>"><%= archived ? "restore" : "archive" %></button>
                             </form>
                         </td>
