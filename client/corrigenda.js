@@ -792,17 +792,40 @@
         return count;
     };
 
-    const cropped = (canvas, scale, origin) => {
+    /* The element with its margin, in client coordinates. Two callers
+     * want it and they want it for different reasons: this is what the
+     * picture is cropped to, and -- where the browser lets us choose the
+     * rectangle -- it is also what is asked for in the first place. */
+    const elementBox = () => {
         const margin = 16;
+        const r = region || picked?.getBoundingClientRect();
+        if (!r) return null;
+
+        return { x: r.x - margin, y: r.y - margin,
+                 width: r.width + margin * 2,
+                 height: r.height + margin * 2 };
+    };
+
+    /* A rectangle in page coordinates, trimmed to the page. A capture
+     * cannot ask for what is off the top or the left of the document,
+     * and the margin around an element at the very edge asks for
+     * exactly that. */
+    const inDocument = (box) => {
+        const doc    = document.documentElement;
+        const width  = Math.max(doc.scrollWidth, innerWidth);
+        const height = Math.max(doc.scrollHeight, innerHeight);
+        const x = Math.max(0, box.x);
+        const y = Math.max(0, box.y);
+
+        return { x, y,
+                 width:  Math.min(box.width  + box.x - x, width  - x),
+                 height: Math.min(box.height + box.y - y, height - y) };
+    };
+
+    const cropped = (canvas, scale, origin) => {
         let box = null;
-        if (SHOT.scope === "element" && region) {
-            box = { x: region.x - margin, y: region.y - margin,
-                    width: region.width + margin * 2,
-                    height: region.height + margin * 2 };
-        } else if (SHOT.scope === "element" && picked) {
-            const r = picked.getBoundingClientRect();
-            box = { x: r.x - margin, y: r.y - margin,
-                    width: r.width + margin * 2, height: r.height + margin * 2 };
+        if (SHOT.scope === "element") {
+            box = elementBox();
         } else if (SHOT.scope === "viewport") {
             box = { x: 0, y: 0, width: innerWidth, height: innerHeight };
         }
@@ -888,17 +911,33 @@
         extension: {
             name: "extension",
 
-            /* Whole document for "no crop", viewport otherwise: the crop
-             * to the element happens here as it always has, because the
-             * margin and the region rules live in cropped(). Asking the
-             * browser for the document is the part that was impossible
-             * from a page. */
+            /* Ask for what is wanted, not for the screenful it sits in.
+             * The crop below arrives at the same picture either way, and
+             * the two are not the same amount of work: a viewport on a
+             * 2560x1400 display is a three-megapixel PNG, encoded by the
+             * browser, carried through two message hops as a data URL,
+             * decoded again, and thrown away down to the caption
+             * somebody pointed at. That is the pause between choosing an
+             * element and seeing it. A rectangle round the element is
+             * usually a few tens of thousands of pixels and arrives at
+             * once.
+             *
+             * Firefox draws the rectangle it is given, which is what
+             * makes this worth doing -- and also why "no crop" can ask
+             * for the whole document, which is impossible from a page.
+             * Chrome has only captureVisibleTab and answers with the
+             * viewport whatever it is asked; the crop below is what
+             * makes one path serve both, and it is unchanged. */
             async grab() {
                 const doc = document.documentElement;
+                const box = SHOT.scope === "element" ? elementBox() : null;
                 const wanted = SHOT.scope === "full"
                     ? { x: 0, y: 0,
                         width: Math.max(doc.scrollWidth, innerWidth),
                         height: Math.max(doc.scrollHeight, innerHeight) }
+                    : box
+                    ? inDocument({ x: box.x + scrollX, y: box.y + scrollY,
+                                   width: box.width, height: box.height })
                     : { x: scrollX, y: scrollY,
                         width: innerWidth, height: innerHeight };
 

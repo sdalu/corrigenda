@@ -46,6 +46,12 @@ the viewport whatever was asked for — and says so, which is why the
 client crops from the rectangle it was *given* rather than the one it
 requested. That is the only place the two browsers differ.
 
+It is also why a crop is quicker in Firefox: the client asks for the
+element and its margin, so a 780×46 caption costs a 780×46 picture
+rather than a full screen encoded, carried across two message hops as a
+data URL, decoded, and then thrown away down to the caption. Chrome
+does the same work it always did.
+
 ## What is here
 
     manifest.firefox.json   event page, SVG icon

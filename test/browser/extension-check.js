@@ -394,6 +394,36 @@ const check = async (name, browser, executablePath) => {
     if (chosen !== 'element')
         fail(`${name}: the scope starts on ${chosen}, not the element crop`);
     else ok(`${name}: cropping to the element is where a report starts`);
+
+    //     And what it asked the browser for while it was there: the
+    //     element and its 16px margin, not the screenful around it. The
+    //     picture is identical either way -- the crop sees to that --
+    //     but asking for the viewport meant a full-screen PNG encoded,
+    //     carried as a data URL and decoded before anyone saw a
+    //     thumbnail, which is seconds on a large display and was
+    //     reported as "it takes a long time before taking the
+    //     screenshot".
+    const onElement = await page.evaluate(() => {
+        const box = document.querySelector('figcaption.caption')
+                            .getBoundingClientRect();
+        return { got: window.__captureAsks?.at(-1),
+                 want: { width: Math.round(box.width) + 32,
+                         height: Math.round(box.height) + 32 } };
+    });
+
+    const off = onElement.got &&
+        Math.max(Math.abs(onElement.got.width - onElement.want.width),
+                 Math.abs(onElement.got.height - onElement.want.height));
+
+    if (!onElement.got)
+        fail(`${name}: nothing was captured for the element crop`);
+    else if (off > 2)
+        fail(`${name}: asked for ${Math.round(onElement.got.width)}×` +
+             `${Math.round(onElement.got.height)}, wanted the element's ` +
+             `${onElement.want.width}×${onElement.want.height}`);
+    else ok(`${name}: the capture asks for the element ` +
+            `(${onElement.want.width}×${onElement.want.height}), not the ` +
+            `900×700 around it`);
     await page.close();
 
     // 11. a capture that fails says why, and goes on saying it. The
