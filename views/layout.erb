@@ -104,7 +104,9 @@
 
 @layer base {
     body {
-        padding-block-end: 4rem;
+        /* Was 4rem: enough empty space under the colophon to
+           make a three-row list scroll for want of a few pixels. */
+        padding-block-end: 2rem;
         font-family: var(--body);
         font-size: 1.0625rem;
         line-height: 1.55;
@@ -726,9 +728,34 @@ svg {
     }
 
     .listing {
+        /* The widths come from the colgroup rather than from the rows,
+           so the working list and the archive are one table and not two
+           that resemble each other (see index.erb). Fixed also means a
+           long URL wraps inside its column instead of widening it. */
+        table-layout: fixed;
         border-collapse: collapse;
         inline-size: 100%;
+        /* Under this the columns would be squeezed rather than
+           scrolled, and the summary is the first thing to go. */
+        min-inline-size: 52rem;
         font-size: 0.9375rem;
+
+        /* What each column holds, not what today's rows happen to need.
+           Summary is left unset: it takes the remainder, being the one
+           worth reading. */
+        col {
+            /* Measured against real rows, not guessed: a stamp
+               that does not wrap, a header word that does not
+               either (ARCHIVED is wider than the switch under
+               it), and room for three channel chips on a line. */
+            &.when  { inline-size: 9.5rem; }
+            &.kind  { inline-size: 4.5rem; }
+            &.page  { inline-size: 18%; }
+            &.sent  { inline-size: 4.5rem; }
+            &.by    { inline-size: 5rem; }
+            &.state { inline-size: 7.5rem; }
+            &.filed { inline-size: 5.5rem; }
+        }
 
         th {
             font-family: var(--display);

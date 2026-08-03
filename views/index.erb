@@ -24,6 +24,18 @@
 <% else %>
     <div class="scroller">
         <table class="listing">
+            <%# Declared once, for both lists. Left to measure itself,
+                each table sized its columns from its own rows: the
+                archive — fewer of them, different URLs — gave itself a
+                wider Page and a narrower Summary, which wrapped more,
+                which made every row taller. Two views of one table that
+                did not line up, and a three-row page that scrolled for
+                want of a few pixels. %>
+            <colgroup>
+                <col class="when"><col class="kind"><col class="page">
+                <col class="summary"><col class="sent"><col class="by">
+                <col class="state"><col class="filed">
+            </colgroup>
             <thead>
                 <tr>
                     <th>When</th><th>Kind</th><th>Page</th>
