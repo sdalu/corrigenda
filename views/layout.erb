@@ -27,7 +27,13 @@
     font-display: swap;
 }
 
-@layer reset, tokens, base, layout, components, utilities;
+<%# `vendor` sits between our base and our components: a third-party
+    stylesheet may reset what it needs inside its own subtree, and we
+    still get the last word about it. Naming it here is what makes that
+    true — a stylesheet loaded outside every layer beats all of them,
+    however specific ours are, which is how the schema viewer's version
+    badges ended up white on white. %>
+@layer reset, tokens, base, vendor, layout, components, utilities;
 
 @layer reset {
     *, *::before, *::after { box-sizing: border-box; }
@@ -886,6 +892,44 @@ svg {
     }
 
     pre { overflow-x: auto; }
+
+    /* Swagger UI arrives with a complete stylesheet of its own, and
+       ours has no business inside it. Its version badges are a
+       coloured <small> holding a bare <pre>, so the rule above filled
+       them with near-white — under white text.
+
+       `revert-layer` rather than a set of zeroes: it hands each of
+       these back to the layer underneath, which is `vendor`, so the
+       viewer looks the way its authors drew it rather than the way we
+       would have guessed. Zeroing them took its code blocks with the
+       badges. */
+    .swagger-ui pre,
+    .swagger-ui code,
+    .swagger-ui kbd {
+        padding: revert-layer;
+        background: revert-layer;
+        border: revert-layer;
+        border-radius: revert-layer;
+        font-family: revert-layer;
+        font-size: revert-layer;
+    }
+
+    /* With the badges showing their own colours again, those colours
+       turn out to fail: white on Swagger's green is 2.2:1 and white on
+       its grey 3.8:1, measured, where small text wants 4.5. Same
+       shapes, darker grounds.
+
+       Written as constants rather than as our light-dark() tokens
+       because the text on them is white in both schemes, so the ground
+       has to be dark in both — a token that flips would fix one scheme
+       by breaking the other. */
+    .swagger-ui .info .title small {
+        background: oklch(38% 0.02 265);
+    }
+
+    .swagger-ui .info .title small.version-stamp {
+        background: oklch(38% 0.09 150);
+    }
 
     .fragment {
         inline-size: 100%;

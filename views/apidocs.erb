@@ -23,7 +23,11 @@
     are safe; the writes change what somebody filed.
 </p>
 
-<link rel="stylesheet" href="<%= mount("/apidocs/swagger-ui.css") %>">
+<%# Imported into a layer rather than linked: a stylesheet loaded
+    outside every layer wins against all of them, so the vendor's rules
+    would beat the page's however specific those are. Inside `vendor`
+    it keeps its own subtree and the page keeps the last word. %>
+<style>@import url("<%= mount("/apidocs/swagger-ui.css") %>") layer(vendor);</style>
 
 <%# The schema's URL travels as an attribute rather than as a string
     written into the script: templates here escape what they print, so
