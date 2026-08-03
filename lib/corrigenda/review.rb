@@ -103,7 +103,12 @@ module Corrigenda
         # Two lists, the same table: what is in front of you, and what has
         # been put away. Archived reports are not a different kind of
         # thing and do not get a different page.
+        # Wide, like the schema viewer and unlike a report: this page
+        # is a table of eight columns, and a URL and a summary both
+        # want room. At the prose width they wrapped to four lines
+        # each and the rows were twice as tall as they needed to be.
         get "/" do
+            @wide = true
             archived = params[:archived] == "1"
             erb :index, locals: { entries: store.entries(archived:),
                                   archived:,
