@@ -111,24 +111,21 @@ It describes itself: [openapi.yaml](openapi.yaml), served at
 `/api/openapi.json` and rendered at `/apidocs`, where the masthead
 grows an **API** tab on a deployment that has switched it on.
 
-Reading needs nothing further. Changing anything needs a grant, and
-there are three, because they are wrong in three different ways:
+Reading needs nothing further. Changing anything is listed, one grant
+at a time:
 
 ```yaml
 api:
-    journal: true             # add a line to a report's trail
-    archive: true             # out of the working list, or back
-    state:   true             # say what happened to the defect
-    sites:   ['.*\.example\.com']   # bound those to these hostnames
+    write: [journal, archive, state]
 ```
 
-A journal line is additive — nothing in a trail can be edited or
-removed — so a wrong one costs noise. Archiving hides work and is
-reversible. A state is a claim somebody will trust and stop checking
-behind. `journal: true` alone is where to start. `sites` are regular
-expressions, anchored when read, so the whole hostname must match;
-reading is never scoped. Deleting a report is not offered at any
-setting.
+`journal` adds a line to a report's trail, `archive` takes it out of
+the working list or puts it back, `state` says what happened to the
+defect. Three rather than one because they are wrong in three ways: a
+journal line is additive, so a wrong one costs noise; archiving is
+reversible; a state is a claim somebody will trust and stop checking
+behind. `write: [journal]` is where to start. `write: true` is all of
+them. Deleting a report is not offered at any setting.
 
 `token: <secret>` adds a Bearer token on top of whatever Apache already
 asked for. With no `api:` key, every path under `/api` answers 404
@@ -156,7 +153,7 @@ Two things worth keeping if you write your own: point it at
 it means "I changed something", which is a different claim and the
 one you will be reading later.
 
-An agent given `journal: true` and nothing else is a good way to
+An agent given `write: [journal]` and nothing else is a good way to
 start: it tells you what it found and what it tried, and every state
 on the board still moved because a person moved it.
 

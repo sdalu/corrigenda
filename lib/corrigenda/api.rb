@@ -169,7 +169,6 @@ module Corrigenda
                 # different ways, and the site patterns they are bounded
                 # by. Reading is not a grant -- being here is reading.
                 "allows"     => api["allows"],
-                "sites"      => api["sites"],
 
                 "id"         => "YYYYMMDDThhmmssZ-xxxxxxxx",
                 "states"     => Store::STATES,
@@ -287,10 +286,10 @@ module Corrigenda
             # PATCH that only says what was tried needs the permission
             # to say things, and a deployment can grant that without
             # granting the one that moves a report to fixed.
-            document = report!(id)
-            allowed!("state", document)   if changes.key?("state")
-            allowed!("archive", document) if changes.key?("archived")
-            allowed!("journal", document) if changes["note"]
+            report!(id)
+            allowed!("state")   if changes.key?("state")
+            allowed!("archive") if changes.key?("archived")
+            allowed!("journal") if changes["note"]
 
             if changes.key?("state")
                 state = changes["state"]
@@ -334,7 +333,8 @@ module Corrigenda
         # though it changes nothing about the report itself.
         post "/reports/:id/journal" do
             id = params[:id]
-            allowed!("journal", report!(id))
+            allowed!("journal")
+            report!(id)
 
             note = body_params["note"].to_s
             fail_with(422, "a journal entry needs a note") if note.strip.empty?
@@ -370,7 +370,8 @@ module Corrigenda
 
         post "/reports/:id/state" do
             id = params[:id]
-            allowed!("state", report!(id))
+            allowed!("state")
+            report!(id)
 
             state = body_params["state"]
             unless Store::STATES.include?(state)
@@ -385,7 +386,8 @@ module Corrigenda
 
         post "/reports/:id/archive" do
             id = params[:id]
-            allowed!("archive", report!(id))
+            allowed!("archive")
+            report!(id)
 
             wanted = body_params.fetch("archived", true)
             store.archive(id, yes: truthy(wanted), by: acting_user,
@@ -420,26 +422,17 @@ module Corrigenda
                 "state"   => "set a report's state"
             }.freeze
 
-            # Two questions, and both have to be yes: is this endpoint
-            # allowed to do that at all, and is it allowed near this
-            # report? The second is why a document is wanted here rather
-            # than an id -- the scope is written against the site a
-            # report is about.
-            def allowed!(grant, document)
-                unless api["allows"].include?(grant)
-                    fail_with(403, "this endpoint may not " \
-                                   "#{GRANTS.fetch(grant)} " \
-                                   "(set api.#{grant} in the deployment " \
-                                   "config)")
-                end
+            # One question, asked of what the request is trying to do
+            # rather than of the route it came in on: a PATCH carrying
+            # only a note wants the journal grant, and the same PATCH
+            # with a state wants that one.
+            def allowed!(grant)
+                return if api["allows"].include?(grant)
 
-                site = document.dig("page", "site").to_s
-                return if config.api_covers?(site)
-
-                fail_with(403, "this endpoint may not change reports about " \
-                               "#{site.empty? ? "that site" : site} " \
-                               "(api.sites in the deployment config says " \
-                               "which it may)")
+                fail_with(403, "this endpoint may not " \
+                               "#{GRANTS.fetch(grant)} " \
+                               "(api.write in the deployment config lists " \
+                               "what it may: #{Config::API_GRANTS.join(", ")})")
             end
 
             # False in the spellings a form post and a JSON body each

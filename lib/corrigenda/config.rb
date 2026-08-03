@@ -52,13 +52,10 @@ module Corrigenda
         # stops checking behind. Deleting is not here and never will be.
         API_GRANTS = %w[journal archive state].freeze
 
-        # `write` and `record` are the shorthands that came first:
-        # everything, and the journal alone.
-        API_KEYS = (%w[token sites write record] + API_GRANTS).freeze
+        API_KEYS = %w[token write].freeze
 
         # `api: true` in full: the interface, and nothing it can change.
-        READ_ONLY = { "token" => nil, "allows" => [],
-                      "sites" => [], "site_rules" => nil }.freeze
+        READ_ONLY = { "token" => nil, "allows" => [] }.freeze
 
         # `archived` is the rule anyone should reach for first: it counts
         # from the moment a person said they were done looking, so it
@@ -218,32 +215,27 @@ module Corrigenda
 
             unless value.is_a?(Hash)
                 raise ArgumentError,
-                      "api: expected true, or #{API_KEYS.join(" and/or ")}, " \
+                      "api: expected true, or #{API_KEYS.join(" and ")}, " \
                       "got #{value.class}"
             end
 
             unknown = value.keys.map(&:to_s) - API_KEYS
             unless unknown.empty?
+                # The grants were their own keys for an afternoon, and
+                # `record` before them. A config still written that way
+                # is not a typo, it is one version behind — so say what
+                # it should be rather than only that it is wrong.
+                was = unknown & (API_GRANTS + ["record"])
+                instead = was.map { it == "record" ? "journal" : it }
+
                 raise ArgumentError,
                       "api: no such setting #{unknown.join(", ")} " \
-                      "(#{API_KEYS.join(", ")})"
+                      "(#{API_KEYS.join(", ")})" +
+                      (was.empty? ? "" : " -- write: [#{instead.join(", ")}]")
             end
 
             { "token" => api_token(value["token"]),
-              "allows" => api_grants(value),
-              "sites" => Array(value["sites"]).map(&:to_s),
-              "site_rules" => api_site_rules(value["sites"]) }.freeze
-        end
-
-        # Whether this deployment's grants reach a report about `site`.
-        # No `sites:` key is every site: a scope nobody asked for should
-        # not be one that refuses everything.
-        def api_covers?(site)
-            rules = api&.fetch("site_rules")
-            return false if api.nil?
-            return true if rules.nil?
-
-            rules.any? { it.match?(site.to_s) }
+              "allows" => api_grants(value["write"]) }.freeze
         end
 
         # The interface's state in a few words, for a startup line and a
@@ -261,13 +253,6 @@ module Corrigenda
             said = []
             granted = settings["allows"].map { GRANT_WORDS.fetch(it) }
             said << (granted.empty? ? "read-only" : "may #{granted.join(", ")}")
-
-            unless settings["sites"].empty?
-                count = settings["sites"].size
-                word = count == 1 ? "pattern" : "patterns"
-                said << "for #{count} site #{word}"
-            end
-
             said << "token required" unless settings["token"].nil?
             said.join(", ")
         end
@@ -292,50 +277,26 @@ module Corrigenda
         # `write` and `record` stay as the shorthands they were, so a
         # config written before the grants existed still says what it
         # meant: everything, and the journal.
+        # `write:` is a list of what a caller may do -- and reads as
+        # one: "write: [journal, state]" is a sentence. `true` is all of
+        # them, for a deployment that means it; anything else is refused
+        # by name rather than guessed at, since every wrong reading of
+        # this key either opens something or quietly closes it.
         def api_grants(value)
-            # `write: true` beside `state: false` is somebody expecting
-            # subtraction, and reading it either way silently changes
-            # what a program may do. Refused: name the grants you want.
-            if value["write"] == true
-                named   = API_GRANTS + ["record"]
-                refused = named.select { value[it] == false }
-                unless refused.empty?
-                    raise ArgumentError,
-                          "api: write is shorthand for " \
-                          "#{API_GRANTS.join(", ")}, so " \
-                          "#{refused.join(", ")} " \
-                          "cannot be false beside it -- name the grants " \
-                          "you want instead"
-                end
-            end
+            return []          if value.nil? || value == false
+            return API_GRANTS  if value == true
 
-            granted = API_GRANTS.select { value[it] == true }
-            granted |= API_GRANTS         if value["write"] == true
-            granted |= ["journal"]        if value["record"] == true
-
-            API_GRANTS & granted          # a stable order, for display
-        end
-
-        # Regular expressions, anchored here rather than left to whoever
-        # writes the config: this is a permission, and `alux\.fr` as a
-        # substring match would also cover notalux.fr.example.com. The
-        # whole hostname must match. Case-insensitive, because host
-        # names are.
-        def api_site_rules(patterns)
-            return nil if patterns.nil?
-
-            list = Array(patterns).map(&:to_s)
-            raise ArgumentError, "api: sites is empty -- remove the key, " \
-                                 "or name what it may reach" if list.empty?
-
-            list.map do |pattern|
-                Regexp.new("\\A(?:#{pattern})\\z", Regexp::IGNORECASE)
-            rescue RegexpError => e
+            wanted = Array(value).map(&:to_s)
+            unknown = wanted - API_GRANTS
+            unless unknown.empty?
                 raise ArgumentError,
-                      "api: sites: #{pattern.inspect} is not a regular " \
-                      "expression (#{e.message})"
+                      "api: write: no such grant #{unknown.join(", ")} " \
+                      "(#{API_GRANTS.join(", ")})"
             end
+
+            API_GRANTS & wanted   # a stable order, for display
         end
+
 
         # A token is a secret or it is nothing. An empty string in the
         # file means somebody meant to paste one and did not, and reading

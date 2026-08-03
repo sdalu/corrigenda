@@ -463,7 +463,7 @@ end
     # The distinction this exists for: a caller may be trusted to say
     # what it tried without being trusted to declare something fixed.
     def test_a_recorder_may_write_in_the_journal_and_nothing_else
-        enable("record" => true)
+        enable("write" => ["journal"])
 
         post "/reports/#{@id}/journal",
              JSON.generate("note" => "reproduced at 380px", "agent" => "claude"),
@@ -482,7 +482,7 @@ end
     # A PATCH is answered by what its body carries, not by its verb: one
     # that only says what was tried needs the permission to say things.
     def test_a_recorder_may_patch_a_note_but_not_a_state
-        enable("record" => true)
+        enable("write" => ["journal"])
 
         patch "/reports/#{@id}", JSON.generate("note" => "looked, no change"),
               { "CONTENT_TYPE" => "application/json" }
@@ -499,7 +499,7 @@ end
 # And the other way round, one grant at a time: a program that may
 # move a report out of the way and nothing else.
 def test_a_grant_reaches_only_its_own_route
-    enable("archive" => true)
+    enable("write" => ["archive"])
 
     post "/reports/#{@id}/archive", JSON.generate("archived" => true),
          { "CONTENT_TYPE" => "application/json" }
@@ -517,66 +517,13 @@ end
 # The change still recorded itself without the journal grant: that
 # line is the service's, not the caller's.
 def test_a_change_records_itself_without_the_journal_grant
-    enable("archive" => true)
+    enable("write" => ["archive"])
 
     post "/reports/#{@id}/archive", JSON.generate("archived" => true),
          { "CONTENT_TYPE" => "application/json" }
 
     assert_equal ["archive"], store.journal(@id).map { it["kind"] }
 end
-
-# A grant is bounded by the sites it was given, and a report says
-# which site it is about.
-def test_a_scope_keeps_a_grant_away_from_other_sites
-    TestSupport.configure("api" => { "state" => true,
-                                     "sites" => ['.*\.elsewhere\.test'] })
-
-    post "/reports/#{@id}/state", JSON.generate("state" => "fixed"),
-         { "CONTENT_TYPE" => "application/json" }
-
-    assert_equal 403, last_response.status
-    assert_match(/www\.example\.com/, body["error"])
-    assert_equal "open", store.state(@id)
-ensure
-    TestSupport.configure
-end
-
-def test_a_scope_that_matches_lets_the_grant_through
-    TestSupport.configure("api" => { "state" => true,
-                                     "sites" => ['www\.example\.com'] })
-
-    post "/reports/#{@id}/state", JSON.generate("state" => "fixed"),
-         { "CONTENT_TYPE" => "application/json" }
-
-    assert_equal 200, last_response.status
-    assert_equal "fixed", store.state(@id)
-ensure
-    TestSupport.configure
-end
-
-# Reading is not scoped: the scope is about what may be changed, and
-# a report somebody cannot fix is still one they can look at.
-def test_a_scope_does_not_hide_reports
-    TestSupport.configure("api" => { "state" => true,
-                                     "sites" => ['nothing\.test'] })
-
-    get "/reports/#{@id}"
-
-    assert_equal 200, last_response.status
-ensure
-    TestSupport.configure
-end
-
-    def test_the_capability_document_says_what_it_allows
-        TestSupport.configure("api" => { "journal" => true,
-                                         "sites" => ['.*\.example\.com'] })
-        get "/"
-
-        assert_equal ["journal"], body["allows"]
-        assert_equal ['.*\.example\.com'], body["sites"]
-    ensure
-        TestSupport.configure
-    end
 
     def test_deleting_is_not_offered
         enable("write" => true)

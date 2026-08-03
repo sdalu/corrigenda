@@ -92,15 +92,10 @@ sites:
 #                  Apache auth as everything else, and a process on this
 #                  host reaches it through the socket.
 #
-# Or, with any of these:
+# Or, with either of these:
 #
 #   api:
-#       journal: true      may add a line to a report's trail
-#       archive: true      may take a report out of the working list,
-#                          or put it back
-#       state: true        may say what happened to the defect
-#       sites: ['...']     regular expressions bounding those grants
-#                          to the sites a report is about
+#       write: [journal, archive, state]
 #       token: <secret>    also require this, as a Bearer token, on
 #                          top of whatever Apache asked for
 #
@@ -109,25 +104,18 @@ sites:
 # own site is a different thing from reading it. Deleting is not on
 # offer at any setting.
 #
-# Three grants because they are wrong in three ways. A journal line is
-# additive — nothing there can be edited or removed — so a wrong one
-# costs noise. Archiving hides work and is entirely reversible. A state
-# is a claim somebody will trust and stop checking behind. `journal:
-# true` alone is an agent that says what it tried without declaring
-# anything fixed.
+# `write` lists what may be changed, and the three are separate because
+# they are wrong in three ways:
 #
-# `sites` are regular expressions, anchored when they are read: the
-# whole hostname must match, so `alux\.fr` cannot also reach
-# notalux.fr.example.com. Case does not matter. Reading is never
-# scoped — a report somebody may not change is still one they may read.
+#   journal   add a line to a report's trail. Additive — nothing there
+#             can be edited or removed — so a wrong one costs noise.
+#   archive   out of the working list, or back. Entirely reversible.
+#   state     what happened to the defect. The claim somebody will
+#             trust and stop checking behind.
 #
-#   sites:
-#       - '.*\.example\.com'
-#       - 'www\.example\.org'
-#
-# `write: true` is the old shorthand for all three grants and `record:
-# true` for `journal`; both still work. Mixing `write: true` with a
-# grant set to false is refused rather than guessed at.
+# `write: [journal]` alone is an agent that says what it tried without
+# declaring anything fixed. `write: true` is all three. A grant nobody
+# defines is refused by name, so a typo closes the door loudly.
 
 # Which pages may post a report from another host. Absent, it is the
 # sites above read as https origins, which is the answer whenever a

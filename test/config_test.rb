@@ -61,10 +61,9 @@ class ConfigTest < Minitest::Test
         end
     end
 
-    # The agent interface is absent unless asked for, and what asks for
-    # it decides whether it may write. Every wrong reading of this key
-    # either opens something or lets a program change what a person
-    # filed, so nothing here is guessed.
+    # The interface is absent unless asked for, and what it may do is a
+    # list rather than a row of switches: `write: [journal, state]`
+    # reads as the sentence it is.
     def test_there_is_no_agent_interface_by_default
         assert_nil Corrigenda::Config.new.api
     end
@@ -75,7 +74,6 @@ class ConfigTest < Minitest::Test
 
         assert_empty api["allows"]
         assert_nil api["token"]
-        assert_nil api["site_rules"]
     end
 
     def test_false_is_the_same_as_absent
@@ -84,86 +82,51 @@ class ConfigTest < Minitest::Test
         assert_nil Corrigenda::Config.load(@file).api
     end
 
-    # `write` is the shorthand it always was: all three grants.
-    def test_a_token_and_write_access_are_read_as_written
-        File.write(@file, "api:\n  token: s3cret\n  write: true\n")
-        api = Corrigenda::Config.load(@file).api
-
-        assert_equal "s3cret", api["token"]
-        assert_equal %w[journal archive state], api["allows"]
-    end
-
-    # Three powers, granted one at a time: archiving hides work and is
-    # reversible, a state is a claim nobody re-checks, a journal line is
-    # additive. A deployment should be able to say which of them.
-    def test_each_grant_stands_alone
-        File.write(@file, "api:\n  archive: true\n")
-
-        assert_equal ["archive"], Corrigenda::Config.load(@file).api["allows"]
-
-        File.write(@file, "api:\n  journal: true\n  state: true\n")
+    def test_write_lists_what_may_be_done
+        File.write(@file, "api:\n  write: [journal, state]\n")
 
         assert_equal %w[journal state],
                      Corrigenda::Config.load(@file).api["allows"]
     end
 
-    # Somebody expecting subtraction. Read either way it silently
-    # changes what a program may do, so it is refused instead.
-    def test_the_shorthand_beside_a_refusal_is_refused
-        File.write(@file, "api:\n  write: true\n  state: false\n")
+    # Kept in the order the grants are defined in, whatever order the
+    # config wrote them: this is displayed, and a list that reshuffles
+    # itself reads as a change.
+    def test_the_grants_come_back_in_a_stable_order
+        File.write(@file, "api:\n  write: [state, journal, archive]\n")
 
-        error = assert_raises(ArgumentError) {
-            Corrigenda::Config.load(@file).api
-        }
-        assert_match(/name the grants/, error.message)
+        assert_equal %w[journal archive state],
+                     Corrigenda::Config.load(@file).api["allows"]
     end
 
-    # Regular expressions, anchored by the reader rather than by
-    # whoever wrote them: a permission that matched a substring would
-    # reach hosts nobody meant to name.
-    def test_a_site_scope_matches_whole_hostnames
-        File.write(@file, %(api:\n  state: true\n  sites: ['.*\\.example\\.com']\n))
-        config = Corrigenda::Config.load(@file)
+    def test_write_true_is_all_of_them
+        File.write(@file, "api:\n  write: true\n")
 
-        assert config.api_covers?("www.example.com")
-        assert config.api_covers?("WWW.EXAMPLE.COM")
-        refute config.api_covers?("www.example.com.evil.test")
-        refute config.api_covers?("example.org")
+        assert_equal Corrigenda::Config::API_GRANTS,
+                     Corrigenda::Config.load(@file).api["allows"]
     end
 
-    def test_no_scope_covers_every_site
-        File.write(@file, "api:\n  state: true\n")
-
-        assert Corrigenda::Config.load(@file).api_covers?("anything.test")
-    end
-
-    def test_a_pattern_that_is_not_one_is_refused
-        File.write(@file, %(api:\n  sites: ['*.example.com']\n))
-
-        error = assert_raises(ArgumentError) {
-            Corrigenda::Config.load(@file).api
-        }
-        assert_match(/regular expression/, error.message)
-    end
-
-    # Changing where a report stands and adding to what has been said
-    # about it are two powers. Unset, the second follows the first --
-    # somebody who may change a state may explain it -- and it can be
-    # granted alone, which is the point of it being its own key.
-    # The spelling that came first, kept working: `record` is the
-    # journal grant under an older name.
-    def test_record_is_the_journal_grant
-        File.write(@file, "api:\n  record: true\n")
+    def test_a_single_grant_need_not_be_a_list
+        File.write(@file, "api:\n  write: journal\n")
 
         assert_equal ["journal"], Corrigenda::Config.load(@file).api["allows"]
     end
 
-    # write: yes is YAML's true, but write: "yes" is a string, and a
-    # string is not permission.
-    def test_write_is_only_true_when_it_is_true
-        File.write(@file, %(api:\n  write: "yes"\n))
+    def test_a_grant_nobody_defines_is_refused
+        File.write(@file, "api:\n  write: [journal, delete]\n")
 
-        refute Corrigenda::Config.load(@file).api["write"]
+        error = assert_raises(ArgumentError) {
+            Corrigenda::Config.load(@file).api
+        }
+        assert_match(/delete/, error.message)
+    end
+
+    def test_a_token_is_read_as_written
+        File.write(@file, "api:\n  token: s3cret\n  write: [archive]\n")
+        api = Corrigenda::Config.load(@file).api
+
+        assert_equal "s3cret", api["token"]
+        assert_equal ["archive"], api["allows"]
     end
 
     def test_an_unknown_setting_is_refused

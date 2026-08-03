@@ -178,8 +178,13 @@ echo "store      ${store}"
 # follows `write` is a rule with one home, and a startup line that
 # disagreed with the service it is starting would be worse than no line.
 # No gems are involved, so this needs no bundler.
+# `|| true`, and it matters: this line is a courtesy, and a courtesy
+# that cannot answer must not stop the service starting. A config the
+# library refuses is exactly when somebody most wants the endpoint up
+# to look at -- the service says the same thing itself, in JSON, at the
+# path that reads the config.
 api=$(CORRIGENDA_CONFIG="$conf" ruby -I lib -r corrigenda/config \
-          -e 'print Corrigenda::Config.load.api_state' 2>/dev/null)
+          -e 'print Corrigenda::Config.load.api_state' 2>/dev/null || true)
 echo "api        ${api:-unknown}"
 echo
 

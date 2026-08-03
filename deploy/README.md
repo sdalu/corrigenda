@@ -113,48 +113,30 @@ path and meets no Apache at all:
 |---|---|---|
 | *(absent)* | — | The endpoint does not exist: 404 everywhere under `/api` |
 | `api: true` | — | Read-only, with whatever authentication Apache already asks for |
-| `journal` | `false` | Add a line to a report's trail |
-| `archive` | `false` | Take a report out of the working list, or put it back |
-| `state` | `false` | Say what happened to the defect: open, fixed, wontfix |
-| `sites` | every site | Regular expressions bounding those grants to particular hostnames |
-| `write` | — | Shorthand for all three grants |
-| `record` | — | The older spelling of `journal` |
+| `write` | none | What may be changed: any of `journal`, `archive`, `state`. `true` is all three |
 | `token` | none | A shared secret, required as a Bearer token as well |
 
-Three grants rather than one, because they are wrong in different
+```yaml
+api:
+    write: [journal, state]
+```
+
+Three grants rather than one word, because they are wrong in different
 ways. A journal line is additive — nothing in a trail can be edited or
 removed, so the cost of a wrong one is noise. Archiving hides work and
 is entirely reversible. A state is a claim somebody will trust and stop
 checking behind, which is why `fixed` deserves its own decision.
-`journal: true` alone is a good place to start: an agent that tells you
+`write: [journal]` is a good place to start: an agent that tells you
 what it found and what it tried, while every state on the board still
 moved because a person moved it.
 
-`sites:` bounds whatever was granted to the reports it may touch:
-
-```yaml
-api:
-    journal: true
-    state:   true
-    sites:
-        - '.*\.alux\.fr'
-        - 'www\.sdalu\.com'
-```
-
-They are regular expressions, and each is anchored here — the whole
-hostname must match, so `alux\.fr` cannot also reach
-`notalux.fr.example.com`. Matching is case-insensitive, as hostnames
-are. Reading is never scoped: a report somebody may not change is
-still one they may read.
-
 A token is worth it if the endpoint is ever reachable by anything you
-would not hand the LDAP password to. A grant is only given when it is
-YAML's `true`: `state: "yes"` is a string, and a string is not
-permission. `write: true` beside `state: false` is refused rather than
-guessed at — name the grants you want instead. An empty `token:` is refused outright rather than read as
-"no token wanted", since that would open the endpoint at the moment
-somebody was closing it. **Changing any of this needs a restart**, as
-the config is read at start.
+would not hand the LDAP password to. A grant nobody defines is refused
+by name rather than ignored, so a typo in the list closes the door
+loudly instead of quietly. An empty `token:` is refused outright rather
+than read as "no token wanted", since that would open the endpoint at
+the moment somebody was closing it. **Changing any of this needs a
+restart**, as the config is read at start.
 
 The interface describes itself: every route, parameter and refusal is
 in [openapi.yaml](../openapi.yaml), which the service serves at

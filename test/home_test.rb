@@ -114,16 +114,6 @@ ensure
     TestSupport.configure
 end
 
-def test_the_page_says_when_a_scope_bounds_it
-    TestSupport.configure("api" => { "state" => true,
-                                     "sites" => ['a\.test', 'b\.test'] })
-    get "/"
-
-    assert_includes last_response.body, "for 2 site patterns"
-ensure
-    TestSupport.configure
-end
-
     def test_a_read_only_api_says_so
     TestSupport.configure("api" => true)
     get "/"
@@ -177,7 +167,7 @@ def test_the_prompt_says_what_the_agent_may_do
 
     assert_includes last_response.body, "You can only read here"
 
-    TestSupport.configure("api" => { "record" => true })
+    TestSupport.configure("api" => { "write" => ["journal"] })
     get "/"
 
     assert_includes last_response.body, "cannot change a report"
@@ -192,7 +182,7 @@ end
 
 # The one thing on this page that would be a secret.
 def test_the_prompt_never_prints_the_token
-    TestSupport.configure("api" => { "record" => true,
+    TestSupport.configure("api" => { "write" => ["journal"],
                                      "token" => "s3cret-abc" })
     get "/"
 

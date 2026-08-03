@@ -43,7 +43,6 @@ module Corrigenda
 # the config uses.
 def api_allows?(grant) = api_settings["allows"].to_a.include?(grant)
 def api_needs_token?   = !api_settings["token"].nil?
-def api_site_scope     = api_settings["sites"].to_a
 
 def api_settings
     settings.feedback_config.api || {}
