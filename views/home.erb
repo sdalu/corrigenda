@@ -314,32 +314,32 @@ paths below are relative to it.</p>
     </dd>
 <% end %>
 
-    <dt>Reports about</dt>
-    <dd>
-        <% if sites.nil? %>
-            Any site — no allowlist configured.
-        <% else %>
-            <% sites.each do |site| %>
-                <code><%= site %></code><br>
-            <% end %>
-            <p>What a report may claim to be about. One naming anything
-            else is refused.</p>
+<dt>Sites</dt>
+<dd>
+    <% if sites.nil? %>
+        <p>Any site — no allowlist configured.</p>
+    <% else %>
+        <% sites.each do |site| %>
+            <code><%= site %></code><br>
         <% end %>
-    </dd>
+        <p>One list, two checks. A report may only say it is about
+        one of these, so a stray endpoint cannot be used as free
+        storage. And only a page served from one of them may post
+        here from another host — that second check is the
+        browser's own, and this list is what the answer to its
+        preflight names.</p>
 
-    <dt>Posted from</dt>
-    <dd>
-        <% if origins.nil? %>
-            Any origin — no allowlist configured.
-        <% else %>
+        <% derived = sites.map { |site| "https://#{site}" } %>
+        <% if origins && origins != derived %>
+            <p>Posting is allowed from
             <% origins.each do |origin| %>
-                <code><%= origin %></code><br>
+                <code><%= origin %></code><%= "," unless origin == origins.last %>
             <% end %>
-            <p>Which pages may send one from another host. A page
-            elsewhere is stopped by its own browser: the answer to the
-            preflight does not name it.</p>
+            rather than from the sites above, because this
+            deployment says so.</p>
         <% end %>
-    </dd>
+    <% end %>
+</dd>
 
     <% if endpoint %>
         <dt>Point a site here</dt>
