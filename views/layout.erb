@@ -55,6 +55,17 @@
         --muted:  light-dark(oklch(45%   0.014 265), oklch(72% 0.012 95));
         --rule:   light-dark(oklch(87%   0.008 95),  oklch(33% 0.014 265));
         --signal: light-dark(oklch(72%   0.15  70),  oklch(78% 0.14  70));
+
+        /* One per state, and spent only on the state a report
+           IS in — so a row still carries a single saturated
+           mark and a column of them reads down for what is
+           still open. Light in both schemes, so the ink on
+           them is dark in both. Open takes the amber above,
+           because it wants somebody; wontfix closes in
+           graphite, a decision not to act being no news. */
+        --state-open:    light-dark(oklch(84% 0.135 78), oklch(76% 0.135 78));
+        --state-fixed:   light-dark(oklch(84% 0.13 152), oklch(74% 0.13 152));
+        --state-wontfix: light-dark(oklch(79% 0.015 265), oklch(68% 0.02 265));
         --link:   light-dark(oklch(45%   0.12 250),  oklch(80% 0.10 250));
 
         /* The second saturated colour, and it is spent on one
@@ -761,122 +772,84 @@ svg {
            without being taken for a fourth state. */
     }
 
-    /* The state switch: on a report's own page, and on every row of the
-       listing. It has two jobs and must not need reading twice for
-       either — can I press this, and which one is set.
+    /* The state, picked from a list. A native select says what it is
+       while shut, holds the alternatives out of the way until asked,
+       and costs one column whatever the words in it are — where three
+       buttons cost the width of all three, on every row, for ever.
 
-       Pressable is said the way a physical control says it: a border, a
-       ground of its own, a hard lip of shadow underneath, and a press
-       that drops the button onto that lip. No gradient, no glow; this
-       is an instrument, and the affordance is mechanical.
+       What it costs back is a press: this UI runs no script, and
+       submitting on `change` would fire under a keyboard user still
+       arrowing through the options. So the list picks and the button
+       applies, and the button is only interesting when something has
+       been picked.
 
-       Which one is set is said in colour, which this sheet otherwise
-       keeps for state alone — and this is where state lives. One hue
-       per state, on the state that is SET and nowhere else, so a row
-       still carries a single saturated mark and the column can be read
-       down for what is still open. The tick is there because a colour
-       on its own is not an answer for everyone, and because the fill
-       and the tick agree under forced-colors, where the fill is gone.
-
-       Open is the estate's amber: it wants somebody. Fixed is green.
-       Wontfix closes in graphite — deciding not to act is not news. */
-    .switch {
+       The colour is the state's own, and it follows the SELECTION
+       rather than the saved value: :has(option:checked) turns the box
+       green the moment fixed is chosen, before anything is posted, so
+       what you are about to do is on the screen while you decide. */
+    .pick {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.3rem;
+        align-items: center;
+        gap: 0.4rem;
 
-        button {
-            /* Light in both schemes, so the ink on a filled
-               one is dark either way and the stamp is the
-               same object at night as by day. */
+        select {
             --fill: var(--panel);
 
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35em;
-            min-block-size: 2.5rem;
-            padding-inline: 0.7rem;
             font-family: var(--display);
             font-size: 0.8125rem;
-            letter-spacing: 0.07em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
-            color: var(--ink);
+            /* The fills are light in both schemes, so the ink on them
+               is dark in both. */
+            color: oklch(21% 0.02 265);
+            background: var(--fill);
+            border: 1px solid color-mix(in oklab, var(--fill), black 25%);
+            border-radius: 3px;
+            padding: 0.5rem 0.45rem;
+            cursor: pointer;
+
+            &:has(option[value="open"]:checked)    { --fill: var(--state-open); }
+            &:has(option[value="fixed"]:checked)   { --fill: var(--state-fixed); }
+            &:has(option[value="wontfix"]:checked) { --fill: var(--state-wontfix); }
+
+            &:hover { border-color: var(--ink); }
+        }
+
+        /* The press that means it. Quiet until the list has been
+           touched — it is the second half of one action, not a second
+           action. */
+        button {
+            padding: 0.5rem 0.7rem;
+            font-family: var(--display);
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
             background: var(--panel);
             border: 1px solid var(--rule);
             border-radius: 3px;
             box-shadow: 0 1px 0 var(--rule);
             cursor: pointer;
 
-            /* The tick keeps its room whether or not it is shown, so
-               pressing one does not shuffle the others sideways. */
-            &::before {
-                content: "✓";
-                visibility: hidden;
-                font-size: 0.9em;
-            }
-
-            &.is-open  { --fill: light-dark(oklch(84% 0.135 78),
-                                            oklch(76% 0.135 78)); }
-            &.is-fixed { --fill: light-dark(oklch(84% 0.13 152),
-                                            oklch(74% 0.13 152)); }
-            /* Graphite: a decision not to act is not news. */
-            &.is-wontfix { --fill: light-dark(oklch(79% 0.015 265),
-                                              oklch(68% 0.02 265)); }
-
-            /* A taste of the colour it would set: the control shows
-               what pressing it does before it is pressed. */
             &:hover {
+                color: var(--ink);
                 border-color: var(--ink);
-                background: color-mix(in oklab, var(--fill) 14%,
-                                      var(--panel));
             }
 
-            &:active {
-                translate: 0 1px;
-                box-shadow: none;
-            }
-
-            /* The state it is in. Disabled because pressing it would
-               ask for what is already true — and filled, so nobody has
-               to compare it with its neighbours to find it. */
-            &[aria-current] {
-                color: oklch(21% 0.02 265);
-                background: var(--fill);
-                /* A rim a shade darker than the fill: a
-                   stamp pressed into the paper, and the
-                   grey one still reads as set. */
-                border-color: color-mix(in oklab, var(--fill),
-                                        black 25%);
-                box-shadow: none;
-                cursor: default;
-
-                &::before { visibility: visible; }
-            }
+            &:active { translate: 0 1px; box-shadow: none; }
         }
 
-        /* In a table row, where the same control has to fit a column
-           and be read down a page of them. */
+        /* In a table row, where the same control is read down a page. */
         &.is-compact {
-            /* One line per row: the table is inside a
-               .scroller, and three stacked buttons per row
-               make a page of reports twice as long to read
-               down. */
-            flex-wrap: nowrap;
-            gap: 0.2rem;
-
-            button {
-                min-block-size: 1.8rem;
-                padding-inline: 0.35rem;
-                gap: 0.2em;
+            select {
                 font-size: 0.75rem;
                 letter-spacing: 0.02em;
+                padding: 0.2rem 0.25rem;
+            }
 
-                /* No room kept for the tick here. Pressing
-                   one reloads the page, so nothing shuffles
-                   under the hand, and the column is the
-                   width this pays for. */
-                &::before { display: none; }
-                &[aria-current]::before { display: inline; }
+            button {
+                padding: 0.2rem 0.4rem;
+                font-size: 0.6875rem;
             }
         }
     }
@@ -1058,7 +1031,7 @@ svg {
         /* Archiving and deleting are not states, are not in the switch,
            and are not coloured by one: the same mechanical chrome, and
            no fill to say a report is "in" them. */
-        form:not(.switch) button:not(.toggle), .button {
+        form:not(.pick) button:not(.toggle), .button {
             min-block-size: 2.5rem;
             min-inline-size: 3.5rem;
             padding-inline: var(--space);
@@ -1321,7 +1294,7 @@ svg {
 
 @media (prefers-reduced-motion: no-preference) {
     @layer components {
-        .bookmarklet, .states button, .listing tbody tr,
+        .bookmarklet, .states button, .listing tbody tr, .pick select,
         .toggle::before, .toggle::after { transition: 120ms ease-out; }
     }
 }
@@ -1332,15 +1305,6 @@ svg {
         .toggle[aria-checked="true"]::after { background: Highlight; }
         .badge.is-open::before { background: Highlight; }
 
-        /* The fill is gone here — the system paints every button the
-           same. The tick says which one is set, and a heavier border
-           seconds it. */
-        .switch button[aria-current] {
-            border: 2px solid Highlight;
-            forced-color-adjust: none;
-            color: HighlightText;
-            background: Highlight;
-        }
     }
 }
 </style>

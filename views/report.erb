@@ -176,19 +176,20 @@
 <h2>State</h2>
 
 <div class="states">
-    <%# The state it is in is the one that is filled, in that
-        state’s own colour and ticked; the other two are plainly
-        pressable and plainly not set. Before this they were five
-        buttons in a row differing by a shade of grey, and finding the
-        current state meant comparing greys. %>
-    <form class="switch" method="post"
+    <%# The list shows the state it is in, in that state’s own colour,
+        and keeps the other two out of the way until they are asked
+        for. Picking one colours the box straight away — what you are
+        about to do is on the screen while you decide — and the button
+        beside it is what commits. %>
+    <form class="pick" method="post"
           action="<%= to("/#{id}/state", false) %>">
-        <% Corrigenda::Store::STATES.each do |value| %>
-            <% now = value == state %>
-            <button name="state" value="<%= value %>" class="is-<%= value %>"
-                    <%= now ? %(aria-current="true" disabled) : "" %>
-                    title="<%= now ? "Already #{value}" : "Mark #{value}" %>"><%= value %></button>
-        <% end %>
+        <select name="state" aria-label="State">
+            <% Corrigenda::Store::STATES.each do |value| %>
+                <option value="<%= value %>"<%=
+                    " selected" if value == state %>><%= value %></option>
+            <% end %>
+        </select>
+        <button>Set</button>
     </form>
 
     <%# Archiving says nothing about the defect -- a report is archived

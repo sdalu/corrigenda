@@ -157,7 +157,8 @@ end
     def test_the_listing_offers_every_state_on_each_row
         get "/"
 
-        assert_includes last_response.body, %(name="state" value="fixed")
+        assert_includes last_response.body, %(<option value="fixed")
+        assert_includes last_response.body, %(<option value="open" selected)
         assert_match %r{name="from"\s+value="list"}, last_response.body
     end
 

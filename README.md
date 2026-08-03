@@ -79,11 +79,12 @@ To see the widget without any of that:
 
 The review UI is at `/review` behind the same login as the endpoint.
 A report is triaged from its row in the listing as well as from its own
-page. Two controls, because they answer two questions: **open, fixed or
-wontfix** says what happened to the defect — the one that is set is
-filled and ticked — and an **archived** switch says whether anybody
-still wants it in front of them. A morning's reports do not mean
-opening each one.
+page. Two controls, because they answer two questions: a list of
+**open, fixed or wontfix** says what happened to the defect — it shows
+the state the report is in, in that state's colour, and the button
+beside it applies what you pick — and an **archived** switch says
+whether anybody still wants it in front of them. A morning's reports do
+not mean opening each one.
 
 Archiving keeps everything: the switch goes back the other way, from
 the archived list or from the report. Deleting is on the report's own
