@@ -109,14 +109,25 @@ path and meets no Apache at all:
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
          http://localhost/api/reports
 
-The routes, their parameters and what they refuse are in
-[API.md](../API.md).
+| Key | Default | Meaning |
+|---|---|---|
+| *(absent)* | — | The endpoint does not exist: 404 everywhere under `/api` |
+| `api: true` | — | Read-only, with whatever authentication Apache already asks for |
+| `write` | `false` | Allow a state to be set and a report archived. Never delete |
+| `token` | none | A shared secret, required as a Bearer token as well |
 
-Add `write: true` to let it set a state and archive; there is no
-delete. Add `token: <secret>` to require a Bearer token as well —
-worth it if the endpoint is ever reachable by anything you would not
-hand the LDAP password to. Changing any of this needs a restart, since
+A token is worth it if the endpoint is ever reachable by anything you
+would not hand the LDAP password to. `write` is only true when it is
+YAML's `true`: `write: "yes"` is a string, and a string is not
+permission. An empty `token:` is refused outright rather than read as
+"no token wanted", since that would open the endpoint at the moment
+somebody was closing it. **Changing any of this needs a restart**, as
 the config is read at start.
+
+The interface describes itself: every route, parameter and refusal is
+in [openapi.yaml](../openapi.yaml), which the service serves at
+`/api/openapi.json` and renders at `/apidocs` — a tab that appears in
+the masthead only where a deployment has switched the endpoint on.
 
 ## Keeping the store from growing forever
 

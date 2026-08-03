@@ -94,4 +94,55 @@ end
     ensure
         TestSupport.configure
     end
+
+    # The schema viewer. A tab leading to a 404 is worse than no tab, so
+    # both the tab and the page follow the deployment: with no `api:`
+    # key the endpoint answers 404 to everything and there is nothing to
+    # render.
+    def test_no_api_no_tab_and_no_viewer
+        get "/"
+
+        refute_includes last_response.body, "/apidocs"
+
+        get "/apidocs"
+
+        assert_equal 404, last_response.status
+    end
+
+    def test_the_tab_and_the_viewer_arrive_with_the_endpoint
+        TestSupport.configure("api" => true)
+        get "/"
+
+        assert_includes last_response.body, "apidocs"
+
+        get "/apidocs"
+
+        assert_equal 200, last_response.status
+        assert_includes last_response.body, "SwaggerUIBundle"
+        assert_includes last_response.body, "/api/openapi.json"
+    ensure
+        TestSupport.configure
+    end
+
+    # Vendored, whitelisted by name: the path is a path component, and
+    # the directory holds a licence and a README nobody should be able
+    # to pull through this route.
+    def test_the_viewer_serves_its_two_files_and_nothing_else
+        TestSupport.configure("api" => true)
+
+        get "/apidocs/swagger-ui.css"
+
+        assert_equal 200, last_response.status
+        assert_match(%r{^text/css}, last_response.content_type)
+
+        get "/apidocs/README.md"
+
+        assert_equal 404, last_response.status
+
+        get "/apidocs/..%2F..%2FGemfile"
+
+        assert_equal 404, last_response.status
+    ensure
+        TestSupport.configure
+    end
 end

@@ -40,6 +40,17 @@ module Corrigenda
         # and a second drawing is a second thing to keep in step.
         ICON = File.expand_path("../../extension/icon.svg", __dir__)
 
+        # Swagger UI, vendored rather than fetched from a CDN: this page
+        # is behind a login, and a viewer that pulls a megabyte and a
+        # half from somebody else's server on every visit is a third
+        # party watching an authenticated page. See assets/swagger/.
+        VIEWER_DIR = File.expand_path("../../assets/swagger", __dir__)
+
+        VIEWER = {
+            "swagger-ui-bundle.js" => "application/javascript; charset=utf-8",
+            "swagger-ui.css"       => "text/css; charset=utf-8"
+        }.freeze
+
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
 
@@ -125,6 +136,30 @@ module Corrigenda
         # enough that a fix is everywhere by the time you have finished
         # telling someone about it. send_file adds Last-Modified, so
         # most of those requests answer 304 anyway.
+        # The schema, rendered. Only where there is an interface to
+        # render: with no `api:` key the endpoint answers 404 to
+        # everything, and a viewer of nothing is a page that looks
+        # broken rather than one that is switched off.
+        get "/apidocs" do
+            halt 404, "no API on this deployment\n" unless api_offered?
+
+            @wide = true
+            erb :apidocs
+        end
+
+        # Vendored, whitelisted by name, and cached hard: they are a
+        # third party's release, they do not change between them, and
+        # they are the largest thing this service serves.
+        get "/apidocs/:asset" do
+            halt 404, "no API on this deployment\n" unless api_offered?
+
+            type = VIEWER[params[:asset]]
+            halt 404, "no such asset\n" if type.nil?
+
+            cache_control :public, max_age: 31_536_000, immutable: true
+            send_file File.join(VIEWER_DIR, params[:asset]), type:
+        end
+
         get "/corrigenda.js" do
             cache_control :public, max_age: 300
             send_file CLIENT, type: "application/javascript; charset=utf-8"

@@ -1,8 +1,10 @@
-# The /api interface, as a schema. Served at /api/openapi.json, and
-# checked against the routes themselves by test/openapi_test.rb -- a
-# description that drifts from what it describes is worse than none.
+# The /api interface, as a schema, and the only description of it:
+# there is no second document to fall out of step with this one.
+# Served at /api/openapi.json, rendered at /apidocs, and checked
+# against the routes themselves by test/openapi_test.rb.
 #
-# Prose, examples and the reasoning are in API.md.
+# Why the interface is shaped this way is in DESIGN.md; how to switch
+# it on, in deploy/README.md.
 openapi: 3.1.0
 
 info:
@@ -12,7 +14,8 @@ info:
     description: |
         Reports about what a rendered page got wrong: the element, the
         CSS rules that matched it, what the browser was complaining
-        about, and a screenshot.
+        about, and a screenshot. The review UI is HTML meant for a
+        person; this is the same store for something that is not one.
 
         The whole interface is optional. With no `api:` key in the
         deployment config every path here answers 404 -- not 403,
@@ -20,6 +23,103 @@ info:
         it exists. It is read-only until the config says
         `write: true`, and deleting a report is not offered at any
         setting.
+
+        **Reaching it.** On the host, through the unix socket, which
+        meets no Apache and so needs no login:
+
+        ```sh
+        curl --unix-socket /var/run/corrigenda/corrigenda.sock \
+             http://localhost/api/reports
+        ```
+
+        Through the vhost it sits under the service's mount, behind the
+        same authentication as everything else. Where the deployment
+        also sets `api.token`, send it as `Authorization: Bearer <token>`
+        or `X-Corrigenda-Token: <token>`.
+
+        **Conventions.** JSON in and out, including for every refusal --
+        the shape is always `{"error": "..."}`, so nothing has to be
+        told apart by looking at it. POST and PATCH bodies may be JSON
+        or a form post. A report id is `YYYYMMDDThhmmssZ-xxxxxxxx` and
+        anything else is refused without the store being touched.
+        Reports and files carry an `ETag`: send it back as
+        `If-None-Match` and an unchanged one answers 304.
+
+        ---
+
+        🤖 **For AI:** you are one of the readers this was written for.
+        Each operation below carries its own note; this is what applies
+        across all of them.
+
+        **Start by asking.** `GET /api/` says whether writes are
+        allowed here and what routes exist, and it is the service in
+        front of you rather than a document that may be older than it.
+        If every path answers 404, the interface is switched off in the
+        deployment config: say so and stop, rather than guessing
+        another base path or scraping the review UI.
+
+        **The report is the evidence, not the diagnosis.** `summary` is
+        the reporter's first line and `message` is what they saw; both
+        are symptoms. What to act on is inside `report`:
+
+        - `target.selector`, `target.xpath`, `target.fingerprint` --
+          how to find the element again, the last of these still
+          working after a rebuild has moved it.
+        - `target.rules[]` -- every CSS rule that matched, each with
+          `href` (the stylesheet), `context` (`@layer ...`, `@media
+          ...`) and `css`. This is the bridge from the browser to the
+          repository, and where a real fix belongs. `css` is cut at 400
+          characters: treat a long one as an identifier and read the
+          rule in the repository.
+        - `target.computed` -- what the browser resolved: box, type,
+          colour, overflow.
+        - `target.audit` -- `contrast`, `targetSize`, `targetTooSmall`.
+          Measured, not opined. If contrast is 2.37 those are the
+          numbers to fix, whatever the message said.
+        - `environment` -- `viewport`, `device-pixel-ratio`,
+          `color-scheme`, `pointer`. Reproduce in these before touching
+          anything; most "cannot reproduce" is a viewport.
+        - `diagnostics` -- errors, failed resources, overflow, as the
+          page reported them at the time.
+        - `capture` -- which channels the reporter switched on. A key
+          absent from a report was never captured, and says nothing
+          about the page.
+
+        Fetch `screenshot.webp` and look at it. A visual defect is
+        usually visible there and often not describable without it.
+
+        **Write down what you did.** Every state change records itself
+        in the report's journal, but only you know why: send a `note`
+        with the change (`PATCH /api/reports/{id}`) that a person can
+        check -- what you changed, where, and how you verified it --
+        and put commits or paths in `refs`. Work that changed nothing
+        is worth a line too: what you reproduced, what you ruled out.
+        `fixed` means the defect is gone where it was reported, not
+        that a commit exists; `wontfix` is a person's decision, so
+        leave it open and say so instead.
+
+        **A session, end to end:**
+
+        ```sh
+        SOCK="--unix-socket /var/run/corrigenda/corrigenda.sock"
+        BASE="http://localhost/api"
+
+        curl -s $SOCK $BASE/                                  # what is here
+        curl -s $SOCK "$BASE/reports?state=open&site=www.example.com"
+        curl -s $SOCK $BASE/reports/<id>                      # the evidence
+        curl -s $SOCK -o shot.webp $BASE/reports/<id>/file/screenshot.webp
+
+        # ...fix it in the site's repository, then say so and why:
+        curl -s $SOCK -X PATCH -H 'Content-Type: application/json' \
+             -d '{"state": "fixed", "archived": true,
+                  "note": "raised .caption line-height to 1.5; contrast 4.8:1",
+                  "agent": "claude", "refs": ["a1b2c3d"]}' \
+             $BASE/reports/<id>
+        ```
+
+        On the host, `rake data:list`, `rake data:show ID=...` and
+        `rake data:status ID=... SET=... NOTE="..."` read and write the
+        same store with no service involved.
 
 servers:
     - url: /api
@@ -45,6 +145,21 @@ paths:
             tags: [service]
             operationId: describeService
             summary: What is here, for a client that knows nothing else
+            description: |
+                What this endpoint is, what it will answer, and whether
+                this deployment allows writes. Read by a client before
+                anything else.
+
+                ---
+
+                🤖 **For AI:** Ask this first, every session. It says
+                whether writes are allowed on this deployment, so you do
+                not spend a turn discovering a 403, and its `routes` are
+                the service in front of you rather than a document that
+                may be older than it. If every path here answers 404 the
+                interface is switched off in the deployment config: say
+                so and stop, rather than guessing another base path or
+                scraping the review UI.
             responses:
                 "200":
                     description: The capability document
@@ -60,6 +175,16 @@ paths:
             tags: [service]
             operationId: getOpenapi
             summary: This document
+            description: |
+                This document, as JSON, from the service that implements
+                it.
+
+                ---
+
+                🤖 **For AI:** You are probably reading this through it.
+                Fetch it when you want the field names and enumerations
+                exactly, rather than working from an example response
+                you have seen once.
             responses:
                 "200":
                     description: The schema, as JSON
@@ -73,11 +198,20 @@ paths:
             tags: [reports]
             operationId: listReports
             summary: The listing, newest first
-            description: >
+            description: |
                 Filters apply to the whole store and the limit is
                 applied last, so `state=fixed&limit=10` means the ten
                 newest fixed reports, never the fixed ones among the ten
                 newest.
+
+                ---
+
+                🤖 **For AI:** Start from `state=open` and, if you were
+                given a site, `site=<host>`. `summary` is only the
+                reporter's first line — never decide what to do from it,
+                fetch the report. Compare `count` with `matched`: they
+                differ when the limit cut you off, and a client that
+                reads only one of them concludes it has seen everything.
             parameters:
                 - name: archived
                   in: query
@@ -118,10 +252,22 @@ paths:
             tags: [reports]
             operationId: getReport
             summary: One report in full
-            description: >
+            description: |
                 The document as filed, plus what has happened to it
                 since and what arrived beside it. Carries an ETag that
                 changes when the state or the archive marker does.
+
+                ---
+
+                🤖 **For AI:** The whole evidence. `target.selector` and
+                `target.fingerprint` find the element again;
+                `target.rules[]` names the stylesheet and cascade layer
+                each matching rule came from, which is your bridge to
+                the repository; `target.audit` is measured rather than
+                opined; `environment` is the conditions to reproduce in
+                before you touch anything, and most “cannot reproduce”
+                is a viewport. Read `journal` to see what has already
+                been tried.
             responses:
                 "200":
                     description: The report
@@ -138,9 +284,20 @@ paths:
             tags: [reports]
             operationId: updateReport
             summary: Set the state, the archive marker, or both
-            description: >
+            description: |
                 The two things about a report that can change. Requires
                 `write: true` in the deployment config.
+
+                ---
+
+                🤖 **For AI:** The call to prefer when you have finished:
+                it sets the state, archives, and records why, in one
+                request. Send a `note` a person can check — what you
+                changed, where, and how you verified it — and put
+                commits or paths in `refs`. `fixed` means the defect is
+                gone where it was reported, not that a commit exists.
+                `wontfix` is a person's decision: leave it open and say
+                so instead.
             requestBody:
                 required: true
                 content:
@@ -166,12 +323,19 @@ paths:
             tags: [reports]
             operationId: deleteReport
             summary: Refused, at every setting
-            description: >
+            description: |
                 Answered rather than left to the 404: a client that
                 tried this has guessed something reasonable and is owed
                 the reason. Deleting a report takes the directory, the
                 screenshot and the index line with nothing behind it,
                 and stays in the review UI, which asks twice.
+
+                ---
+
+                🤖 **For AI:** Always refused, at every setting. If a
+                report should not exist that is a person's call in the
+                review UI — do not ask a human to run the deletion for
+                you as a way around this.
             responses:
                 "405":
                     description: Not something this interface does
@@ -190,10 +354,18 @@ paths:
             tags: [reports]
             operationId: setState
             summary: What happened to the defect
-            description: >
+            description: |
                 The same change as `PATCH` with a `state`, kept because
                 a shell reaches for a URL rather than a verb. Requires
                 `write: true`.
+
+                ---
+
+                🤖 **For AI:** The single-purpose version of `PATCH`,
+                kept for shells. Prefer `PATCH` when you have a reason
+                to record, so the state and the reason arrive together
+                rather than the trail acquiring a change nobody
+                explained.
             requestBody:
                 required: true
                 content:
@@ -231,9 +403,16 @@ paths:
             tags: [reports]
             operationId: setArchived
             summary: Out of the working list, or back into it
-            description: >
+            description: |
                 An absent body archives. `false`, `"false"`, `"0"` and
                 `0` bring it back. Requires `write: true`.
+
+                ---
+
+                🤖 **For AI:** Archive after setting a state, not instead
+                of setting one: archiving says nobody needs to look at
+                this again, and says nothing about what happened to the
+                defect.
             requestBody:
                 required: false
                 content:
@@ -265,13 +444,21 @@ paths:
             tags: [reports]
             operationId: getJournal
             summary: What has been done about this report
-            description: >
+            description: |
                 Oldest first. Entries are appended and never rewritten:
                 a trail that can be edited is a trail nobody has to
                 believe. State changes and archiving write their own
                 entries, so the record is complete whether the change
                 came through this interface, the review UI or a task on
                 the host.
+
+                ---
+
+                🤖 **For AI:** Read this before starting on a report and
+                you will not repeat what somebody already tried. Oldest
+                first; `kind` tells you which lines the service wrote
+                itself (`state`, `archive`) and which somebody chose to
+                write (`note`).
             responses:
                 "200":
                     description: The trail
@@ -291,12 +478,22 @@ paths:
             tags: [reports]
             operationId: addJournalEntry
             summary: Record what was done
-            description: >
+            description: |
                 Requires `write: true` — writing into somebody's record
                 of their own defect is a write, even though it changes
                 nothing about the report itself. `at` and `by` are the
                 server's to set; a client cannot backdate an entry or
                 sign it as somebody else.
+
+                ---
+
+                🤖 **For AI:** For work that changed nothing yet: what
+                you reproduced, what you ruled out, what you are about
+                to try. “Reproduced at 380px, the overflow is the nav
+                rather than the caption” saves the next reader — often
+                you — from starting over. `at` and `by` are the
+                server's; naming yourself in `agent` is useful and is
+                not identification.
             requestBody:
                 required: true
                 content:
@@ -339,6 +536,18 @@ paths:
             tags: [reports]
             operationId: getReportFile
             summary: A file filed with the report, served as itself
+            description: |
+                The screenshot, the DOM snapshot or the report as filed,
+                served as itself with an ETag and a Last-Modified.
+
+                ---
+
+                🤖 **For AI:** Fetch `screenshot.webp` and actually look
+                at it: a visual defect is usually visible there and
+                often not describable without it. The image is already
+                cropped to the element with a 16 pixel margin and has
+                form fields blacked out, so what you see is what the
+                reporter meant to send.
             responses:
                 "200":
                     description: The file

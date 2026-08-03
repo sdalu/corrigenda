@@ -467,9 +467,10 @@ Puppeteer 23+ drives it over BiDi.
 ### The JSON interface, for a program
 
 `/api`, optional, absent unless the deployment's config carries an `api:`
-key. Reference — every route, parameter and refusal — in
-[API.md](API.md); what follows is why it is shaped that
-way. The review UI is HTML meant for a person; an agent asked to fix
+key. Every route, parameter and refusal is in
+[openapi.yaml](openapi.yaml) — the only description of the
+interface, so there is no second one to fall out of step. What
+follows is why it is shaped that way. The review UI is HTML meant for a person; an agent asked to fix
 what was reported would otherwise scrape it, and would be reading a
 layout rather than a report.
 

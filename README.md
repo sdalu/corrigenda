@@ -104,10 +104,12 @@ that knows nothing else can start there.
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
          http://localhost/api/reports
 
-Everything it answers, every setting and every refusal is in
-[API.md](API.md). In short: it is read-only until the
-config says `write: true`, and even then it can only set a state and
-archive — deleting a report is not offered to a program at all.
+It describes itself: [openapi.yaml](openapi.yaml), served at
+`/api/openapi.json` and rendered at `/apidocs`, where the masthead
+grows an **API** tab on a deployment that has switched it on. In
+short: read-only until the config says `write: true`, and even then
+it can only set a state, archive, and record what was done —
+deleting a report is not offered to a program at all.
 `token: <secret>` adds a Bearer token on top of whatever Apache already
 asked for. With no `api:` key, every path under `/api` answers 404 rather
 than 403 — a route that is switched off should not advertise that it
@@ -137,7 +139,7 @@ sanitiser and the CORS dance only exist in a browser — see
 |---|---|
 | [DESIGN.md](DESIGN.md) | what it captures and why, the payload, the storage model — the reasoning under all of it |
 | [HISTORY.md](HISTORY.md) | approaches taken and abandoned, and the failures that shaped what is here |
-| [API.md](API.md) | the JSON interface in full: routes, parameters, responses, errors |
+| [openapi.yaml](openapi.yaml) | the JSON interface in full — the only description of it, rendered at `/apidocs` |
 | [deploy/README.md](deploy/README.md) | installing it, the Apache wiring, retention in cron |
 | [extension/README.md](extension/README.md) | the add-on: build, install, permissions |
 | [test/browser/README.md](test/browser/README.md) | the browser checks and what each covers |

@@ -72,6 +72,45 @@ class OpenapiTest < CorrigendaTest
                      pattern.sub(/\A\^/, '\A').sub(/\$\z/, '\z')
     end
 
+    # The schema is read by agents as well as by client generators, and
+    # the advice is per operation because that is where it is needed:
+    # what this route is good for, and the mistake it invites. A new
+    # route without one is the failure this catches.
+    def operations
+        SPEC.fetch("paths").flat_map { |path, verbs|
+            verbs.filter_map { |verb, operation|
+                next unless %w[get post patch put delete].include?(verb)
+
+                ["#{verb.upcase} #{path}", operation]
+            }
+        }
+    end
+
+    def test_every_operation_says_something_to_an_agent
+        without = operations.reject { |_, operation|
+            operation["description"].to_s.include?("🤖 **For AI:**")
+        }.map(&:first)
+
+        assert_empty without, "operations with no 🤖 For AI section"
+    end
+
+    # Above the rule: what the route is. Below it: what to do about it.
+    # A rule with nothing above separates nothing.
+    def test_the_agent_section_comes_after_a_rule_and_some_prose
+        operations.each do |name, operation|
+            description = operation["description"].to_s
+
+            # The rule is written as markdown rather than as an `<hr>`
+            # tag: a raw HTML block stops the renderer parsing markdown
+            # for the rest of the description, and everything after it —
+            # the emphasis, the `code spans` — came out as literal
+            # asterisks and backticks in the viewer.
+            assert_includes description, "\n---", "#{name} has no rule"
+            above = description.split("\n---").first.to_s.strip
+            refute_empty above, "#{name} opens with the rule"
+        end
+    end
+
     # It is served, and it is the file: a client reading the schema from
     # a running service must not be reading a different one.
     def test_the_schema_is_served_as_json

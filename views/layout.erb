@@ -1037,6 +1037,13 @@ svg {
                 report, and how to point a site here. %>
             <a href="<%= mount("/") %>">Guide</a>
             <a href="<%= mount("/review/") %>">Reports</a>
+            <%# Only where there is an interface to describe. A tab
+                leading to a 404 is worse than no tab, and the endpoint
+                itself answers 404 when the deployment has not asked
+                for it. %>
+            <% if api_offered? %>
+                <a href="<%= mount("/apidocs") %>">API</a>
+            <% end %>
         </nav>
     </header>
 

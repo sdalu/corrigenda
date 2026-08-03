@@ -24,6 +24,19 @@ module Corrigenda
             prefix = request.env["SCRIPT_NAME"] if prefix.to_s.empty?
             "#{prefix.to_s.chomp('/')}#{path}"
         end
+
+        # Whether this deployment has a JSON interface at all, which is
+        # what decides if the masthead offers a tab for its schema. A
+        # tab leading to a 404 is worse than no tab.
+        #
+        # A config that cannot be read is answered "no" rather than
+        # allowed to take a page down: the interface being described is
+        # not what somebody came to this page for.
+        def api_offered?
+            !settings.feedback_config.api.nil?
+        rescue ArgumentError
+            false
+        end
     end
 
     class Prefix

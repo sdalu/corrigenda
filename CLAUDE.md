@@ -82,8 +82,9 @@ Apache, which saves needing a login:
          http://localhost/api/reports
 
 `GET /api/` describes itself: the routes, whether writes are allowed,
-the id format. The written-out version, with every parameter and
-refusal, is [API.md](API.md). Writes
+the id format. In full, with a note to an agent on every operation:
+[openapi.yaml](openapi.yaml), served at `/api/openapi.json` and
+rendered at `/apidocs`. Writes
 (`POST /api/reports/:id/state`, `.../archive`) answer 403 unless the
 config says `write: true`, and there is no delete at all — that stays
 in the review UI, which asks twice.

@@ -1,0 +1,57 @@
+<%# Swagger UI against this service's own schema. The bundle and its
+    stylesheet are vendored (assets/swagger/, and its README says why
+    and how to move version); nothing here is fetched from anybody
+    else's server, which matters more than usual on a page behind a
+    login.
+
+    The standalone preset is deliberately not used: it adds a topbar
+    with a URL box for loading any schema at all, and this viewer has
+    exactly one to show. %>
+<h1>The API</h1>
+
+<p>
+    Every route this service answers for a program, with its parameters
+    and what it sends back. The schema itself is
+    <a href="<%= mount("/api/openapi.json") %>">openapi.json</a> —
+    generate a client from it, or read
+    <a href="<%= mount("/api/") %>">the capability document</a> if all
+    you want is what exists.
+</p>
+
+<p class="empty">
+    Try it out sends real requests, as you, to this deployment. Reads
+    are safe; the writes change what somebody filed.
+</p>
+
+<link rel="stylesheet" href="<%= mount("/apidocs/swagger-ui.css") %>">
+
+<%# The schema's URL travels as an attribute rather than as a string
+    written into the script: templates here escape what they print, so
+    a JSON literal would arrive as &quot; and the script would not
+    parse — and the mount comes from a proxy header, which has no
+    business being interpolated into code either way. %>
+<div id="swagger" class="swagger"
+     data-schema="<%= mount("/api/openapi.json") %>"></div>
+<script src="<%= mount("/apidocs/swagger-ui-bundle.js") %>"></script>
+<script>
+    window.addEventListener("load", function () {
+        var host = document.getElementById("swagger");
+        SwaggerUIBundle({
+            url: host.dataset.schema,
+            domNode: host,
+            // The service is one deployment, so there is nothing to
+            // choose between; and a client should read the schema
+            // rather than a rendering of it.
+            deepLinking: true,
+            displayRequestDuration: true,
+            defaultModelsExpandDepth: 0,
+            docExpansion: "list",
+            // Same origin, same login: the browser already carries
+            // whatever Apache asked for.
+            requestInterceptor: function (request) {
+                request.credentials = "same-origin";
+                return request;
+            }
+        });
+    });
+</script>
