@@ -1,6 +1,6 @@
 /*
- * debug-feedback.js — page-defect reporting widget.
- * Spec and endpoint: /web/ops/DebugFeedback/DEBUG-FEEDBACK.md
+ * corrigenda.js — page-defect reporting widget.
+ * Spec and endpoint: /web/ops/Corrigenda/CORRIGENDA.md
  *
  * One file, no dependencies. Everything it renders lives in a shadow
  * root so the page under investigation cannot style the widget and the
@@ -10,8 +10,8 @@
 (() => {
     "use strict";
 
-    if (window.__debugFeedbackLoaded) return;
-    window.__debugFeedbackLoaded = true;
+    if (window.__corrigendaLoaded) return;
+    window.__corrigendaLoaded = true;
 
     const SCRIPT = document.currentScript;
 
@@ -19,8 +19,20 @@
         const d = (SCRIPT && SCRIPT.dataset) || {};
         const meta = (name) =>
             document.querySelector(`meta[name="${name}"]`)?.content || null;
+
+        /* Where this page says its reports go. The tag that loaded this
+         * file knows when MoXoW put it there, but a bookmarklet loaded
+         * it on a page that never asked for it -- and on a site that
+         * does not mount the service, its own origin is a 404. The link
+         * is the page's own answer, and it is there whether or not the
+         * widget was injected. */
+        const advertised = document.querySelector(
+            'link[rel="corrigenda"]')?.href;
+
         return {
-            endpoint: d.endpoint || "/.debug-feedback/report/",
+            endpoint: d.endpoint ||
+                      (advertised && `${advertised.replace(/\/+$/, "")}/report/`) ||
+                      "/.corrigenda/report/",
             site:     d.site || location.hostname,
             build:    d.build || meta("build"),
             lang:     (d.lang || document.documentElement.lang || "en").slice(0, 2),
@@ -365,7 +377,7 @@
             node.removeAttribute("checked");
         }
         if (node.localName === "textarea") node.textContent = "";
-        if (node.hasAttribute("data-debug-feedback-redact")) {
+        if (node.hasAttribute("data-corrigenda-redact")) {
             node.textContent = "[redacted]";
             return;
         }
@@ -460,7 +472,7 @@
      * tabs.captureTab: a rectangle in PAGE coordinates, which may lie
      * outside the viewport, at a scale we choose. It announces itself on
      * the documentElement at document_start, so this is known before the
-     * first control is drawn. See ops/DebugFeedback/extension. */
+     * first control is drawn. See ops/Corrigenda/extension. */
     /* Read every time it is asked, not once at load. A content script at
      * document_start does set this before any page script runs, so the
      * load-time read was right -- but it made the widget depend on an
@@ -468,7 +480,7 @@
      * is enabled while the page is open would go unnoticed until a
      * reload. Reading a dataset property costs nothing. */
     const extension = () =>
-        document.documentElement.dataset.debugFeedbackCapture || null;
+        document.documentElement.dataset.corrigendaCapture || null;
 
     /* Firefox's share dialog offers a window or a screen and no tabs at
      * all, so a frame can never be mapped to page coordinates there and
@@ -497,14 +509,14 @@
                 }, timeout);
 
                 this.waiting.set(id, { resolve, reject, giveUp });
-                postMessage({ source: "debug-feedback", type, id, ...payload },
+                postMessage({ source: "corrigenda", type, id, ...payload },
                             origin);
             });
         },
 
         receive(event) {
             if (event.source !== window) return;
-            if (event.data?.source !== "debug-feedback-extension") return;
+            if (event.data?.source !== "corrigenda-extension") return;
 
             const pending = this.waiting.get(event.data.id);
             if (!pending) return;
@@ -595,7 +607,7 @@
     };
 
     const SECRETS = "input:not([type=checkbox]):not([type=radio]), " +
-                    "textarea, select, [data-debug-feedback-redact]";
+                    "textarea, select, [data-corrigenda-redact]";
 
     /* Opaque, not blurred: a blur over short low-entropy text can be
      * undone, a filled rectangle cannot. */
@@ -1570,7 +1582,7 @@ input:where(:not(:checked)) + .chip {
 `;
 
     const host = document.createElement("div");
-    host.id = "debug-feedback-widget";
+    host.id = "corrigenda-widget";
     /* Open, not closed: the CSS isolation is identical either way, and
      * an open root can be inspected and driven from a test. */
     const root = host.attachShadow({ mode: "open" });

@@ -43,15 +43,43 @@
 
 <% unless rules.empty? %>
     <h2>What styled it</h2>
+    <%# The selector is what you came for; the layers and queries above
+        it are why it applied, which is a second question and not always
+        asked. So the selector is the summary and the strata are what
+        opens — a report on a heavily styled element carries a dozen of
+        these, and a dozen four-line blocks is a wall.
+
+        A rule with no context has nothing to open, and says so by not
+        being a disclosure at all. %>
     <% rules.each do |rule| %>
-        <ol class="cascade">
-            <% rule["context"].to_s.split(" / ").reject(&:empty?).each do |band| %>
-                <li><%= band %></li>
-            <% end %>
-            <li class="is-selector"><%= rule["selector"] %>
+        <% bands = rule["context"].to_s.split(" / ").reject(&:empty?) %>
+        <% if bands.empty? %>
+            <p class="rule is-bare">
+                <span class="selector"><%= rule["selector"] %></span>
                 <span class="where"><%= rule["href"] %></span>
-            </li>
-        </ol>
+            </p>
+        <% else %>
+            <details class="rule">
+                <summary>
+                    <span class="selector"><%= rule["selector"] %></span>
+                    <span class="where"><%= rule["href"] %></span>
+                    <span class="depth"><%= bands.length %> deep</span>
+                </summary>
+                <%# A band is one of three things, and they answer three
+                    different questions: which layer it sits in, what
+                    had to be true for it to apply, and what it was
+                    nested inside. The edge says which without a word. %>
+                <ol class="cascade">
+                    <% bands.each do |band| %>
+                        <% kind = if band.start_with?("@layer") then "layer"
+                                  elsif band.start_with?("@")   then "condition"
+                                  else                               "nesting"
+                                  end %>
+                        <li class="is-<%= kind %>"><%= band %></li>
+                    <% end %>
+                </ol>
+            </details>
+        <% end %>
     <% end %>
     <% if (unreadable = target["unreadable"]) && !unreadable.empty? %>
         <p class="empty">
@@ -147,7 +175,7 @@
 <h2>State</h2>
 
 <form class="states" method="post" action="<%= to("/#{id}/state", false) %>">
-    <% DebugFeedback::Store::STATES.each do |value| %>
+    <% Corrigenda::Store::STATES.each do |value| %>
         <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
     <% end %>
 </form>

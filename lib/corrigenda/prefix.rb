@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-module DebugFeedback
+module Corrigenda
     # Apache strips the <Location> prefix before proxying, so the app is
-    # served at /.debug-feedback/review but is told only /review. Every
+    # served at /.corrigenda/review but is told only /review. Every
     # link it generated therefore pointed at a path that does not exist
     # on the vhost.
     #

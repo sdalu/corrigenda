@@ -3,7 +3,7 @@
 require "pathname"
 require "yaml"
 
-module DebugFeedback
+module Corrigenda
     # Runtime configuration. One YAML file per deployment; every key has
     # a default, so an absent file is a valid (development) config.
     class Config
@@ -33,7 +33,7 @@ module DebugFeedback
             "origins"        => nil    # nil means "the sites, as https"
         }.freeze
 
-        def self.load(path = ENV["DEBUG_FEEDBACK_CONFIG"])
+        def self.load(path = ENV["CORRIGENDA_CONFIG"])
             new(from_file(path).merge(from_env))
         end
 
@@ -49,8 +49,8 @@ module DebugFeedback
         # allowlist (a local run has no vhost to be on).
         def self.from_env
             values = {}
-            store = ENV["DEBUG_FEEDBACK_STORE"]
-            sites = ENV["DEBUG_FEEDBACK_SITES"]
+            store = ENV["CORRIGENDA_STORE"]
+            sites = ENV["CORRIGENDA_SITES"]
             values["store"] = store unless store.nil?
             values["sites"] = parse_sites(sites) unless sites.nil?
             values

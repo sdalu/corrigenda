@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Debug feedback capture",
+  "name": "Corrigenda capture",
   "version": "0.1.0",
-  "description": "Gives the debug-feedback widget a screenshot the browser can crop: the tab itself, in page coordinates, with no share dialog.",
+  "description": "Gives the corrigenda widget a screenshot the browser can crop: the tab itself, in page coordinates, with no share dialog.",
   "permissions": [
     "activeTab",
     "scripting"

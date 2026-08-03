@@ -1,6 +1,6 @@
 # -*- ruby -*-
 #
-# DebugFeedback endpoint — see DEBUG-FEEDBACK.md
+# Corrigenda endpoint — see CORRIGENDA.md
 # Installed into vendor/ (see .bundle/config), as ops/Cfg does.
 
 source "https://rubygems.org"

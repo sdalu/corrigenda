@@ -18,7 +18,7 @@ const ok   = (message) => console.log('ok   ' + message);
 const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1; };
 
 const panelBox = (page) => page.evaluate(() => {
-    const r = document.querySelector('#debug-feedback-widget').shadowRoot
+    const r = document.querySelector('#corrigenda-widget').shadowRoot
         .querySelector('.panel').getBoundingClientRect();
     return { top: Math.round(r.top), left: Math.round(r.left),
              right: Math.round(r.right), bottom: Math.round(r.bottom),
@@ -26,7 +26,7 @@ const panelBox = (page) => page.evaluate(() => {
 });
 
 const headerAt = (page) => page.evaluate(() => {
-    const r = document.querySelector('#debug-feedback-widget').shadowRoot
+    const r = document.querySelector('#corrigenda-widget').shadowRoot
         .querySelector('header').getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 });
@@ -44,8 +44,8 @@ const dragHeader = async (page, to) => {
 
 const open = async (page, type) => {
     await page.goto(URL, { waitUntil: 'load' });
-    await page.waitForSelector('#debug-feedback-widget .menu:not([hidden])');
-    if (type) await page.click(`#debug-feedback-widget .a-type[value="${type}"]`);
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    if (type) await page.click(`#corrigenda-widget .a-type[value="${type}"]`);
 };
 
 // The shape that broke: a paragraph wrapped in a link, as on the live
@@ -57,11 +57,11 @@ const selectProse = async (page, selector) => {
     await page.mouse.down();
     await page.mouse.move(box.x + 140, box.y + box.height / 2, { steps: 10 });
     await page.mouse.up();
-    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])',
+    await page.waitForSelector('#corrigenda-widget .report:not([hidden])',
                                { timeout: 4000 }).catch(() => {});
     return page.evaluate(() => ({
         path: location.pathname,
-        message: document.querySelector('#debug-feedback-widget')
+        message: document.querySelector('#corrigenda-widget')
             .shadowRoot.querySelector('textarea').value,
     }));
 };
@@ -100,12 +100,12 @@ const check = async (name, browser, executablePath) => {
     await page.mouse.down();
     await page.mouse.up();
     await page.keyboard.press('Enter');
-    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])',
+    await page.waitForSelector('#corrigenda-widget .report:not([hidden])',
                                { timeout: 4000 }).catch(() => {});
     const payload = JSON.parse(await page.textContent(
-        '#debug-feedback-widget .preview'));
+        '#corrigenda-widget .preview'));
     const covers = payload.target && payload.target.covers;
-    const hint = await page.textContent('#debug-feedback-widget .target');
+    const hint = await page.textContent('#corrigenda-widget .target');
     if (!covers || covers.length !== 2)
         fail(`${name}: text report does not name its elements: ` +
              JSON.stringify(covers));
@@ -124,7 +124,7 @@ const check = async (name, browser, executablePath) => {
         link.setAttribute('draggable', 'true');
         return link.getAttribute('draggable');
     });
-    await page.click('#debug-feedback-widget .a-type[value="content"]');
+    await page.click('#corrigenda-widget .a-type[value="content"]');
     const during = await page.evaluate(() =>
         document.querySelector('.index-simplex a').getAttribute('draggable'));
     await page.keyboard.press('Escape');
@@ -159,14 +159,14 @@ const check = async (name, browser, executablePath) => {
     // Parked on the bottom edge, then given more to show. The payload
     // preview is the biggest thing this window can open, and opening it
     // must not push the buttons that send the report off the screen.
-    await page.click('#debug-feedback-widget .a-type[value="idea"]');
-    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="idea"]');
+    await page.waitForSelector('#corrigenda-widget .report:not([hidden])');
     await page.mouse.move(origin.left + 60, origin.top + 10);
     await page.mouse.down();
     await page.mouse.move(500, 2000, { steps: 10 });
     await page.mouse.up();
     const before = await panelBox(page);
-    await page.click('#debug-feedback-widget .a-preview');
+    await page.click('#corrigenda-widget .a-preview');
     await page.waitForTimeout(300);
     const grown = await panelBox(page);
     if (grown.height <= before.height)

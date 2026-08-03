@@ -32,7 +32,7 @@
     </div>
 
     <dl class="legend">
-        <% DebugFeedback::CHANNELS.each do |key, (mark, label)| %>
+        <% Corrigenda::CHANNELS.each do |key, (mark, label)| %>
             <dt><span class="chip" data-channel="<%= key %>"><%= mark %></span></dt>
             <dd><%= label %></dd>
         <% end %>

@@ -2,8 +2,8 @@
 
 require "test_helper"
 
-class HomeTest < DebugFeedbackTest
-    def app = DebugFeedback::Home
+class HomeTest < CorrigendaTest
+    def app = Corrigenda::Home
 
     def setup
         TestSupport.configure
@@ -13,24 +13,24 @@ class HomeTest < DebugFeedbackTest
         get "/"
 
         assert_predicate last_response, :ok?
-        assert_includes last_response.body, "Debug feedback"
+        assert_includes last_response.body, "Corrigenda"
     end
 
     # Built in the browser from location.origin, because the app is not
     # told its public URL by the proxy. The path itself comes from the
     # mount, so this test sees it without a prefix and the deployed page
-    # sees /.debug-feedback/debug-feedback.js.
+    # sees /.corrigenda/corrigenda.js.
     def test_the_bookmarklet_is_assembled_client_side
         get "/"
 
         assert_includes last_response.body, "location.origin"
-        assert_includes last_response.body, "/debug-feedback.js"
+        assert_includes last_response.body, "/corrigenda.js"
     end
 
     # Served by this app rather than from the shared asset tree, so the
     # client and the endpoint that reads its reports ship together.
     def test_it_serves_the_widget
-        get "/debug-feedback.js"
+        get "/corrigenda.js"
 
         assert_predicate last_response, :ok?
         assert_match %r{application/javascript}, last_response.headers["content-type"]
@@ -45,7 +45,7 @@ class HomeTest < DebugFeedbackTest
     # visitors included. Apache lets this through unauthenticated, and a
     # cache header keeps a busy site from asking for it every time.
     def test_the_widget_is_cacheable
-        get "/debug-feedback.js"
+        get "/corrigenda.js"
 
         assert_includes last_response.headers["cache-control"].to_s, "max-age=300"
         refute_nil last_response.headers["last-modified"]
@@ -54,9 +54,9 @@ class HomeTest < DebugFeedbackTest
     # Built from the mount root, so the same masthead works from Home
     # (mounted at /) and Review (mounted at /review).
     def test_it_links_to_the_review_ui_from_the_mount_root
-        get "/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback" }
+        get "/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
 
-        assert_includes last_response.body, %(href="/.debug-feedback/review/")
+        assert_includes last_response.body, %(href="/.corrigenda/review/")
     end
 
     # The suite shares one store, so a count is only meaningful relative

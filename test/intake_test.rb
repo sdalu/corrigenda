@@ -2,8 +2,8 @@
 
 require "test_helper"
 
-class IntakeTest < DebugFeedbackTest
-    def app = DebugFeedback::Intake
+class IntakeTest < CorrigendaTest
+    def app = Corrigenda::Intake
 
     def setup
         TestSupport.configure

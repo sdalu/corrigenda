@@ -3,10 +3,10 @@
 require "json"
 require "sinatra/base"
 
-require_relative "../debug_feedback"
+require_relative "../corrigenda"
 require_relative "prefix"
 
-module DebugFeedback
+module Corrigenda
     # Read-mostly listing of what has been reported. Behind the same
     # Apache auth as the intake; the only write is the state marker.
     class Review < Sinatra::Base

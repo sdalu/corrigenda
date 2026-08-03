@@ -4,11 +4,11 @@ require "test_helper"
 
 # The mounted stack as config.ru builds it: the prefix middleware has to
 # sit outside Rack::URLMap, which appends its own segment to SCRIPT_NAME.
-class PrefixTest < DebugFeedbackTest
+class PrefixTest < CorrigendaTest
     def app
         Rack::Builder.new do
-            use DebugFeedback::Prefix
-            map("/review") { run DebugFeedback::Review }
+            use Corrigenda::Prefix
+            map("/review") { run Corrigenda::Review }
         end.to_app
     end
 
@@ -18,16 +18,16 @@ class PrefixTest < DebugFeedbackTest
     end
 
     def test_links_carry_the_prefix_the_proxy_stripped
-        get "/review/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback" }
+        get "/review/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
 
         assert_includes last_response.body,
-                        %(href="/.debug-feedback/review/#{@id}")
+                        %(href="/.corrigenda/review/#{@id}")
     end
 
     # ProxyPreserveHost is off by default, so an absolute URL would name
     # the backend rather than the vhost.
     def test_links_are_paths_not_absolute_urls
-        get "/review/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback" }
+        get "/review/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
 
         refute_includes last_response.body, "http://localhost/review"
         refute_includes last_response.body, "http://example.org"
@@ -38,9 +38,9 @@ class PrefixTest < DebugFeedbackTest
 # host it believes it has, which is the backend, over http.
 def test_the_state_redirect_is_a_path_not_an_absolute_url
     post "/review/#{@id}/state", { "state" => "wontfix" },
-         { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback" }
+         { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
 
-    assert_equal "/.debug-feedback/review/#{@id}",
+    assert_equal "/.corrigenda/review/#{@id}",
                  last_response.headers["location"]
 end
 
@@ -51,7 +51,7 @@ end
     end
 
     def test_a_trailing_slash_in_the_header_is_not_doubled
-        get "/review/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.debug-feedback/" }
+        get "/review/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda/" }
 
         refute_includes last_response.body, "//review"
     end

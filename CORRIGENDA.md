@@ -1,12 +1,12 @@
-# Debug feedback framework — specification (draft)
+# Corrigenda framework — specification (draft)
 
 Status: **spec; the endpoint is built, the client is not.** Written
 2026-08-02.
 
-Phase 1 of §10 exists and is tested end to end: `lib/debug_feedback/` (intake,
+Phase 1 of §10 exists and is tested end to end: `lib/corrigenda/` (intake,
 store, schema, config), `config.ru`, `views/`, 34 unit tests
 (`bundle exec rake test`), and the client at
-`client/debug-feedback.js` — launcher, menu, element picker
+`client/corrigenda.js` — launcher, menu, element picker
 with keyboard tree navigation, capture switches with live size
 estimates, payload preview, and the gzipped POST. A headless browser
 test (`test/browser/`) drives the real widget against the real endpoint.
@@ -68,10 +68,10 @@ review UI when we choose to. No mail, no XMPP.
 
 | Piece | Location | Role |
 |---|---|---|
-| `debug-feedback.js` | `client/`, served by the service at `/.debug-feedback/debug-feedback.js` — the one path under it that needs no authentication | Whole client: UI, picker, capture, transport |
+| `corrigenda.js` | `client/`, served by the service at `/.corrigenda/corrigenda.js` — the one path under it that needs no authentication | Whole client: UI, picker, capture, transport |
 | CSS | inlined in the JS | Adopted `CSSStyleSheet` in an open shadow root |
-| `debug-feedback` service | one Sinatra app, one Puma | Receives, validates, stores; serves review UI |
-| store | `<data>/debug-feedback/` | One directory per report, plus `index.jsonl` |
+| `corrigenda` service | one Sinatra app, one Puma | Receives, validates, stores; serves review UI |
+| store | `<data>/corrigenda/` | One directory per report, plus `index.jsonl` |
 
 ### No separate CSS file
 
@@ -81,7 +81,7 @@ broken, and its own styles can perturb the layout being diagnosed —
 the measurement changes the measured. An **open shadow root** with an
 adopted stylesheet gives total isolation, drops injection to one
 `<script>` tag, and removes a request. Theming stays possible through
-a handful of `--debug-feedback-*` custom properties, which pierce shadow
+a handful of `--corrigenda-*` custom properties, which pierce shadow
 boundaries by design. The root is open rather than closed: the CSS
 isolation is identical either way, and an open root can be inspected in
 devtools and driven from a test, which a closed one cannot.
@@ -105,7 +105,7 @@ never appear on precisely the sites whose CSS is under investigation.
 
 **B. Bookmarklet — SHIPPED.** Injects the client on demand, on any site
 including staging, with no global module and no page rewriting. With no
-`data-*` attributes the widget falls back to `/.debug-feedback/report/` and
+`data-*` attributes the widget falls back to `/.corrigenda/report/` and
 `location.hostname`, so the POST stays same-origin and inside that
 vhost's auth. See `deploy/`.
 
@@ -124,8 +124,8 @@ for "I am looking at something odd right now"; a testing pass wants (C).
 Configuration rides on the script tag:
 
 ```html
-<script src="/.debug-feedback/debug-feedback.js"
-        data-endpoint="/.debug-feedback/report"
+<script src="/.corrigenda/corrigenda.js"
+        data-endpoint="/.corrigenda/report"
         data-site="www.alux.fr"
         data-build="2026-08-02.3"
         data-lang="fr" defer></script>
@@ -202,7 +202,7 @@ outright.
   leave the machine: picked element + margin, the viewport, or the full
   surface as captured. (A drag rectangle is specified but not built.)
 - **Redaction** — every `input` except checkbox and radio, plus
-  `textarea`, `select` and `[data-debug-feedback-redact]`, is covered before
+  `textarea`, `select` and `[data-corrigenda-redact]`, is covered before
   the image is encoded. **Opaque fill, not blur**: a blur over short,
   low-entropy text can be undone, a filled rectangle cannot. The count
   is shown to the reporter and recorded in the payload.
@@ -250,7 +250,7 @@ Applies before serialisation, at every setting, on a clone:
 
 - drop `<script>`; strip `value`/`checked` from form controls; drop
   `type=password` subtrees entirely
-- replace `[data-debug-feedback-redact]` contents with a marker
+- replace `[data-corrigenda-redact]` contents with a marker
 - truncate `src="data:…"` beyond a few hundred bytes
 - prune to the configured depth, leaving `<!-- 47 more children -->`
 - cap the fragment at ~64 KB
@@ -321,12 +321,12 @@ One Puma process on localhost; every vhost proxies a same-origin path
 to it, inside its own auth macro:
 
 ```apache
-<Macro DebugFeedbackEndpoint>
-    <Location /.debug-feedback>
-        Use DebugFeedbackAuth
+<Macro CorrigendaEndpoint>
+    <Location /.corrigenda>
+        Use CorrigendaAuth
         RequestHeader set X-Remote-User "expr=%{REMOTE_USER}"
-        ProxyPass        unix:/var/run/debug-feedback/debug-feedback.sock|http://127.0.0.1/
-        ProxyPassReverse unix:/var/run/debug-feedback/debug-feedback.sock|http://127.0.0.1/
+        ProxyPass        unix:/var/run/corrigenda/corrigenda.sock|http://127.0.0.1/
+        ProxyPassReverse unix:/var/run/corrigenda/corrigenda.sock|http://127.0.0.1/
     </Location>
 </Macro>
 ```
@@ -334,7 +334,7 @@ to it, inside its own auth macro:
 A unix socket rather than a loopback port, as `kuiristo.eu` and
 `www.sdalu.com` already do here — no port to allocate, and reachability
 is a filesystem permission instead of "any local process may connect".
-`/var/run/debug-feedback/` rather than their `/tmp`, which is world-writable
+`/var/run/corrigenda/` rather than their `/tmp`, which is world-writable
 and lets any local user race the path before the service binds it.
 
 Auth sits **inside** the macro so a vhost opts in with one line and

@@ -3,3 +3,10 @@
 # a download that is not there — so a checkout is never wrong, only
 # unbuilt.
 extension/dist/
+
+# Bundled gems and anything a run wrote. `bundle install --path vendor`
+# puts the gems here, and a development run points its store here; both
+# are made, not authored.
+vendor/
+store/
+.bundle/

@@ -6,7 +6,7 @@ require "pathname"
 require "securerandom"
 require "time"
 
-module DebugFeedback
+module Corrigenda
     # One directory per report under <root>/YYYY/MM/<id>, plus an
     # append-only index.jsonl for listing. The index line is written
     # LAST, so a half-written report is never listed. No database: the

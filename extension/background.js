@@ -17,7 +17,7 @@
  * what it asked for, and the two browsers need no branch on the far side.
  */
 const api = globalThis.browser ?? globalThis.chrome;
-const CAPTURE = "debug-feedback/capture";
+const CAPTURE = "corrigenda/capture";
 
 const validRect = (rect) =>
     rect !== null &&
@@ -71,28 +71,39 @@ const capture = async (message, sender) => {
  * Pages that already carry the widget (MoXoW injects it for some
  * clients) are left alone: the client refuses to mount twice, but
  * fetching the file again for nothing is still a fetch. */
-/* Absolute, and both halves of it. A site does not necessarily mount
- * the service: www.alux.fr does not, and a relative /.debug-feedback/…
- * there is a 404 twice over — once fetching the widget, once posting
- * the report it wrote. The endpoint is named here for the same reason
- * the manifest names the hosts: this add-on belongs to one estate. */
-const ENDPOINT = "https://tools.sdalu.com/.debug-feedback";
-
+/* The page says where its reports go:
+ *
+ *   <link rel="corrigenda" href="https://tools.sdalu.com/.corrigenda">
+ *
+ * which MoXoW emits for any site the widget is configured for, whether
+ * or not that client got the widget itself. So this add-on carries no
+ * endpoint of its own: it is installed once and follows whatever the
+ * estate is doing, including a site that moves its endpoint or mounts
+ * its own. Nothing to rebuild, nothing to reinstall, nothing to drift.
+ *
+ * A page that advertises nothing falls back to its own origin, which is
+ * what the widget assumed before any of this and is right for a site
+ * that mounts the service. If it does not, the report says so plainly
+ * rather than failing silently. */
 const inject = async (tab) => {
     if (tab?.id === undefined) return;
 
     await api.scripting.executeScript({
         target: { tabId: tab.id },
-        args: [`${ENDPOINT}/debug-feedback.js`, `${ENDPOINT}/report/`],
-        func: (src, endpoint) => {
-            if (window.__debugFeedbackLoaded) return;
+        func: () => {
+            if (window.__corrigendaLoaded) return;
+
+            const advertised = document.querySelector(
+                'link[rel="corrigenda"]')?.href;
+            const base = (advertised || "/.corrigenda")
+                .replace(/\/+$/, "");
 
             /* The client reads its configuration off its own tag
              * (document.currentScript), so the endpoint has to be on it
-             * before it runs — not appended afterwards. */
+             * before it runs, not appended afterwards. */
             const script = document.createElement("script");
-            script.src = src;
-            script.dataset.endpoint = endpoint;
+            script.src = `${base}/corrigenda.js`;
+            script.dataset.endpoint = `${base}/report/`;
             document.documentElement.append(script);
         }
     });

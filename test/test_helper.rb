@@ -9,20 +9,20 @@ require "stringio"
 require "tmpdir"
 require "zlib"
 
-require "debug_feedback"
-require "debug_feedback/home"
-require "debug_feedback/intake"
-require "debug_feedback/prefix"
-require "debug_feedback/review"
+require "corrigenda"
+require "corrigenda/home"
+require "corrigenda/intake"
+require "corrigenda/prefix"
+require "corrigenda/review"
 
 # One store per process, pointed at a temporary directory. Both apps read
 # their config at class level, so the override happens once, here.
 module TestSupport
-    ROOT = Dir.mktmpdir("debug-feedback-test")
+    ROOT = Dir.mktmpdir("corrigenda-test")
 
     def self.configure(**overrides)
-        config = DebugFeedback::Config.new({ "store" => ROOT }.merge(overrides))
-        [DebugFeedback::Home, DebugFeedback::Intake, DebugFeedback::Review].each do |app|
+        config = Corrigenda::Config.new({ "store" => ROOT }.merge(overrides))
+        [Corrigenda::Home, Corrigenda::Intake, Corrigenda::Review].each do |app|
             app.set(:feedback_config, config)
         end
         config
@@ -48,10 +48,10 @@ end
 
 TestSupport.configure
 
-class DebugFeedbackTest < Minitest::Test
+class CorrigendaTest < Minitest::Test
     include Rack::Test::Methods
 
-    def store = @store ||= DebugFeedback::Store.new(TestSupport::ROOT)
+    def store = @store ||= Corrigenda::Store.new(TestSupport::ROOT)
 
     def post_json(document)
         post "/", JSON.generate(document),

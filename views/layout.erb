@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Debug feedback</title>
+<title>Corrigenda</title>
 <style>
 /* The estate's own faces, served by the same vhost. Absent (a local run
    with no /common alias) the stacks below fall back and nothing breaks. */
@@ -49,6 +49,26 @@
         --rule:   light-dark(oklch(87%   0.008 95),  oklch(33% 0.014 265));
         --signal: light-dark(oklch(72%   0.15  70),  oklch(78% 0.14  70));
         --link:   light-dark(oklch(45%   0.12 250),  oklch(80% 0.10 250));
+
+        /* Lifted from the widget, value for value: the same three hues
+           it outlines a parent, a child and a sibling with while you
+           pick. Repeated rather than shared because there is nothing to
+           share them through — one lives in a shadow root on somebody
+           else's page — so they are written once here and once there,
+           and changing one means changing both. */
+        --parent:  light-dark(oklch(62% 0.16 55),  oklch(74% 0.15 55));
+        --child:   light-dark(oklch(52% 0.14 150), oklch(70% 0.14 150));
+        --sibling: light-dark(oklch(55% 0.18 305), oklch(74% 0.15 305));
+
+        /* The three kinds of cascade band. Blue and teal were 55° apart
+           and a low-chroma grey read as a third shade of the same idea;
+           at 2px, on a panel, that is three greys. So they are pulled
+           to opposite ends of the wheel and given a second axis as
+           well — nesting is dotted, not merely paler, which survives
+           both a small edge and a reader who does not separate hues. */
+        --band-layer:     light-dark(oklch(45% 0.19 285), oklch(76% 0.15 285));
+        --band-condition: light-dark(oklch(58% 0.16 145), oklch(72% 0.15 145));
+        --band-nesting:   light-dark(oklch(55% 0.02 265), oklch(62% 0.02 265));
 
         --display: "PT Sans Narrow", "PT Sans", ui-sans-serif, sans-serif;
         --body:    "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
@@ -189,8 +209,29 @@
             border-inline-start: 2px solid var(--rule);
         }
 
+        /* One hue per kind of band, because they answer three different
+           questions: where in the cascade, under what condition, and
+           inside what. The prefix says it too — @layer, @media — but
+           the edge says it before you read, which is the point of a
+           stack you scan rather than parse. */
+        .is-layer {
+            border-inline-start: 3px solid var(--band-layer);
+        }
+
+        .is-condition {
+            border-inline-start: 3px solid var(--band-condition);
+        }
+
+        /* Dotted, and only 2px: nesting is not a third colour, it is
+           the absence of one. Nothing had to be true for it — the rule
+           was simply written inside something. */
+        .is-nesting {
+            border-inline-start: 2px dotted var(--band-nesting);
+        }
+
         li:nth-child(2) { margin-inline-start: 0.9rem; }
         li:nth-child(3) { margin-inline-start: 1.8rem; }
+        li:nth-child(4) { margin-inline-start: 2.7rem; }
 
         .is-selector {
             border-inline-start-color: var(--signal);
@@ -206,6 +247,64 @@
     }
 
     .cascade + .cascade { margin-block-start: 0.9rem; }
+
+    /* One matched rule. The summary carries the selector and wears the
+       signal edge the strata used to end on, so a closed list still
+       reads as a stack of rules that matched. Open, the context steps
+       out beneath it exactly as before. */
+    .rule {
+        max-inline-size: var(--measure);
+        margin-block-start: 0.4rem;
+        font-family: var(--mono);
+        font-size: 0.875rem;
+
+        summary, &.is-bare {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem 0.7rem;
+            align-items: baseline;
+            padding: 0.4rem 0.7rem;
+            background: var(--panel);
+            border-inline-start: 2px solid var(--signal);
+            cursor: pointer;
+        }
+
+        /* A flex summary loses the marker the browser would have drawn,
+           and a disclosure with nothing to disclose it by is a row that
+           happens to react to clicks. The bare rule gets a space in its
+           place, so the selectors line up down the column. */
+        summary::before {
+            content: "▸";
+            color: var(--muted);
+        }
+
+        &[open] summary::before { content: "▾"; }
+
+        &.is-bare {
+            cursor: default;
+
+            &::before { content: "·"; color: var(--rule); }
+        }
+
+        .selector { font-weight: 500; }
+
+        .where, .depth {
+            font-family: var(--body);
+            font-size: 0.8125rem;
+            color: var(--muted);
+        }
+
+        /* Pushed to the end, where it reads as an aside rather than as
+           part of the selector. */
+        .depth { margin-inline-start: auto; }
+
+        .cascade {
+            margin-block-start: 2px;
+            margin-inline-start: 0.9rem;
+        }
+
+        &[open] summary { border-inline-start-color: var(--ink); }
+    }
 
     /* Siblings, not strata: these elements are a flat list of what one
        report is about, so nothing here steps to the right the way the
@@ -298,6 +397,62 @@
         .how, .weight {
             font-size: 0.875rem;
             color: var(--muted);
+        }
+    }
+
+    /* Four boxes, because they are four choices made at the same moment
+       — read against each other rather than down a list. They hold
+       their own row while there is room for four and fold in pairs
+       before they fold flat. */
+    .kinds {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+        gap: var(--space);
+        margin-block-start: 0.75rem;
+
+        /* Three of something wants a wider track than four of it, or
+           auto-fit puts four across and leaves one short. */
+        &.is-three {
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+        }
+
+        > div {
+            display: grid;
+            /* The prose settles to the bottom, so the marks line up
+               across boxes whatever the descriptions do. */
+            grid-template-rows: auto 1fr;
+            padding: 0.9rem 1rem;
+            background: var(--panel);
+            border: 1px solid var(--rule);
+        }
+
+        dt {
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 1.0625rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .purpose {
+            display: block;
+            font-family: var(--body);
+            font-size: 0.875rem;
+            font-weight: 400;
+            letter-spacing: 0;
+            text-transform: none;
+            color: var(--muted);
+        }
+
+        dd { margin: 0.6rem 0 0; }
+
+        .marks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.2rem;
+            margin-block-end: 0.5rem;
+
+            .empty { padding: 0; font-size: 0.875rem; }
         }
     }
 
@@ -470,6 +625,31 @@
         padding-inline: 0.35em;
         border: 1px solid var(--rule);
         border-radius: 2px;
+
+        /* One hue per relation, the same three the picker draws on the
+           page and puts on its own help bar. A key that walks the tree
+           is dressed as the box it will draw; a key that does not —
+           Enter, Esc — keeps the plain border, which is the difference
+           being shown. */
+        &.k-parent, &.k-child, &.k-sibling {
+            border-width: 2px;
+            font-weight: 500;
+        }
+
+        &.k-parent {
+            border-color: var(--parent);
+            background: color-mix(in oklab, var(--parent) 20%, transparent);
+        }
+
+        &.k-child {
+            border-color: var(--child);
+            background: color-mix(in oklab, var(--child) 20%, transparent);
+        }
+
+        &.k-sibling {
+            border-color: var(--sibling);
+            background: color-mix(in oklab, var(--sibling) 20%, transparent);
+        }
     }
 
     .bookmarklet-source { white-space: pre-wrap; word-break: break-all; }
@@ -514,9 +694,12 @@
 <body>
 <div class="page<%= " is-wide" if @wide %>">
     <header class="masthead">
-        <p class="eyebrow">Debug feedback</p>
+        <p class="eyebrow">Corrigenda</p>
         <nav>
-            <a href="<%= mount("/") %>">Bookmarklet</a>
+            <%# Named for the page, not for one thing on it: the
+                bookmarklet shares it with the add-on, the four kinds of
+                report, and how to point a site here. %>
+            <a href="<%= mount("/") %>">Guide</a>
             <a href="<%= mount("/review/") %>">Reports</a>
         </nav>
     </header>

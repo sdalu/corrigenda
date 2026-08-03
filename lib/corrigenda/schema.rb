@@ -2,7 +2,7 @@
 
 require "dry-schema"
 
-module DebugFeedback
+module Corrigenda
     TYPES = %w[visual content broken idea question].freeze
 
     # Letter, then the word it stands for. The keys are the payload's
@@ -25,7 +25,7 @@ module DebugFeedback
     # been taught about it yet.
     ReportSchema = Dry::Schema.JSON do
         required(:schema).value(:integer, included_in?: [1])
-        required(:type).value(:string, included_in?: DebugFeedback::TYPES)
+        required(:type).value(:string, included_in?: Corrigenda::TYPES)
 
         required(:page).hash do
             required(:url).filled(:string, max_size?: 2048)

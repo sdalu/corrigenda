@@ -1,21 +1,31 @@
-# Install as /usr/local/etc/debug-feedback.yml. ../run reads this file
+# Install as /usr/local/etc/corrigenda.yml. ../run reads this file
 # too, so there is one config and no second copy to drift.
 
 # Where reports are written. Whoever starts ../run must be able to write
 # here, and Apache never touches it.
+# Still the old name: this is a ZFS dataset (data/web/debug-feedback),
+# and a dataset is renamed with zfs, not with mv. Until it is, pointing
+# here at /var/db/corrigenda would not fail — the service would create
+# a plain directory over the mountpoint and start an empty store beside
+# the real one, which is worse than a stale name. Rename it with
+#
+#   zfs rename data/web/debug-feedback data/web/corrigenda
+#   zfs set mountpoint=/var/db/corrigenda data/web/corrigenda
+#
+# and change this line in the same breath.
 store: /var/db/debug-feedback
 
 # Listened on by default. Apache proxies to it (see
-# macro-debug-feedback.conf); ../run -p PORT overrides it for a run you
+# macro-corrigenda.conf); ../run -p PORT overrides it for a run you
 # want to reach with a browser directly.
-socket: /var/run/debug-feedback/debug-feedback.sock
+socket: /var/run/corrigenda/corrigenda.sock
 
 # Where this service answers, as the public URL a site is pointed at.
 # The app cannot work this out for itself — it is behind a proxy that
 # strips the path it is served under — and nothing it does depends on
 # it: this is what the landing page quotes when it tells you how to
 # point a site here.
-endpoint: https://tools.sdalu.com/.debug-feedback
+endpoint: https://tools.sdalu.com/.corrigenda
 
 # What a report may claim to be about. One naming a site outside this
 # list is refused, so the endpoint cannot be used as free storage.
@@ -41,6 +51,6 @@ sites:
 #
 # A cross-origin report is refused by the browser, not by this service,
 # when its origin is not here: the answer to the preflight simply does
-# not name it. See the CORS section of macro-debug-feedback.conf for the
+# not name it. See the CORS section of macro-corrigenda.conf for the
 # other half — Apache must let an unauthenticated OPTIONS through, since
 # a preflight carries no credentials.

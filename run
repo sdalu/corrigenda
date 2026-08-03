@@ -6,8 +6,8 @@
 # Nothing restarts it on boot or after a crash. If that matters, run it
 # under a supervisor or a terminal multiplexer -- see deploy/README.md.
 #
-# Defaults come from deploy/debug-feedback.yml, the same file installed
-# at /usr/local/etc/debug-feedback.yml; flags override them.
+# Defaults come from deploy/corrigenda.yml, the same file installed
+# at /usr/local/etc/corrigenda.yml; flags override them.
 
 set -e
 
@@ -15,7 +15,7 @@ usage() {
     cat <<'EOF'
 usage: run [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
 
-  -c CONFIG  config to read (default deploy/debug-feedback.yml)
+  -c CONFIG  config to read (default deploy/corrigenda.yml)
   -p PORT    listen on 127.0.0.1:PORT instead of the configured socket
   -s SOCKET  listen on this unix socket
   -d STORE   write reports here instead of the configured store
@@ -54,7 +54,7 @@ done
 
 cd "$(dirname "$0")"
 
-: "${conf:=deploy/debug-feedback.yml}"
+: "${conf:=deploy/corrigenda.yml}"
 
 if ! bundle check >/dev/null 2>&1; then
     echo "run: gems are not installed -- run: bundle install" >&2
@@ -109,15 +109,15 @@ if [ -n "$socket" ]; then
              end' "$socket"
 fi
 
-DEBUG_FEEDBACK_CONFIG="$conf"
-DEBUG_FEEDBACK_STORE="$store"
-export DEBUG_FEEDBACK_CONFIG DEBUG_FEEDBACK_STORE
+CORRIGENDA_CONFIG="$conf"
+CORRIGENDA_STORE="$store"
+export CORRIGENDA_CONFIG CORRIGENDA_STORE
 
 # Empty means "no allowlist" rather than "unset", so this relaxes only
 # the run that asked for the fixture.
 if [ -n "$fixture" ]; then
-    DEBUG_FEEDBACK_SITES=""
-    export DEBUG_FEEDBACK_SITES
+    CORRIGENDA_SITES=""
+    export CORRIGENDA_SITES
 fi
 
 if [ -n "$socket" ]; then

@@ -2,9 +2,9 @@
 
 require "test_helper"
 
-class StoreTest < DebugFeedbackTest
+class StoreTest < CorrigendaTest
     def setup
-        @store = DebugFeedback::Store.new(Dir.mktmpdir("store-test"))
+        @store = Corrigenda::Store.new(Dir.mktmpdir("store-test"))
     end
 
     def test_save_returns_a_sortable_dated_id
@@ -34,7 +34,7 @@ class StoreTest < DebugFeedbackTest
     end
 
     def test_bad_ids_are_refused_rather_than_escaping_the_store
-        assert_raises(DebugFeedback::StorageError) { @store.dir_for("../../etc") }
+        assert_raises(Corrigenda::StorageError) { @store.dir_for("../../etc") }
     end
 
     def test_attachments_are_written_beside_the_report
@@ -55,7 +55,7 @@ class StoreTest < DebugFeedbackTest
     def test_unknown_states_are_refused
         id = @store.save(TestSupport.document)
 
-        assert_raises(DebugFeedback::StorageError) { @store.mark(id, "maybe") }
+        assert_raises(Corrigenda::StorageError) { @store.mark(id, "maybe") }
     end
 
     def test_entries_are_newest_first_and_carry_current_state
@@ -70,6 +70,6 @@ class StoreTest < DebugFeedbackTest
     end
 
     def test_entries_is_empty_before_anything_is_reported
-        assert_empty DebugFeedback::Store.new(Dir.mktmpdir).entries
+        assert_empty Corrigenda::Store.new(Dir.mktmpdir).entries
     end
 end

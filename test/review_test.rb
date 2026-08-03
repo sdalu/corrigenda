@@ -2,8 +2,8 @@
 
 require "test_helper"
 
-class ReviewTest < DebugFeedbackTest
-    def app = DebugFeedback::Review
+class ReviewTest < CorrigendaTest
+    def app = Corrigenda::Review
 
     def setup
         TestSupport.configure
@@ -46,13 +46,48 @@ class ReviewTest < DebugFeedbackTest
     end
 
     # The cascade context is the point of the field: which layer and
-    # which media query had to hold for the rule to apply.
+    # which media query had to hold for the rule to apply. It opens from
+    # the selector now — a report on a heavily styled element carries a
+    # dozen rules, and a dozen four-line blocks is a wall — so the
+    # selector is in the summary and the strata are what unfolds.
     def test_the_detail_shows_the_cascade_context
         get "/#{@id}"
 
-        assert_includes last_response.body, "<li>@layer components</li>"
-        assert_includes last_response.body, "<li>@media (width &gt; 20rem)</li>"
-        assert_includes last_response.body, %(<li class="is-selector">.caption)
+        # Each band says which of the three kinds it is, so the edge can
+        # be coloured by what it answers: which layer, under what
+        # condition, inside what.
+        assert_includes last_response.body,
+                        %(<li class="is-layer">@layer components</li>)
+        assert_includes last_response.body,
+                        %(<li class="is-condition">@media (width &gt; 20rem)</li>)
+        assert_includes last_response.body, %(<span class="selector">.caption)
+        assert_includes last_response.body, "2 deep"
+    end
+
+    def test_a_nested_selector_band_is_marked_as_nesting
+        id = store.save(TestSupport.document(
+            "target" => { "selector" => "li",
+                          "rules" => [{ "selector" => "& li",
+                                        "context" => "@layer base / .crumbs",
+                                        "href" => "/style/main.css" }] }))
+
+        get "/#{id}"
+
+        assert_includes last_response.body, %(<li class="is-nesting">.crumbs</li>)
+    end
+
+    # A rule that matched with no layer and no query has nothing to
+    # unfold, and is not dressed as though it had.
+    def test_a_rule_without_context_is_not_a_disclosure
+        id = store.save(TestSupport.document(
+            "target" => { "selector" => "p",
+                          "rules" => [{ "selector" => ".plain", "context" => "",
+                                        "href" => "/style/main.css" }] }))
+
+        get "/#{id}"
+
+        assert_includes last_response.body, %(<p class="rule is-bare">)
+        refute_includes last_response.body, %(<details class="rule">\n                <summary>\n                    <span class="selector">.plain)
     end
 
     # The review UI renders strings a browser sent us. escape_html only

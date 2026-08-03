@@ -45,7 +45,7 @@ const check = async (name, browser, executablePath, args) => {
     });
 
     // point the widget at the other origin, the way MoXoW's
-    // debug-feedback="https://tools.sdalu.com|..." does
+    // corrigenda="https://tools.sdalu.com|..." does
     await page.route(`${PAGE}/fixture.html`, async (route) => {
         const response = await route.fetch();
         const html = (await response.text()).replace(
@@ -55,18 +55,18 @@ const check = async (name, browser, executablePath, args) => {
     });
 
     await page.goto(`${PAGE}/fixture.html`, { waitUntil: 'load' });
-    await page.waitForSelector('#debug-feedback-widget .menu:not([hidden])');
-    await page.click('#debug-feedback-widget .a-type[value="idea"]');
-    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])');
-    await page.fill('#debug-feedback-widget textarea',
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="idea"]');
+    await page.waitForSelector('#corrigenda-widget .report:not([hidden])');
+    await page.fill('#corrigenda-widget textarea',
                     'sent across origins');
-    await page.click('#debug-feedback-widget .a-send');
+    await page.click('#corrigenda-widget .a-send');
     await page.waitForFunction(() => {
-        const r = document.querySelector('#debug-feedback-widget').shadowRoot;
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
         return !r.querySelector('.result').hidden;
     }, null, { timeout: 10000 }).catch(() => {});
 
-    const said = (await page.textContent('#debug-feedback-widget .result')).trim();
+    const said = (await page.textContent('#corrigenda-widget .result')).trim();
 
     if (!/Sent\. Reference: \d{8}T/.test(said))
         fail(`${name}: a cross-origin report did not land: ${said}`);

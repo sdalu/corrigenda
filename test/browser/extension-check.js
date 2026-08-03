@@ -32,7 +32,7 @@ const stub = (grants) => `
     // so it still reads the marker before it draws anything.
     (function mark() {
         if (document.documentElement) {
-            document.documentElement.dataset.debugFeedbackCapture = "0.1.0-stub";
+            document.documentElement.dataset.corrigendaCapture = "0.1.0-stub";
         } else {
             setTimeout(mark, 0);
         }
@@ -40,9 +40,9 @@ const stub = (grants) => `
     window.__captureAsks = [];
     addEventListener("message", (event) => {
         const m = event.data;
-        if (event.source !== window || m?.source !== "debug-feedback") return;
+        if (event.source !== window || m?.source !== "corrigenda") return;
         const reply = (payload) => postMessage(
-            { source: "debug-feedback-extension", id: m.id, ...payload }, origin);
+            { source: "corrigenda-extension", id: m.id, ...payload }, origin);
 
         if (m.type === "ping") return reply({ type: "pong", version: "stub" });
         if (m.type !== "capture") return;
@@ -70,8 +70,8 @@ const stub = (grants) => `
 const open = async (page, grants) => {
     await page.addInitScript(stub(grants));
     await page.goto(URL, { waitUntil: 'load' });
-    await page.waitForSelector('#debug-feedback-widget .menu:not([hidden])');
-    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
 };
 
@@ -79,15 +79,15 @@ const shoot = async (page) => {
     // Wait for the capture itself, not for the words next to it: the
     // status already says which scope is selected before the shutter,
     // and which text lands first is a race the test kept losing.
-    await page.click('#debug-feedback-widget .a-shot');
-    await page.waitForSelector('#debug-feedback-widget .shot-preview:not([hidden])',
+    await page.click('#corrigenda-widget .a-shot');
+    await page.waitForSelector('#corrigenda-widget .shot-preview:not([hidden])',
                                { timeout: 10000 }).catch(() => {});
-    await page.waitForFunction(() => !document.querySelector('#debug-feedback-widget')
+    await page.waitForFunction(() => !document.querySelector('#corrigenda-widget')
         .shadowRoot.querySelector('.a-shot').disabled,
         null, { timeout: 5000 }).catch(() => {});
 
     return page.evaluate(() => {
-        const r = document.querySelector('#debug-feedback-widget').shadowRoot;
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
         const preview = r.querySelector('.shot-preview');
         return { status: r.querySelector('.shot-status').textContent.trim(),
                  captured: !preview.hidden,
@@ -109,7 +109,7 @@ const check = async (name, browser, executablePath) => {
     });
     await open(page, 'rect');
     const scopes = await page.evaluate(() => [...document.querySelector(
-        '#debug-feedback-widget').shadowRoot.querySelectorAll('.scope input')]
+        '#corrigenda-widget').shadowRoot.querySelectorAll('.scope input')]
         .map((input) => !input.disabled));
     const first = await shoot(page);
 
@@ -122,7 +122,7 @@ const check = async (name, browser, executablePath) => {
     else ok(`${name}: captured through the bridge, all three scopes offered`);
 
     // 2. asking for the whole document asks for the whole document
-    await page.click('#debug-feedback-widget .scope-option[data-scope="full"]');
+    await page.click('#corrigenda-widget .scope-option[data-scope="full"]');
     const full = await shoot(page);
     const asked = full.asks.at(-1);
     const wanted = await page.evaluate(() => ({
@@ -140,7 +140,7 @@ const check = async (name, browser, executablePath) => {
     //    cropped as though it had given the page
     page = await instance.newPage({ viewport: { width: 900, height: 700 } });
     await open(page, 'viewport');
-    await page.click('#debug-feedback-widget .scope-option[data-scope="full"]');
+    await page.click('#corrigenda-widget .scope-option[data-scope="full"]');
     const partial = await shoot(page);
     if (!partial.captured) fail(`${name}: viewport-only capture produced nothing`);
     else if (!/visible page only/i.test(partial.status))

@@ -1,4 +1,4 @@
-# Debug feedback capture — the browser add-on
+# Corrigenda capture — the browser add-on
 
 The widget works without this. What the add-on adds is the one thing a
 page cannot do for itself: **photograph its own tab**.

@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require_relative "lib/debug_feedback/home"
-require_relative "lib/debug_feedback/intake"
-require_relative "lib/debug_feedback/prefix"
-require_relative "lib/debug_feedback/review"
+require_relative "lib/corrigenda/home"
+require_relative "lib/corrigenda/intake"
+require_relative "lib/corrigenda/prefix"
+require_relative "lib/corrigenda/review"
 
 # Before the maps: Rack::URLMap appends its own segment to SCRIPT_NAME,
 # so the outer prefix has to be in place first.
-use DebugFeedback::Prefix
+use Corrigenda::Prefix
 
-map("/report") { run DebugFeedback::Intake }
-map("/review") { run DebugFeedback::Review }
-map("/")       { run DebugFeedback::Home }
+map("/report") { run Corrigenda::Intake }
+map("/review") { run Corrigenda::Review }
+map("/")       { run Corrigenda::Home }

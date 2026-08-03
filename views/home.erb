@@ -9,8 +9,8 @@
 <figure class="specimen">
     <figcaption>Every visual report carries this</figcaption>
     <ol class="cascade">
-        <li>@layer components</li>
-        <li>@media (width &gt; 20rem)</li>
+        <li class="is-layer">@layer components</li>
+        <li class="is-condition">@media (width &gt; 20rem)</li>
         <li class="is-selector">.caption
             <span class="where">/common/style/exhibition-standard.css</span>
         </li>
@@ -25,7 +25,7 @@
     the address bar will not work — browsers strip it.
 </p>
 
-<p><a class="bookmarklet" href="#">Debug feedback</a></p>
+<p><a class="bookmarklet" href="#">Corrigenda</a></p>
 
 <details>
     <summary>Copy the URL instead</summary>
@@ -83,71 +83,127 @@
 
 <p>
     The kind sets what gets collected and how you point at the problem.
-    Every switch is still yours to change before sending.
+    The marks are what it switches on for you; every one of them is
+    still yours to change before sending.
 </p>
 
-<dl class="railed">
-    <dt>Visual</dt>
-    <dd>
-        The element, the rules that matched it and the layer or media
-        query they came from, computed styles, geometry, the
-        accessibility check, and the screenshot control. For how the page
-        renders: overlap, spacing, colour, a layout that breaks at a
-        width.
-    </dd>
+<%
+    # The defaults the widget applies, in the same order and the same
+    # letters it shows on its own menu — WANTED in the client.
+    kinds = [
+        ["Visual", "how it looks",
+         %w[fragment rules computed diagnostics audit screenshot],
+         "The element, the rules that matched it and the layer or media " \
+         "query they came from, computed styles, geometry, the " \
+         "accessibility check, and the screenshot control. For overlap, " \
+         "spacing, colour, a layout that breaks at a width."],
 
-    <dt>Content</dt>
-    <dd>
-        Wording, typos, a stale fact. <strong>Select the text first</strong>
-        and the picker is skipped: the words are quoted into the message
-        and the element holding them is recorded. Sends the element and
-        nothing else — computed styles say nothing about a spelling
-        mistake.
-    </dd>
+        ["Content", "the words are wrong",
+         %w[fragment],
+         "Wording, typos, a stale fact. <strong>Select the text " \
+         "first</strong> and the picker is skipped: the words are quoted " \
+         "into the message and the elements holding them are recorded. " \
+         "The element and nothing else — computed styles say nothing " \
+         "about a spelling mistake."],
 
-    <dt>Broken</dt>
-    <dd>
-        Behaviour rather than appearance: a control that does nothing, an
-        image that never arrives, a script that threw. Adds the
-        diagnostics — JavaScript errors and failed loads collected since
-        the page opened, and whether it overflows sideways.
-    </dd>
+        ["Broken", "it does not work",
+         %w[fragment diagnostics],
+         "Behaviour rather than appearance: a control that does nothing, " \
+         "an image that never arrives, a script that threw. Adds the " \
+         "JavaScript errors and failed loads collected since the page " \
+         "opened, and whether it overflows sideways."],
 
-    <dt>Idea</dt>
-    <dd>
-        No element, no picker, no capture. The message and the page you
-        were on.
-    </dd>
+        ["Idea", "suggestion or question",
+         [],
+         "No element, no picker, no capture. The message and the page " \
+         "you were on."]
+    ]
+%>
+
+<dl class="kinds">
+    <% kinds.each do |name, purpose, channels, what| %>
+        <div>
+            <dt><%= name %><span class="purpose"><%= purpose %></span></dt>
+            <dd>
+                <p class="marks">
+                    <% if channels.empty? %>
+                        <span class="empty">nothing but the message</span>
+                    <% else %>
+                        <% channels.each do |key| %>
+                            <span class="chip" data-channel="<%= key %>"
+                                  title="<%= Corrigenda::CHANNELS[key][1] %>"><%=
+                                  Corrigenda::CHANNELS[key][0] %></span>
+                        <% end %>
+                    <% end %>
+                </p>
+                <p><%== what %></p>
+            </dd>
+        </div>
+    <% end %>
+</dl>
+
+<%# The same legend the reports list carries, and the same letters the
+    widget puts on its own menu: six marks learned once. %>
+<dl class="legend">
+    <% Corrigenda::CHANNELS.each do |key, (mark, label)| %>
+        <dt><span class="chip" data-channel="<%= key %>"><%= mark %></span></dt>
+        <dd><%= label %></dd>
+    <% end %>
 </dl>
 
 <h2>Driving it</h2>
 
-<dl class="railed">
-    <dt>Picking</dt>
-    <dd>
-        Click the element. The arrow keys walk the tree — <kbd>↑</kbd>
-        parent, <kbd>↓</kbd> first child, <kbd>←</kbd> <kbd>→</kbd>
-        siblings — because what you want is usually the container, not
-        the leaf the mouse can reach. <kbd>Enter</kbd> locks it,
-        <kbd>Esc</kbd> cancels.
-    </dd>
+<dl class="kinds is-three">
+    <div>
+        <dt>Picking<span class="purpose">point at the problem</span></dt>
+        <dd>
+            <%# The same three hues the picker outlines the page with,
+                and the same ones on its own help bar: a key is dressed
+                as the box it will draw, so the colour is read rather
+                than remembered. %>
+            <p class="marks">
+                <kbd class="k-parent">↑</kbd> parent
+                <kbd class="k-child">↓</kbd> child
+                <kbd class="k-sibling">←</kbd>
+                <kbd class="k-sibling">→</kbd> siblings
+            </p>
+            <p>
+                Click the element; the arrow keys walk the tree from
+                there, because what you want is usually the container
+                and not the leaf the mouse can reach.
+                <kbd>Enter</kbd> locks it, <kbd>Esc</kbd> cancels — and
+                a drag draws a region instead.
+            </p>
+        </dd>
+    </div>
 
-    <dt>Sending</dt>
-    <dd>
-        Each channel is a switch showing its own size, and
-        <em>Show exactly what will be sent</em> renders the payload
-        first. Form values, password fields and anything marked
-        <code>data-debug-feedback-redact</code> never leave the page.
-    </dd>
+    <div>
+        <dt>Sending<span class="purpose">nothing you did not see</span></dt>
+        <dd>
+            <p>
+                Each channel is a switch showing its own size, and
+                <em>what will be sent</em> renders the exact payload
+                before it goes. Form values, password fields and
+                anything marked
+                <code>data-corrigenda-redact</code> never leave the
+                page.
+            </p>
+        </dd>
+    </div>
 
-    <dt>Screenshots</dt>
-    <dd>
-        Captured through the browser's own screen-capture permission, so
-        the image is your real rendering. Share <strong>this tab</strong>
-        rather than a window or a screen: cropping and the bars over form
-        fields only work when the frame maps to the page, and the widget
-        says so when it cannot.
-    </dd>
+    <div>
+        <dt>Screenshots<span class="purpose">your real rendering</span></dt>
+        <dd>
+            <p>
+                Taken through the browser's own capture permission, so
+                the image is the page as it actually drew — not a
+                redrawing of how it was meant to look. Cropping to the
+                element and the bars over form fields need a frame that
+                maps to the page: share <strong>this tab</strong>, or
+                install the add-on and skip the question.
+            </p>
+        </dd>
+    </div>
 </dl>
 
 <h2>Where it works</h2>
@@ -185,9 +241,9 @@
         <dd>
             <p>A site that does not mount this service names it before
             the vertical bar, and says who gets the widget after it:</p>
-            <pre><code>&lt;m:framework debug-feedback="<%= endpoint.sub(%r{/\.debug-feedback\z}, "") %>|yes"/&gt;</code></pre>
+            <pre><code>&lt;m:framework corrigenda="<%= endpoint.sub(%r{/\.corrigenda\z}, "") %>|yes"/&gt;</code></pre>
             <p>A site that does mount it (<code>Use
-            DebugFeedbackEndpoint</code> in its vhost) leaves the
+            CorrigendaEndpoint</code> in its vhost) leaves the
             endpoint out and posts to its own origin, which needs no
             CORS.</p>
         </dd>
@@ -214,7 +270,7 @@
     /* The app is behind a proxy and is not told its public URL. The
        browser knows it: this page came from it. */
     (function () {
-        var src = location.origin + "<%= mount("/debug-feedback.js") %>";
+        var src = location.origin + "<%= mount("/corrigenda.js") %>";
         var code = "javascript:(function(){var s=document.createElement('script');" +
                    "s.src='" + src + "';document.body.appendChild(s);})();";
         document.querySelector(".bookmarklet").href = code;

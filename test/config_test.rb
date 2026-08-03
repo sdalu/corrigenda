@@ -9,17 +9,17 @@ class ConfigTest < Minitest::Test
     end
 
     def teardown
-        ENV.delete("DEBUG_FEEDBACK_STORE")
-        ENV.delete("DEBUG_FEEDBACK_SITES")
+        ENV.delete("CORRIGENDA_STORE")
+        ENV.delete("CORRIGENDA_SITES")
     end
 
     def test_an_absent_file_is_a_valid_config
         assert_equal Pathname("store"),
-                     DebugFeedback::Config.load("/nowhere/at/all").store_path
+                     Corrigenda::Config.load("/nowhere/at/all").store_path
     end
 
     def test_the_file_is_read
-        config = DebugFeedback::Config.load(@file)
+        config = Corrigenda::Config.load(@file)
 
         assert_equal Pathname("/from/the/file"), config.store_path
         assert_equal 99, config.max_report
@@ -28,8 +28,8 @@ class ConfigTest < Minitest::Test
     # So one config can be pointed at another store without a second copy
     # of it being written somewhere.
     def test_the_environment_overrides_the_store_and_nothing_else
-        ENV["DEBUG_FEEDBACK_STORE"] = "/from/the/env"
-        config = DebugFeedback::Config.load(@file)
+        ENV["CORRIGENDA_STORE"] = "/from/the/env"
+        config = Corrigenda::Config.load(@file)
 
         assert_equal Pathname("/from/the/env"), config.store_path
         assert_equal 99, config.max_report
@@ -37,8 +37,8 @@ class ConfigTest < Minitest::Test
 
     def test_the_environment_can_replace_the_allowlist
         File.write(@file, "sites:\n  - a.test\n")
-        ENV["DEBUG_FEEDBACK_SITES"] = "b.test, c.test"
-        config = DebugFeedback::Config.load(@file)
+        ENV["CORRIGENDA_SITES"] = "b.test, c.test"
+        config = Corrigenda::Config.load(@file)
 
         assert config.site_allowed?("b.test")
         refute config.site_allowed?("a.test")
@@ -48,28 +48,28 @@ class ConfigTest < Minitest::Test
     # which is what a local run needs against a production config.
     def test_an_empty_environment_list_accepts_any_site
         File.write(@file, "sites:\n  - a.test\n")
-        ENV["DEBUG_FEEDBACK_SITES"] = ""
+        ENV["CORRIGENDA_SITES"] = ""
 
-        assert DebugFeedback::Config.load(@file).site_allowed?("anything.test")
+        assert Corrigenda::Config.load(@file).site_allowed?("anything.test")
     end
 
     def test_a_site_list_is_what_makes_a_site_refusable
-        assert DebugFeedback::Config.new.site_allowed?("anything.test")
-        refute DebugFeedback::Config.new("sites" => ["a.test"])
+        assert Corrigenda::Config.new.site_allowed?("anything.test")
+        refute Corrigenda::Config.new("sites" => ["a.test"])
                                     .site_allowed?("b.test")
     end
 
     # The origins that may post from elsewhere are the sites that may be
     # reported on: one list, so there is nothing to fall out of step.
     def test_an_origin_is_allowed_when_its_site_is
-        config = DebugFeedback::Config.new("sites" => ["a.test"])
+        config = Corrigenda::Config.new("sites" => ["a.test"])
 
         assert config.origin_allowed?("https://a.test")
         refute config.origin_allowed?("https://b.test")
     end
 
     def test_only_https_origins_are_allowed
-        config = DebugFeedback::Config.new("sites" => ["a.test"])
+        config = Corrigenda::Config.new("sites" => ["a.test"])
 
         refute config.origin_allowed?("http://a.test")
         refute config.origin_allowed?("a.test")
@@ -78,7 +78,7 @@ class ConfigTest < Minitest::Test
     # Loopback has no certificate to have, and a browser test must be
     # able to prove the cross-origin path without inventing one.
     def test_http_is_allowed_from_loopback_only
-        config = DebugFeedback::Config.new
+        config = Corrigenda::Config.new
 
         assert config.origin_allowed?("http://localhost:9397")
         assert config.origin_allowed?("http://127.0.0.1:9393")
@@ -86,7 +86,7 @@ class ConfigTest < Minitest::Test
     end
 
     def test_a_missing_origin_is_not_an_allowed_one
-        config = DebugFeedback::Config.new
+        config = Corrigenda::Config.new
 
         refute config.origin_allowed?(nil)
         refute config.origin_allowed?("")
@@ -95,7 +95,7 @@ class ConfigTest < Minitest::Test
     # No allowlist means development, where any site is accepted and any
     # https origin with it — the two answers stay the same answer.
     def test_no_allowlist_allows_any_https_origin
-        config = DebugFeedback::Config.new
+        config = Corrigenda::Config.new
 
         assert config.origin_allowed?("https://anything.test")
         refute config.origin_allowed?("http://anything.test")

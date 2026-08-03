@@ -5,11 +5,11 @@ require "sinatra/base"
 require "stringio"
 require "zlib"
 
-require_relative "../debug_feedback"
+require_relative "../corrigenda"
 
-module DebugFeedback
+module Corrigenda
     # POST target for the widget. Apache authenticates in front of this
-    # (see DEBUG-FEEDBACK.md), so there is no anti-abuse machinery here — the
+    # (see CORRIGENDA.md), so there is no anti-abuse machinery here — the
     # limits below are sanity bounds, not spam controls.
     class Intake < Sinatra::Base
         GZIP_MAGIC = "\x1F\x8B".b
@@ -146,7 +146,7 @@ module DebugFeedback
 
         post "/" do
             bail(413, "payload too large") if oversize?
-            document = DebugFeedback.validate(read_report)
+            document = Corrigenda.validate(read_report)
             site     = document.dig("page", "site")
             bail(403, "unknown site: #{site}") unless config.site_allowed?(site)
 

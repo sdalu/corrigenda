@@ -13,11 +13,11 @@
 
     const api = globalThis.browser ?? globalThis.chrome;
 
-    const MARK      = "debugFeedbackCapture";   /* data-debug-feedback-capture */
+    const MARK      = "corrigendaCapture";   /* data-corrigenda-capture */
     const VERSION   = api.runtime.getManifest().version;
-    const FROM_PAGE = "debug-feedback";
-    const FROM_EXT  = "debug-feedback-extension";
-    const CAPTURE   = "debug-feedback/capture";
+    const FROM_PAGE = "corrigenda";
+    const FROM_EXT  = "corrigenda-extension";
+    const CAPTURE   = "corrigenda/capture";
 
     document.documentElement.dataset[MARK] = VERSION;
 

@@ -9,7 +9,7 @@ const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1
 // The switch is a clipped checkbox behind a chip, so a click lands on the
 // chip. Tests want a state, not a toggle: set it and announce it.
 const setChannel = (page, key, on) => page.evaluate(([k, want]) => {
-    const input = document.querySelector('#debug-feedback-widget')
+    const input = document.querySelector('#corrigenda-widget')
         .shadowRoot.querySelector(`.channels input[value="${k}"]`);
     if (input.checked !== want) {
         input.checked = want;
@@ -50,99 +50,99 @@ const ok   = (message) => console.log('ok   ' + message);
     });
 
     await page.goto(URL, { waitUntil: 'load' });
-    await page.waitForSelector('#debug-feedback-widget');
+    await page.waitForSelector('#corrigenda-widget');
     ok('widget loaded');
 
     // --- report 1: pick with the mouse -------------------------------
     // No launcher click: the widget opens on its menu, and the launcher
     // is hidden while it is open.
-    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
-    await page.fill('#debug-feedback-widget textarea', 'Caption is too pale to read');
+    await page.fill('#corrigenda-widget textarea', 'Caption is too pale to read');
     // Visual preselects the screenshot channel, and send is blocked while it
     // is on with nothing captured; this scenario does not want an image.
     await setChannel(page, 'screenshot', false);
 
-    const preview = await page.textContent('#debug-feedback-widget .preview');
+    const preview = await page.textContent('#corrigenda-widget .preview');
     if (!preview.includes('"schema": 1')) fail('preview does not show the payload');
     else ok('preview shows the payload before sending');
 
-    await page.screenshot({ path: SHOTS + '/debug-feedback-form.png' });
-    await page.click('#debug-feedback-widget .a-send');
-    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
-    const first = await page.textContent('#debug-feedback-widget .result');
+    await page.screenshot({ path: SHOTS + '/corrigenda-form.png' });
+    await page.click('#corrigenda-widget .a-send');
+    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
+    const first = await page.textContent('#corrigenda-widget .result');
     if (!/Sent\. Reference: \d{8}T/.test(first)) fail('no reference returned: ' + first);
     else ok('report 1 accepted: ' + first.trim());
 
-    await page.screenshot({ path: SHOTS + '/debug-feedback-widget.png' });
+    await page.screenshot({ path: SHOTS + '/corrigenda-widget.png' });
 
     // --- report 2: pick with the keyboard ----------------------------
-    await page.click('#debug-feedback-widget .a-close');
-    await page.click('#debug-feedback-widget .launcher');
-    await page.click('#debug-feedback-widget .a-type[value="broken"]');
+    await page.click('#corrigenda-widget .a-close');
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="broken"]');
     await page.hover('figcaption.caption');       // mousemove selects the leaf
     await page.keyboard.press('ArrowUp');         // ... and this the figure
     await page.keyboard.press('Enter');
-    await page.fill('#debug-feedback-widget textarea', 'Whole figure is misaligned');
-    await page.click('#debug-feedback-widget .a-send');
-    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
-    const second = await page.textContent('#debug-feedback-widget .result');
+    await page.fill('#corrigenda-widget textarea', 'Whole figure is misaligned');
+    await page.click('#corrigenda-widget .a-send');
+    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
+    const second = await page.textContent('#corrigenda-widget .result');
     if (!/Sent\. Reference:/.test(second)) fail('second report rejected: ' + second);
     else ok('report 2 accepted (keyboard pick)');
 
     // --- report 3: the audit switch, on pale text --------------------
-    await page.click('#debug-feedback-widget .a-close');
-    await page.click('#debug-feedback-widget .launcher');
-    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.click('#corrigenda-widget .a-close');
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
     await setChannel(page, 'audit', true);
-    await page.fill('#debug-feedback-widget textarea', 'Contrast check');
+    await page.fill('#corrigenda-widget textarea', 'Contrast check');
     // no image wanted here either
     await setChannel(page, 'screenshot', false);
-    await page.click('#debug-feedback-widget .a-send');
-    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    await page.click('#corrigenda-widget .a-send');
+    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
     ok('report 3 accepted (audit switch on)');
 
     // --- report 4: a form must not leak what was typed into it -------
-    await page.click('#debug-feedback-widget .a-close');
-    await page.click('#debug-feedback-widget .launcher');
-    await page.click('#debug-feedback-widget .a-type[value="broken"]');
+    await page.click('#corrigenda-widget .a-close');
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="broken"]');
     await page.hover('input[type="password"]');
     await page.keyboard.press('ArrowUp');   // input -> label
     await page.keyboard.press('ArrowUp');   // label -> form
     await page.keyboard.press('Enter');
-    await page.fill('#debug-feedback-widget textarea', 'The form does nothing');
-    await page.click('#debug-feedback-widget .a-send');
-    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    await page.fill('#corrigenda-widget textarea', 'The form does nothing');
+    await page.click('#corrigenda-widget .a-send');
+    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
     ok('report 4 accepted (form picked)');
 
     // --- report 5: the screenshot channel ----------------------------
-    await page.click('#debug-feedback-widget .a-close');
-    await page.click('#debug-feedback-widget .launcher');
-    await page.click('#debug-feedback-widget .a-type[value="visual"]');
+    await page.click('#corrigenda-widget .a-close');
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
     await page.click('figcaption.caption');
     await setChannel(page, 'screenshot', true);
-    await page.click('#debug-feedback-widget .scope-option[data-scope="viewport"]');
-    await page.click('#debug-feedback-widget .a-shot');
-    await page.waitForSelector('#debug-feedback-widget .shot-preview:not([hidden])');
+    await page.click('#corrigenda-widget .scope-option[data-scope="viewport"]');
+    await page.click('#corrigenda-widget .a-shot');
+    await page.waitForSelector('#corrigenda-widget .shot-preview:not([hidden])');
 
-    const shotStatus = await page.textContent('#debug-feedback-widget .shot-status');
+    const shotStatus = await page.textContent('#corrigenda-widget .shot-status');
     if (!/captured/.test(shotStatus)) fail('capture status: ' + shotStatus);
     else ok('screenshot captured: ' + shotStatus.trim());
     // fixture has a password field and a text field; both must be covered
     if (!/2 /.test(shotStatus)) fail('expected 2 redactions: ' + shotStatus);
     else ok('both form fields redacted before upload');
 
-    await page.screenshot({ path: SHOTS + '/debug-feedback-shot.png' });
-    await page.fill('#debug-feedback-widget textarea', 'With a screenshot');
-    await page.click('#debug-feedback-widget .a-send');
-    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
-    const fifth = await page.textContent('#debug-feedback-widget .result');
+    await page.screenshot({ path: SHOTS + '/corrigenda-shot.png' });
+    await page.fill('#corrigenda-widget textarea', 'With a screenshot');
+    await page.click('#corrigenda-widget .a-send');
+    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
+    const fifth = await page.textContent('#corrigenda-widget .result');
     if (!/Sent\. Reference:/.test(fifth)) fail('multipart send failed: ' + fifth);
     else ok('report 5 accepted (multipart with screenshot)');
 
     // --- report 6: "the text is wrong" uses the selection -------------
-    await page.click('#debug-feedback-widget .a-close');
+    await page.click('#corrigenda-widget .a-close');
     await page.evaluate(() => {
         const node = document.querySelector('figcaption.caption').firstChild;
         const range = document.createRange();
@@ -151,12 +151,12 @@ const ok   = (message) => console.log('ok   ' + message);
         getSelection().removeAllRanges();
         getSelection().addRange(range);
     });
-    await page.click('#debug-feedback-widget .launcher');
-    await page.click('#debug-feedback-widget .a-type[value="content"]');
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="content"]');
 
     // the picker must have been skipped: the form is already showing
-    await page.waitForSelector('#debug-feedback-widget .report:not([hidden])');
-    const prefilled = await page.inputValue('#debug-feedback-widget textarea');
+    await page.waitForSelector('#corrigenda-widget .report:not([hidden])');
+    const prefilled = await page.inputValue('#corrigenda-widget textarea');
     if (!/Venetian carnival, 2019/.test(prefilled)) {
         fail('selection not quoted into the message: ' + prefilled);
     } else {
@@ -165,7 +165,7 @@ const ok   = (message) => console.log('ok   ' + message);
 
     // and it must collect the element only, not styles or rules
     const contentChannels = await page.evaluate(() =>
-        [...document.querySelector('#debug-feedback-widget').shadowRoot
+        [...document.querySelector('#corrigenda-widget').shadowRoot
             .querySelectorAll('.channels input')]
             .filter(i => i.checked).map(i => i.value));
     if (contentChannels.join(',') !== 'fragment') {
@@ -174,9 +174,9 @@ const ok   = (message) => console.log('ok   ' + message);
         ok('text report collects the element only');
     }
 
-    await page.fill('#debug-feedback-widget textarea', 'Wrong year');
-    await page.click('#debug-feedback-widget .a-send');
-    await page.waitForSelector('#debug-feedback-widget .result:not([hidden])');
+    await page.fill('#corrigenda-widget textarea', 'Wrong year');
+    await page.click('#corrigenda-widget .a-send');
+    await page.waitForSelector('#corrigenda-widget .result:not([hidden])');
     ok('report 6 accepted (content, from a selection)');
 
 // --- injected from <head>, as MoXoW emits it ---------------------
@@ -189,7 +189,7 @@ const ok   = (message) => console.log('ok   ' + message);
     headPage.on("pageerror", (e) => errors.push(e.message));
     await headPage.goto("http://127.0.0.1:9393/in-head.html", { waitUntil: "load" });
     const mounted = await headPage.evaluate(() =>
-        !!document.querySelector("#debug-feedback-widget"));
+        !!document.querySelector("#corrigenda-widget"));
     if (!mounted) fail("head-injected widget never mounted: " + errors.join("; "));
     else if (errors.length) fail("head-injected widget threw: " + errors.join("; "));
     else ok("mounts when injected from <head>, before <body> exists");
@@ -198,7 +198,7 @@ const ok   = (message) => console.log('ok   ' + message);
 
     // --- the widget must not disturb the page it measures ------------
     const stray = await page.evaluate(() =>
-        document.body.querySelectorAll('div#debug-feedback-widget').length);
+        document.body.querySelectorAll('div#corrigenda-widget').length);
     if (stray !== 1) fail('widget host count is ' + stray);
     else ok('widget adds exactly one host element');
 

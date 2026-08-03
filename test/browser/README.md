@@ -5,12 +5,12 @@ endpoint. Unit tests (`bundle exec rake test`) cover the endpoint;
 this covers the half that only exists in a browser — the picker, the
 CSSOM walk, the sanitiser, and the gzipped POST.
 
-Three steps, from `ops/DebugFeedback`:
+Three steps, from `ops/Corrigenda`:
 
 ```sh
 # 1. serve the fixture page, the client, and the endpoint together
-printf 'store: /var/tmp/debug-feedback-browser-store\n' > /var/tmp/debug-feedback.yml
-DEBUG_FEEDBACK_CONFIG=/var/tmp/debug-feedback.yml \
+printf 'store: /var/tmp/corrigenda-browser-store\n' > /var/tmp/corrigenda.yml
+CORRIGENDA_CONFIG=/var/tmp/corrigenda.yml \
     bundle exec puma -b tcp://127.0.0.1:9393 test/browser/config.ru
 
 # 2. drive it (see the headless-Chromium recipe in Common/CLAUDE.md).
@@ -24,12 +24,12 @@ cd "$TOOLS"
 export LD_LIBRARY_PATH="$PWD/libs/usr/lib64:$PWD/libs/lib64"
 export NODE_PATH="$TOOLS/node_modules"
 export CHROMIUM="$TOOLS"
-node -r ./shim.js /web/ops/DebugFeedback/test/browser/widget-check.js
-node -r ./shim.js /web/ops/DebugFeedback/test/browser/selection-check.js
-node -r ./shim.js /web/ops/DebugFeedback/test/browser/extension-check.js
+node -r ./shim.js /web/ops/Corrigenda/test/browser/widget-check.js
+node -r ./shim.js /web/ops/Corrigenda/test/browser/selection-check.js
+node -r ./shim.js /web/ops/Corrigenda/test/browser/extension-check.js
 
 # 3. read what landed
-ls /var/tmp/debug-feedback-browser-store/*/*/*/report.json
+ls /var/tmp/corrigenda-browser-store/*/*/*/report.json
 ```
 
 ## Two files, and why one of them runs twice
@@ -106,10 +106,10 @@ on one origin, the endpoint on another.
 
 ```sh
 # the endpoint, on a second origin (0.0.0.0 so both names reach it)
-DEBUG_FEEDBACK_STORE=/var/tmp/debug-feedback-xorigin \
+CORRIGENDA_STORE=/var/tmp/corrigenda-xorigin \
     bundle exec puma -b tcp://0.0.0.0:9397 test/browser/config.ru
 
-node -r ./shim.js /web/ops/DebugFeedback/test/browser/cross-origin-check.js
+node -r ./shim.js /web/ops/Corrigenda/test/browser/cross-origin-check.js
 ```
 
 The page is served from `127.0.0.1` and the endpoint answers on

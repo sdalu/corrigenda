@@ -2,10 +2,10 @@
 
 require "sinatra/base"
 
-require_relative "../debug_feedback"
+require_relative "../corrigenda"
 require_relative "prefix"
 
-module DebugFeedback
+module Corrigenda
     # What you get when you open the mount point itself: the bookmarklet
     # that loads the widget, and enough state to tell whether the thing
     # is working before you go looking for a bug that is not there.
@@ -31,7 +31,7 @@ module DebugFeedback
         # the client and the endpoint that receives its reports in one
         # repository, versioned together, so a client can never be newer
         # than the service reading its payloads.
-        CLIENT = File.expand_path("../../client/debug-feedback.js", __dir__)
+        CLIENT = File.expand_path("../../client/corrigenda.js", __dir__)
 
         helpers do
             def store = @store ||= Store.new(settings.feedback_config.store_path)
@@ -58,7 +58,7 @@ module DebugFeedback
         # The one route on this service that is not staff-only: every
         # page that injects the widget fetches it, and those pages are
         # public. Apache lets this path through unauthenticated (see
-        # deploy/macro-debug-feedback.conf); nothing here is a secret —
+        # deploy/macro-corrigenda.conf); nothing here is a secret —
         # the same file was world-readable under /common/js for months.
         #
         # Cached, but briefly: a stale widget is a widget whose report
@@ -67,7 +67,7 @@ module DebugFeedback
         # enough that a fix is everywhere by the time you have finished
         # telling someone about it. send_file adds Last-Modified, so
         # most of those requests answer 304 anyway.
-        get "/debug-feedback.js" do
+        get "/corrigenda.js" do
             cache_control :public, max_age: 300
             send_file CLIENT, type: "application/javascript; charset=utf-8"
         end
@@ -79,7 +79,7 @@ module DebugFeedback
             path   = package(target)
             halt 404, "no package built for #{target}" if path.nil?
 
-            send_file path, filename: "debug-feedback-#{target}.zip",
+            send_file path, filename: "corrigenda-#{target}.zip",
                             type: "application/zip"
         end
     end
