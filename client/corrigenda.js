@@ -479,15 +479,30 @@
      * tabs.captureTab: a rectangle in PAGE coordinates, which may lie
      * outside the viewport, at a scale we choose. It announces itself on
      * the documentElement at document_start, so this is known before the
-     * first control is drawn. See ops/Corrigenda/extension. */
-    /* Read every time it is asked, not once at load. A content script at
+     * first control is drawn. See ops/Corrigenda/extension.
+     *
+     * What it announces is a contract number, not a release: the shape of
+     * the ping and capture exchanges. Below what this widget requires, the
+     * add-on is older than the page it is on -- the two are installed and
+     * served separately, so that happens -- and the honest answer is to
+     * leave it alone and take the share dialog rather than send it a
+     * message it will read as something else. Above is fine: a helper
+     * keeps the exchanges it has advertised.
+     *
+     * Read every time it is asked, not once at load. A content script at
      * document_start does set this before any page script runs, so the
      * load-time read was right -- but it made the widget depend on an
      * ordering it cannot see, and an extension that installs, updates or
      * is enabled while the page is open would go unnoticed until a
      * reload. Reading a dataset property costs nothing. */
-    const extension = () =>
-        document.documentElement.dataset.corrigendaCapture || null;
+    const HELPER_REQUIRED = 1;
+
+    const extension = () => {
+        const provided = Number(
+            document.documentElement.dataset.corrigendaCapture);
+
+        return provided >= HELPER_REQUIRED ? provided : null;
+    };
 
     /* Firefox's share dialog offers a window or a screen and no tabs at
      * all, so a frame can never be mapped to page coordinates there and

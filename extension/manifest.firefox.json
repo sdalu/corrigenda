@@ -32,7 +32,7 @@
     "96": "icon.svg"
   },
   "action": {
-    "default_title": "Report a page defect",
+    "default_title": "Corrigenda: allow capture help here",
     "default_icon": "icon.svg"
   },
   "optional_host_permissions": [

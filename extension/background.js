@@ -63,40 +63,25 @@ const capture = async (message, sender) => {
         : captureViewport(tab.windowId, message.viewport, scale);
 };
 
-/* The toolbar button, which is what a bookmarklet would have been. A web
- * page cannot install a bookmarklet -- browsers refuse programmatic
- * bookmark creation and strip javascript: URLs -- so the extension does
- * the job the bookmarklet was standing in for: put the widget on the
- * page in front of you.
+/* The toolbar button. It turns this site on: the click asks for the
+ * origin, and a granted origin is where the bridge is registered, so
+ * every later visit gets a mapped capture with nothing to press.
+ *
+ * It used to put the widget on the page as well -- the job a bookmarklet
+ * would do, since a web page cannot install one. That is switched off
+ * (see the listener below). The widget already arrives three other ways:
+ * a site that serves it, a site that only advertises the endpoint plus
+ * the bookmarklet, or the bookmarklet alone. Adding a fourth made this
+ * add-on a second delivery mechanism to keep in step with the first, and
+ * a page-injected <script src> is remotely hosted code by the letter of
+ * both stores' policies. What is left is the one thing nothing else can
+ * do: photograph the tab in page coordinates.
  *
  * Nothing here names a host. The manifest asks for `activeTab`, which
  * the browser grants for the tab whose button you pressed and for as
- * long as that visit lasts -- enough to inject the widget and to
- * photograph the tab, and it goes stale by itself. A site added to the
- * estate tomorrow therefore needs no new build and no reinstall, which
- * is the whole point: baking the hosts in made every change of host a
- * redeployment.
- *
- * What a click cannot buy is the bridge running on a page you have NOT
- * clicked: a page that carries the widget already (MoXoW injects it)
- * wants a mapped capture without a toolbar visit. That is what the
- * optional permission is for. It is asked for at the click, because a
- * click is the user gesture browsers require, and once granted the
- * content script is registered for that origin and runs at
- * document_start on every later visit.
- *
- * Where the reports go is a question with three answers, tried in this
- * order:
- *
- *   1. <link rel="corrigenda"> on the page. MoXoW emits it for any site
- *      the widget is configured for, whether or not that client got the
- *      widget itself.
- *   2. The last one this add-on saw. Visiting one prepared page teaches
- *      it the estate's endpoint, and from then on the button works on
- *      pages that say nothing -- an app behind the same login, a static
- *      page, anything never prepared for this.
- *   3. The page's own origin, which is right for a site that mounts the
- *      service and is what the widget assumed before any of this.
+ * long as that visit lasts; a site added to the estate tomorrow
+ * therefore needs no new build and no reinstall, which is the whole
+ * point -- baking the hosts in made every change of host a redeployment.
  */
 const REMEMBERED = "endpoint";
 const SCRIPT_ID = "corrigenda-bridge";
@@ -160,6 +145,12 @@ const originOf = (url) => {
 const recalled = async () =>
     (await api.storage.local.get(REMEMBERED))[REMEMBERED] || null;
 
+/* DISABLED. Kept whole rather than deleted: turning it back on is one
+ * call in the listener below, and the reasoning it encodes -- the
+ * endpoint is the page's own link, then the last one this add-on
+ * saw, then the page's origin -- is not something to rewrite from
+ * memory. While it is off, the add-on puts no code on any page.
+ */
 const inject = async (tab) => {
     if (tab?.id === undefined) return;
 
@@ -199,11 +190,11 @@ const inject = async (tab) => {
  * permissions.contains beforehand, and nothing is lost by it: an origin
  * already held is granted silently, with no prompt.
  *
- * The injection needs nothing but activeTab, which the click itself
- * grants, so the widget appears whatever the answer is. The question is
- * only about later visits: with the origin granted, the bridge runs at
- * document_start and a page that already carries the widget gets a
- * mapped capture without anyone pressing anything.
+ * Asking is now all it does. With the origin granted the bridge runs at
+ * document_start, and a page that carries the widget -- because the site
+ * serves it, or because you loaded the bookmarklet -- gets a mapped
+ * capture with nothing to press. Injecting the widget was the other half
+ * and is switched off: inject(tab) here brings it back.
  *
  * `asked` keeps a refusal from being re-asked at every click. It is
  * memory, not storage, because storage would have to be awaited: it
@@ -212,22 +203,55 @@ const inject = async (tab) => {
  */
 const asked = new Set();
 
+/* The button is the only place a permission can be asked from -- a
+ * browser will not raise that prompt without a user gesture, and an
+ * add-on with no popup and no options page has exactly one gesture
+ * to offer. So it stays, and now says what it did: pressing it on a
+ * site that is already on would otherwise look like nothing
+ * happening, which is how a working thing gets reported as broken.
+ */
+const announce = async (tabId, on) => {
+    if (tabId === undefined) return;
+
+    try {
+        await api.action.setTitle({
+            tabId,
+            title: on ? "Corrigenda: capture help is on for this site"
+                      : "Corrigenda: press to allow capture help here"
+        });
+        await api.action.setBadgeText({ tabId, text: on ? "on" : "" });
+    } catch {
+        /* The tab closed while we were asking. */
+    }
+};
+
 api.action.onClicked.addListener((tab) => {
     const origin = originOf(tab?.url || "");
+    if (!origin) return;
 
-    if (origin && !asked.has(origin)) {
+    /* Asking is the privileged call and goes first, unasked. Once
+     * asked -- granted or refused -- there is nothing to ask again, so
+     * the state is simply read; contains() needs no gesture. */
+    let answer;
+    if (asked.has(origin)) {
+        answer = api.permissions.contains({ origins: [origin] });
+    } else {
         asked.add(origin);
-        /* Not awaited, for the same reason it is called first. */
-        api.permissions.request({ origins: [origin] })?.catch?.(() => {
-            /* Refused, or asked where the browser will not ask. The
-             * button still works; only the automatic bridge is lost. */
-        });
+        answer = api.permissions.request({ origins: [origin] });
     }
 
-    inject(tab).catch(() => {
-        /* A page no extension may script -- about:, the add-ons page,
-         * another extension's page. Nothing to do and nothing to say. */
-    });
+    Promise.resolve(answer)
+        .then((on) => announce(tab?.id, on))
+        .catch(() => { /* refused, or a prompt the browser would not raise */ });
+
+    /* Switched off with the injector above. Restoring it is this line:
+     *
+     *     inject(tab).catch(() => {});
+     *
+     * A page no extension may script -- about:, the add-ons page,
+     * another extension's page -- rejects, and there is nothing to do
+     * about that and nothing to say. */
+    void inject;
 });
 
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {

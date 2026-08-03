@@ -20,7 +20,6 @@ An extension has `tabs.captureTab` (Firefox) or `tabs.captureVisibleTab`
 | Crop to the picked element        | Chrome only            | yes            | yes           |
 | Mask form fields                  | Chrome only            | yes            | yes           |
 | Below the fold ("no crop")        | no                     | **yes**        | no            |
-| Puts the widget on any page       | drag a bookmarklet     | toolbar button | toolbar button|
 
 Firefox's `rect` is in CSS pixels **relative to the page** and may lie
 outside the visible viewport (Firefox 82+), which is what makes a real
@@ -76,25 +75,46 @@ pick `dist/chrome/`.
 The landing page at the mount point serves both zips and repeats these
 steps, so nobody has to find this file.
 
-## Where it sends reports
+## It is a helper, not a way in
 
-It carries no endpoint of its own — not one written in at build time,
-not one you are asked to type. Three answers, in order:
+The add-on does not deliver the widget and does not know where reports
+go. The widget reaches a page three other ways — the site serves it,
+the site advertises the endpoint and you load the bookmarklet, or the
+bookmarklet alone — and every one of them already carries the endpoint
+with it. A fourth route through the add-on was a second delivery
+mechanism to keep in step with the first, and a page-injected
+`<script src>` is remotely hosted code by the letter of both stores'
+policies. What is left here is the one thing nothing else can do:
+photograph the tab in page coordinates.
 
-1. `<link rel="corrigenda">` on the page. **This is the one thing a
-   site must carry**, and MoXoW emits it for every page of a configured
-   site, whether or not that client got the widget.
-2. The last endpoint this add-on saw. One prepared page teaches it, in
-   passing, so the toolbar button then works on pages that say nothing:
-   an app behind the same login, a static page, anything never prepared
-   for this.
-3. The page's own origin, which is right for a site that mounts the
-   service itself.
+The injector is still in `background.js`, disabled, with the call that
+restores it named in a comment. Its endpoint resolution — the page's
+own `<link rel="corrigenda">`, then the last endpoint seen, then the
+page's origin — is why it was kept rather than deleted.
 
-So a site that carries the link needs nothing else for the add-on to
-work. Carrying the script as well is a separate choice, and it buys an
-earlier start rather than a capability: a load-time script is already
-listening when the page's own errors and failed loads happen.
+## The helper contract
+
+The bridge announces a number on the documentElement,
+`data-corrigenda-capture`, and the widget carries the number it
+requires. Neither is a release:
+
+| side      | where                  | now |
+|-----------|------------------------|-----|
+| provided  | `extension/content.js` `HELPER` | 1 |
+| required  | `client/corrigenda.js` `HELPER_REQUIRED` | 1 |
+
+Raise the provided number when an exchange changes shape — never for
+a fix, a permission, or a release. Below what the page requires, the
+widget leaves the add-on alone and takes the share dialog, which is
+the honest answer: the two are installed and served separately, so an
+add-on older than the page it is on is a normal state of affairs, not
+an error. Above is fine, since a helper keeps the exchanges it has
+advertised.
+
+`test/version_test.rb` refuses a checkout whose add-on provides less
+than its own widget requires, and `test/browser/extension-check.js`
+drives a stub advertising an old number to prove the widget ignores
+it.
 
 ## Permissions, and why
 
@@ -103,13 +123,12 @@ site you are on, the first time you press the button there — so adding
 a site to the estate is a line in the service's config, not a new build
 of the add-on that everyone has to install again.
 
-- `activeTab` — for the capture, and for the first click on any page.
-  It is granted by the click itself and lasts until you navigate away,
-  which is exactly as long as the widget needs. The capture is always of
-  the tab the request came from: the tab id comes from the messaging
-  layer, never from the page.
-- `scripting` — for the toolbar button, which injects the widget on the
-  page in front of you.
+- `activeTab` — for the capture. It is granted by the click itself
+  and goes stale when you navigate away. The capture is always of
+  the tab the request came from: the tab id comes from the
+  messaging layer, never from the page.
+- `scripting` — to register the bridge on the sites you have
+  granted. (It is what the disabled injector would use too.)
 - `storage` — for the last endpoint seen, and nothing else.
 - `optional_host_permissions: *://*/*` — nothing is granted by
   installing. Granting a site, at the prompt the first click raises,
@@ -178,19 +197,17 @@ page uploads it when you press Send — so `"required": ["none"]` is
 arguable. Declaring the content is the honest reading of what happens
 next, and under-declaring is what fails a review.
 
-Neither store has seen this. Two things would come up if one did: the
-toolbar button adds a `<script src>` from the endpoint to the page,
-which is remote code by the letter of both policies (it is the same
-script the site serves itself, and the same one the bookmarklet
-loads), and a broad `*://*/*` optional permission needs a justification
-in the listing. Both are reasons this is distributed as an unlisted
-signed build rather than through a store.
+Neither store has seen this. With the injector off, the add-on puts
+no code on any page and the remote-code objection goes with it; what
+would still come up is the broad `*://*/*` optional permission, which
+needs a justification in the listing. Firefox's unlisted channel asks
+for neither, which is how this is distributed.
 
 ## Why there is no bookmarklet installer
 
 There is no way for a web page to install a bookmarklet: browsers refuse
 programmatic bookmark creation, and a `javascript:` URL typed or pasted
 into the address bar is stripped. Dragging the link, or right-clicking
-it and choosing *Bookmark link*, is the whole of the mechanism. The
-toolbar button here is the answer to that — same result, one click, no
-dragging.
+it and choosing *Bookmark link*, is the whole of the mechanism, and
+this add-on does not stand in for it: the toolbar button grants a
+site, it does not load the widget.

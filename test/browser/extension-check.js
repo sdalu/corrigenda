@@ -25,14 +25,15 @@ const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1
 // captureTab), 'viewport' always answers with the viewport (Chrome's
 // captureVisibleTab), 'refuse' fails the way a sleeping background page
 // does.
-const stub = (grants) => `
+const stub = (grants, helper = 1) => `
     // A content script at document_start runs once the parser has made
     // the documentElement; an init script here runs before that, so the
     // marker waits for the element it goes on. The widget is deferred,
     // so it still reads the marker before it draws anything.
     (function mark() {
         if (document.documentElement) {
-            document.documentElement.dataset.corrigendaCapture = "0.1.0-stub";
+            // the helper contract number, which is what the widget reads
+            document.documentElement.dataset.corrigendaCapture = "${helper}";
         } else {
             setTimeout(mark, 0);
         }
@@ -44,7 +45,7 @@ const stub = (grants) => `
         const reply = (payload) => postMessage(
             { source: "corrigenda-extension", id: m.id, ...payload }, origin);
 
-        if (m.type === "ping") return reply({ type: "pong", version: "stub" });
+        if (m.type === "ping") return reply({ type: "pong", helper: ${helper}, version: "stub" });
         if (m.type !== "capture") return;
 
         window.__captureAsks.push(m.rect);
@@ -67,8 +68,8 @@ const stub = (grants) => `
     });
 `;
 
-const open = async (page, grants) => {
-    await page.addInitScript(stub(grants));
+const open = async (page, grants, helper) => {
+    await page.addInitScript(stub(grants, helper));
     await page.goto(URL, { waitUntil: 'load' });
     await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
     await page.click('#corrigenda-widget .a-type[value="visual"]');
@@ -167,6 +168,32 @@ const check = async (name, browser, executablePath) => {
     else if (!fell.captured)
         fail(`${name}: fell back but captured nothing: ${fell.status}`);
     else ok(`${name}: a failed bridge falls back to the share dialog`);
+    await page.close();
+
+    // 5. an add-on older than the contract this page requires is not
+    //    talked to at all: a message it would read as something else is
+    //    worse than no message. It advertises 0; the widget wants 1.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await page.addInitScript(() => {
+        navigator.mediaDevices.getDisplayMedia = async () => {
+            window.__fellBack = true;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(innerWidth * devicePixelRatio);
+            canvas.height = Math.round(innerHeight * devicePixelRatio);
+            canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+            return canvas.captureStream(10);
+        };
+    });
+    await open(page, 'rect', 0);
+    const old = await shoot(page);
+    const sent = await page.evaluate(() => window.__captureAsks.length);
+    if (sent !== 0)
+        fail(`${name}: an old helper was sent ${sent} capture request(s)`);
+    else if (!(await page.evaluate(() => Boolean(window.__fellBack))))
+        fail(`${name}: an old helper was ignored but nothing took over`);
+    else if (!old.captured)
+        fail(`${name}: fell back from an old helper but captured nothing`);
+    else ok(`${name}: an add-on below the required helper is left alone`);
     await page.close();
 
     await instance.close();

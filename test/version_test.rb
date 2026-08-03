@@ -35,6 +35,31 @@ class VersionTest < CorrigendaTest
         assert_includes File.read(CLIENT), "host.dataset.version = VERSION;"
     end
 
+    # ----------------------------------------------------------------
+    # The helper contract: what the add-on provides and the widget
+    # requires. Two numbers about the same thing -- the shape of the
+    # ping and capture exchanges -- carried by two artifacts that are
+    # installed and served separately, so they are allowed to differ in
+    # the field. What they may not do is ship from one checkout unable
+    # to talk to each other.
+    # ----------------------------------------------------------------
+    BRIDGE = File.join(ROOT, "extension", "content.js")
+
+    def provided = File.read(BRIDGE)[/const HELPER\s*=\s*(\d+)/, 1].to_i
+    def required = File.read(CLIENT)[/const HELPER_REQUIRED = (\d+)/, 1].to_i
+
+    def test_the_helper_numbers_are_declared
+        assert_operator provided, :>=, 1, "extension/content.js declares no HELPER"
+        assert_operator required, :>=, 1, "the widget declares no HELPER_REQUIRED"
+    end
+
+    def test_the_add_on_provides_what_the_widget_requires
+        assert_operator provided, :>=, required,
+                        "the add-on in this checkout (helper #{provided}) is " \
+                        "below what its own widget requires (#{required}), so " \
+                        "the widget would ignore it and take the share dialog"
+    end
+
     # The add-on keeps a version of its own -- it is installed rather
     # than served, so a browser may be carrying any of them -- but the
     # two packages are one add-on and must not disagree with each other.

@@ -16,7 +16,7 @@
     "128": "icon-128.png"
   },
   "action": {
-    "default_title": "Report a page defect",
+    "default_title": "Corrigenda: allow capture help here",
     "default_icon": "icon-48.png"
   },
   "optional_host_permissions": [

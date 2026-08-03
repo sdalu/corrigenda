@@ -15,12 +15,25 @@
 
     const MARK      = "corrigendaCapture";   /* data-corrigenda-capture */
     const VERSION   = api.runtime.getManifest().version;
+
+    /* What is on the documentElement is not the build, it is the
+     * contract: the shape of the two messages below and of the
+     * replies to them. The widget requires a number and this side
+     * provides one, so a browser carrying an add-on older than the
+     * page it is on falls back to the share dialog instead of
+     * talking past it. Raise it when an exchange changes shape --
+     * never for a fix, a permission, or a release.
+     *
+     * 1  ping/pong, and capture{rect,viewport,scale} answered with
+     *    captured{dataUrl,rect,scale} or failed{error}.
+     */
+    const HELPER    = 1;
     const FROM_PAGE = "corrigenda";
     const FROM_EXT  = "corrigenda-extension";
     const CAPTURE   = "corrigenda/capture";
     const LEARN     = "corrigenda/learn";
 
-    document.documentElement.dataset[MARK] = VERSION;
+    document.documentElement.dataset[MARK] = String(HELPER);
 
     /* Learned by walking past, not by being asked. A page of the estate
      * says where its reports go; telling the background half means the
@@ -67,7 +80,11 @@
         if (!message || message.source !== FROM_PAGE) return;
 
         if (message.type === "ping") {
-            reply(message.id, { type: "pong", version: VERSION });
+            /* The build travels here rather than on the element:
+             * nothing branches on it, and a report that says which
+             * helper took its picture is worth having. */
+            reply(message.id, { type: "pong",
+                                helper: HELPER, version: VERSION });
             return;
         }
 
