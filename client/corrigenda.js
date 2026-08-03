@@ -135,6 +135,7 @@
             helperOutdated: "No cropping or masking: the add-on here is " +
                             "older than this page needs. Install the current " +
                             "build from the Corrigenda page.",
+            helperFailed: "the add-on could not:",
             helperNone: "no add-on",
             helperSilent: "add-on silent",
             screenshot: "Screenshot",
@@ -199,6 +200,7 @@
                             "est plus ancienne que cette page ne l'exige. " +
                             "Installez la version courante depuis la page " +
                             "Corrigenda.",
+            helperFailed: "l'extension n'a pas pu :",
             helperNone: "sans extension",
             helperSilent: "extension muette",
             screenshot: "Capture d'écran",
@@ -969,6 +971,16 @@
              * not take the screenshot away with it. */
             if (provider() !== PROVIDERS.extension) throw error;
 
+            /* Kept, because the next thing that happens is a share
+             * dialog, and if that is cancelled the browser's word for it
+             * -- "not allowed by the user agent in the current context"
+             * -- is the only thing anybody sees. It describes the
+             * dialog. The interesting failure is this one, and it was
+             * being thrown away one line later. */
+            bridgeError = String(error?.message || error || "").trim();
+            console.warn("corrigenda: the add-on could not capture; " +
+                         "falling back to the share dialog", error);
+
             /* One more attempt through the bridge before anything
              * louder. The background half sleeps between uses and the
              * first message through is what wakes it, so a failure here
@@ -979,7 +991,9 @@
              */
             try {
                 frame = await PROVIDERS.extension.grab();
-            } catch {
+                bridgeError = null;
+            } catch (again) {
+                bridgeError = String(again?.message || again || "").trim();
                 /* Twice is an answer. Say so: the cropping scopes go and
                  * the warning comes back, rather than the next capture
                  * discovering it again. */
@@ -2965,12 +2979,19 @@ input:where(:not(:checked)) + .chip {
         $(".a-shot").textContent = T.capture;
     }
 
+    /* Why the add-on's own capture failed, when it did and the share
+     * dialog was reached instead. Held apart from the dialog's own
+     * error because they are different questions and only one of them
+     * is worth reporting. */
+    let bridgeError = null;
+
     /* Taken by the button, and taken without one when the add-on is
      * there. Same routine either way: what differs is who asked. */
     const takeShot = async () => {
         const button = $(".a-shot");
         button.disabled = true;
         shotError = null;
+        bridgeError = null;
         shotStatus.textContent = "…";
         try {
             const { mapped } = await capture();
@@ -2995,13 +3016,30 @@ input:where(:not(:checked)) + .chip {
              * screenshot" and nothing else -- to the one person in a
              * position to report it. The console line carries the whole
              * error; the panel carries as much of it as a line can. */
-            const why = String(error?.message || error || "").trim();
             console.warn("corrigenda: capture failed", error);
 
+            /* A cancelled share dialog is not a fault and its
+             * DOMException says nothing a reader can use -- "not
+             * allowed by the user agent in the current context" is the
+             * browser's way of saying somebody pressed Cancel. Ours
+             * says that in words. Anything else is unexpected enough to
+             * be worth quoting.
+             *
+             * What is worth adding either way is why the add-on did not
+             * take the picture, since reaching this dialog at all means
+             * it did not. */
+            const expected = error?.name === "NotAllowedError" ||
+                             error?.name === "AbortError";
+            const why = expected
+                ? ""
+                : String(error?.message || error || "").trim();
+
             clearShot();
-            shotError = why
-                ? `${T.shotDenied} — ${why.slice(0, 80)}`
-                : T.shotDenied;
+            shotError = [
+                T.shotDenied,
+                why && `— ${why.slice(0, 80)}`,
+                bridgeError && `· ${T.helperFailed} ${bridgeError.slice(0, 80)}`
+            ].filter(Boolean).join(" ");
             shotStatus.textContent = shotError;
         } finally {
             button.disabled = false;
