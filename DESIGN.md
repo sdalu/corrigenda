@@ -462,6 +462,33 @@ stays: it is the only thing that reports the browser the bug was seen
 in. If Firefox reproduction is ever wanted for screenshots and console,
 Puppeteer 23+ drives it over BiDi.
 
+### The JSON interface, for a program
+
+`/ai`, optional, absent unless the deployment's config carries an `ai:`
+key. The review UI is HTML meant for a person; an agent asked to fix
+what was reported would otherwise scrape it, and would be reading a
+layout rather than a report.
+
+- **Off by default, and 404 when off.** Not 403: a route that is
+  switched off should not advertise that it exists. One place decides —
+  the app itself — rather than a mount and a config that must agree.
+- **Read-only by default.** `write: true` allows a state to be set and
+  a report to be archived. **Delete is not offered at any setting**: it
+  is the one operation here with nothing behind it, and something that
+  acts on its own reading of a situation is the last thing to hand it
+  to. The review UI asks twice; that is where it stays.
+- **Auth is Apache's, plus an optional token.** Through the vhost it
+  is behind the same LDAP block as everything else. A process on this
+  host reaches the socket directly and meets no Apache at all, which is
+  the intended path; `token: <secret>` puts a Bearer token in front of
+  both, compared in constant time.
+- **JSON for the refusals too**, including the 404 for an unmatched
+  path — a client that has to tell an error from a report by looking at
+  it will get it wrong once.
+- **It describes itself** at `/ai/`: routes, states, channel names,
+  whether it may write, the shape of an id. A client that knows nothing
+  else can start there.
+
 ### Review UI
 
 Read-only listing plus detail, behind the same `AdminAuth`. Detail

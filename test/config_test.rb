@@ -61,6 +61,61 @@ class ConfigTest < Minitest::Test
         end
     end
 
+    # The agent interface is absent unless asked for, and what asks for
+    # it decides whether it may write. Every wrong reading of this key
+    # either opens something or lets a program change what a person
+    # filed, so nothing here is guessed.
+    def test_there_is_no_agent_interface_by_default
+        assert_nil Corrigenda::Config.new.ai
+    end
+
+    def test_true_is_a_read_only_interface
+        File.write(@file, "ai: true\n")
+
+        assert_equal({ "token" => nil, "write" => false },
+                     Corrigenda::Config.load(@file).ai)
+    end
+
+    def test_false_is_the_same_as_absent
+        File.write(@file, "ai: false\n")
+
+        assert_nil Corrigenda::Config.load(@file).ai
+    end
+
+    def test_a_token_and_write_access_are_read_as_written
+        File.write(@file, "ai:\n  token: s3cret\n  write: true\n")
+        ai = Corrigenda::Config.load(@file).ai
+
+        assert_equal "s3cret", ai["token"]
+        assert ai["write"]
+    end
+
+    # write: yes is YAML's true, but write: "yes" is a string, and a
+    # string is not permission.
+    def test_write_is_only_true_when_it_is_true
+        File.write(@file, %(ai:\n  write: "yes"\n))
+
+        refute Corrigenda::Config.load(@file).ai["write"]
+    end
+
+    def test_an_unknown_setting_is_refused
+        File.write(@file, "ai:\n  delete: true\n")
+
+        error = assert_raises(ArgumentError) {
+            Corrigenda::Config.load(@file).ai
+        }
+        assert_match(/delete/, error.message)
+    end
+
+    # Somebody meant to paste a secret and did not. Reading that as "no
+    # token wanted" would open the endpoint at the moment they were
+    # trying to close it.
+    def test_an_empty_token_is_refused
+        File.write(@file, %(ai:\n  token: ""\n))
+
+        assert_raises(ArgumentError) { Corrigenda::Config.load(@file).ai }
+    end
+
     def test_an_absent_file_is_a_valid_config
         assert_equal Pathname("store"),
                      Corrigenda::Config.load("/nowhere/at/all").store_path

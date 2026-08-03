@@ -95,6 +95,26 @@ same file.
     ./run -p 9393                # a port instead, to reach it directly
     ./run -f -p 9393 -d /var/tmp/store   # fixture playground
 
+## Letting a program read the reports
+
+`corrigenda.yml` decides. With no `ai:` key — the state of this
+deployment — every path under `/ai` answers 404. With `ai: true` the
+service answers JSON there: the listing, one report, the screenshot as
+bytes.
+
+Through the vhost it sits behind the same LDAP block as the review UI,
+so nothing new is exposed. On the host itself the socket is the shorter
+path and meets no Apache at all:
+
+    curl --unix-socket /var/run/corrigenda/corrigenda.sock \
+         http://localhost/ai/reports
+
+Add `write: true` to let it set a state and archive; there is no
+delete. Add `token: <secret>` to require a Bearer token as well —
+worth it if the endpoint is ever reachable by anything you would not
+hand the LDAP password to. Changing any of this needs a restart, since
+the config is read at start.
+
 ## Keeping the store from growing forever
 
 Nothing expires unless `corrigenda.yml` says so. With a `retention:`

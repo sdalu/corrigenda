@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "lib/corrigenda/ai"
 require_relative "lib/corrigenda/home"
 require_relative "lib/corrigenda/intake"
 require_relative "lib/corrigenda/prefix"
@@ -11,4 +12,10 @@ use Corrigenda::Prefix
 
 map("/report") { run Corrigenda::Intake }
 map("/review") { run Corrigenda::Review }
+
+# Mounted whether or not the deployment wants it: the app itself answers
+# 404 to everything when the config says nothing about `ai:`, so there is
+# one place that decides rather than two that must agree.
+map("/ai")     { run Corrigenda::AI }
+
 map("/")       { run Corrigenda::Home }

@@ -71,6 +71,26 @@ relative to where it is installed. `test/browser/run` does all of this;
 prefer it, and reach for the raw commands only when a check fails and
 you want to drive the same page yourself.
 
+## Reading the reports as a program
+
+If the deployment's config carries an `ai:` key, the service answers
+JSON under `/ai` — the listing, one report in full, and the screenshot
+as bytes. On this host, reach it through the socket rather than through
+Apache, which saves needing a login:
+
+    curl --unix-socket /var/run/corrigenda/corrigenda.sock \
+         http://localhost/ai/reports
+
+`GET /ai/` describes itself: the routes, whether writes are allowed,
+the id format. Writes (`POST /ai/reports/:id/state`, `.../archive`)
+answer 403 unless the config says `write: true`, and there is no delete
+at all — that stays in the review UI, which asks twice.
+
+Without the key every path there is a 404, so the first thing to check
+when it seems missing is the config and not the code. From a terminal
+`rake data:list` and friends read the same store with no service at
+all.
+
 ## The host splits paths
 
 This host runs a Linux compatibility layer: a Linux-side process

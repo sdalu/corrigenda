@@ -83,6 +83,26 @@ sites:
 #     archived: 90
 #     any: 365
 
+# The JSON interface, for a reader that is a program rather than a
+# person — an agent asked to fix what was reported, a script that files
+# a ticket. Absent, as here, every path under /ai answers 404: a
+# deployment that wants no such thing should not have to switch one off.
+#
+#   ai: true      read-only, no token: the endpoint is behind the same
+#                 Apache auth as everything else, and a process on this
+#                 host reaches it through the socket.
+#
+# Or, with either setting or both:
+#
+#   ai:
+#       write: true        may set a state and archive; never delete
+#       token: <secret>    also require this, as a Bearer token, on top
+#                          of whatever Apache asked for
+#
+# Reading is the default and writing is not: an agent acts on its own
+# reading of a situation, and changing what a person filed about their
+# own site is a different thing from reading it.
+
 # Which pages may post a report from another host. Absent, it is the
 # sites above read as https origins, which is the answer whenever a
 # site's pages are served from a host of its own name — so leave it out

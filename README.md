@@ -91,6 +91,25 @@ The listing carries a six-character column for what a report holds —
 `A` accessibility, `S` screenshot, a dot where a channel is missing.
 The same letters appear on the review UI's chips.
 
+### For a program
+
+Optional, and absent unless the config asks for it: a JSON interface
+under `/ai`, for a reader that is a program — an agent asked to fix
+what was reported, a script that files a ticket. Switch it on with
+`ai: true`, and it lists reports, hands over one in full, and serves
+the screenshot as an image. It describes itself at `/ai/`, so a client
+that knows nothing else can start there.
+
+    curl --unix-socket /var/run/corrigenda/corrigenda.sock \
+         http://localhost/ai/reports
+
+It is read-only until the config says `write: true`, and even then it
+can only set a state and archive: deleting a report is not offered to a
+program at all. `token: <secret>` adds a Bearer token on top of
+whatever Apache already asked for. With no `ai:` key, every path under
+`/ai` answers 404 rather than 403 — a route that is switched off should
+not advertise that it exists.
+
 Nothing expires unless the config says it should:
 
     retention:

@@ -37,8 +37,16 @@ module Corrigenda
             # key -- means nothing ever expires: reports are somebody's
             # bug list, and a tool that quietly deletes one is worse than
             # a disk that fills up slowly and visibly.
-            "retention"      => nil
+            "retention"      => nil,
+
+            # The JSON interface for a program rather than a person. nil
+            # means it is not there at all, which is the default: a
+            # deployment that wants no agent near its reports should not
+            # have to switch one off.
+            "ai"             => nil
         }.freeze
+
+        AI_KEYS = %w[token write].freeze
 
         # `archived` is the rule anyone should reach for first: it counts
         # from the moment a person said they were done looking, so it
@@ -176,6 +184,36 @@ module Corrigenda
             rules.empty? ? nil : rules.freeze
         end
 
+        # nil when there is no agent interface, otherwise what it is
+        # allowed to do. `ai: true` is the whole of a read-only one;
+        # a mapping adds a token, or write access, or both.
+        #
+        # Read strictly, like retention and for the same reason: this
+        # one decides whether something that acts on its own reading of
+        # a page may change what a person filed, and a typo must not be
+        # the thing that decides it.
+        def ai
+            value = @values.fetch("ai")
+            return nil if value.nil? || value == false
+            return { "token" => nil, "write" => false } if value == true
+
+            unless value.is_a?(Hash)
+                raise ArgumentError,
+                      "ai: expected true, or #{AI_KEYS.join(" and/or ")}, " \
+                      "got #{value.class}"
+            end
+
+            unknown = value.keys.map(&:to_s) - AI_KEYS
+            unless unknown.empty?
+                raise ArgumentError,
+                      "ai: no such setting #{unknown.join(", ")} " \
+                      "(#{AI_KEYS.join(", ")})"
+            end
+
+            { "token" => ai_token(value["token"]),
+              "write" => value["write"] == true }.freeze
+        end
+
         def max_for(part)
             case part
             when :report     then max_report
@@ -186,6 +224,20 @@ module Corrigenda
         end
 
         private
+
+        # A token is a secret or it is nothing. An empty string in the
+        # file means somebody meant to paste one and did not, and reading
+        # that as "no token wanted" would open the interface at the exact
+        # moment they were trying to close it.
+        def ai_token(value)
+            return nil if value.nil?
+
+            token = value.to_s
+            return token unless token.strip.empty?
+
+            raise ArgumentError, "ai: token is empty -- remove the key, " \
+                                 "or give it a secret"
+        end
 
         # Days, whole and positive. Zero is refused rather than read as
         # "delete on sight": a config saying 0 is far more likely to be
