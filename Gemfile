@@ -1,6 +1,6 @@
 # -*- ruby -*-
 #
-# Corrigenda endpoint — see CORRIGENDA.md
+# Corrigenda endpoint — see DESIGN.md
 # Installed into vendor/ (see .bundle/config), as ops/Cfg does.
 
 source "https://rubygems.org"

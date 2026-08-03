@@ -9,7 +9,7 @@ require_relative "../corrigenda"
 
 module Corrigenda
     # POST target for the widget. Apache authenticates in front of this
-    # (see CORRIGENDA.md), so there is no anti-abuse machinery here — the
+    # (see DESIGN.md), so there is no anti-abuse machinery here — the
     # limits below are sanity bounds, not spam controls.
     class Intake < Sinatra::Base
         GZIP_MAGIC = "\x1F\x8B".b

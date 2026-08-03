@@ -5,7 +5,7 @@ require_relative "corrigenda/schema"
 require_relative "corrigenda/store"
 
 # Collects reports about a rendered page: what was picked, what the
-# browser looked like, what broke. See CORRIGENDA.md for the spec.
+# browser looked like, what broke. See DESIGN.md for the reasoning.
 module Corrigenda
     # The service and the widget it serves, which are one thing: a page
     # carrying corrigenda.js is running code from this checkout, and a

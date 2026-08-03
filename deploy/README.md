@@ -1,6 +1,6 @@
 # Deploying the endpoint
 
-Route A of CORRIGENDA.md §4: the endpoint is mounted same-origin on
+Route A of DESIGN.md §4: the endpoint is mounted same-origin on
 a vhost, and the widget is loaded on demand by a bookmarklet. Nothing is
 injected into any page, so no `mod_substitute` and no global httpd.conf
 change is involved.

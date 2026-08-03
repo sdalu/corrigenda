@@ -1,6 +1,6 @@
 /*
  * corrigenda.js — page-defect reporting widget.
- * Spec and endpoint: /web/ops/Corrigenda/CORRIGENDA.md
+ * Design and endpoint: DESIGN.md, beside this file's repository
  *
  * One file, no dependencies. Everything it renders lives in a shadow
  * root so the page under investigation cannot style the widget and the

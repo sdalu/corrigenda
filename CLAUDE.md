@@ -1,7 +1,7 @@
 # Working in this repository
 
 Notes for an agent working here. Everything a person needs is in
-[README.md](README.md), [CORRIGENDA.md](CORRIGENDA.md) and the READMEs
+[README.md](README.md), [DESIGN.md](DESIGN.md) and the READMEs
 under `deploy/`, `extension/` and `test/browser/`; what follows is the
 part that would be noise in those — the host's quirks, the guards that
 will fail a commit, and the habits this codebase is written in.
