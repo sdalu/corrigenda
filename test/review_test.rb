@@ -158,7 +158,7 @@ end
         get "/"
 
         assert_includes last_response.body, %(name="state" value="fixed")
-        assert_includes last_response.body, %(name="from" value="list")
+        assert_match %r{name="from"\s+value="list"}, last_response.body
     end
 
     def test_a_state_set_from_the_listing_returns_to_the_listing
@@ -171,10 +171,38 @@ end
 
     def test_it_returns_to_the_archive_when_that_is_where_you_were
         store.archive(@id)
-        post "/#{@id}/state", { "state" => "wontfix", "from" => "list",
-                                "archived" => "1" }
+        post "/#{@id}/state", { "state" => "wontfix", "from" => "archive" }
 
         assert_equal "/?archived=1", last_response.headers["location"]
+    end
+
+    # The other half of triage, and it used to mean opening the report:
+    # the state says what happened to the defect, this says whether
+    # anybody still wants it in front of them.
+    def test_a_report_is_filed_from_its_row
+        get "/"
+
+        assert_match %r{name="archived"\s+value="1"}, last_response.body
+
+        post "/#{@id}/archive", { "archived" => "1", "from" => "list" }
+
+        assert store.archived?(@id)
+        assert_equal "/", last_response.headers["location"]
+    end
+
+    # `archived` says what to do, not where the press came from. Read as
+    # the way back it sent whoever archived something from the working
+    # list into the archive to watch it arrive.
+    def test_filing_from_the_working_list_stays_on_the_working_list
+        post "/#{@id}/archive", { "archived" => "1", "from" => "list" }
+
+        assert_equal "/", last_response.headers["location"]
+    end
+
+    def test_filing_from_a_report_stays_on_the_report
+        post "/#{@id}/archive", { "archived" => "1" }
+
+        assert_equal "/#{@id}", last_response.headers["location"]
     end
 
     # From a report's own page, nothing changes: you stay on the report.
@@ -268,7 +296,7 @@ end
         post "/#{@id}/archive", { "archived" => "1" }
         get "/#{@id}"
 
-        assert_includes last_response.body, "Unarchive"
+        assert_includes last_response.body, "Restore"
     end
 
     def test_archiving_something_that_is_not_there_is_not_found

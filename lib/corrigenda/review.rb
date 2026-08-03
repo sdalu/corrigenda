@@ -58,10 +58,17 @@ module Corrigenda
             # reading, archive or not — being thrown into a report you
             # did not open is the thing that made triaging from the list
             # not worth doing.
+            #
+            # Only `from` says it. The archive form's `archived` is what
+            # it wants done, not where it came from, and reading the way
+            # back off that sent anyone who archived a report from the
+            # working list into the archive.
             def back_to(id)
-                return to("/#{id}", false) unless params[:from] == "list"
-
-                to(params[:archived] == "1" ? "/?archived=1" : "/", false)
+                case params[:from]
+                when "list"    then to("/", false)
+                when "archive" then to("/?archived=1", false)
+                else                to("/#{id}", false)
+                end
             end
 
             def find(id)
@@ -143,7 +150,7 @@ module Corrigenda
             find(id)
             store.archive(id, yes: params[:archived] != "0",
                               by: acting_user)
-            redirect to("/#{id}", false)
+            redirect back_to(id)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
         end

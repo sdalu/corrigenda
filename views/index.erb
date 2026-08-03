@@ -32,7 +32,14 @@
             <tbody>
                 <% entries.each do |entry| %>
                     <tr>
-                        <td><a href="<%= to("/#{entry['id']}", false) %>"><%= entry["at"] %></a></td>
+                        <%# To the minute, without the T and the Z: they
+                            are punctuation for a machine, and the width
+                            they cost is what the controls at the other
+                            end of the row need. The whole stamp is in
+                            the title, and in the report. %>
+                        <td><a href="<%= to("/#{entry['id']}", false) %>"
+                               title="<%= entry["at"] %>"><%=
+                            entry["at"].to_s[0, 16].tr("T", " ") %></a></td>
                         <td><%= entry["type"] %></td>
                         <td><%= entry["url"] %></td>
                         <td><%= summarise(entry) %></td>
@@ -52,16 +59,30 @@
                         <td class="setting">
                             <form method="post"
                                   action="<%= to("/#{entry['id']}/state", false) %>">
-                                <input type="hidden" name="from" value="list">
-                                <% if archived %>
-                                    <input type="hidden" name="archived" value="1">
-                                <% end %>
+                                <input type="hidden" name="from"
+                                       value="<%= archived ? "archive" : "list" %>">
                                 <% Corrigenda::Store::STATES.each do |value| %>
                                     <button name="state" value="<%= value %>"
                                             class="badge is-<%= value %>"
                                             <%= " disabled" if value == entry["state"] %>
                                             title="<%= value == entry["state"] ? "Already #{value}" : "Mark #{value}" %>"><%= value %></button>
                                 <% end %>
+                            </form>
+
+                            <%# And filed from the row as well. The state
+                                says what happened to the defect; this
+                                says whether anyone still wants it in
+                                front of them, which is the other half of
+                                triage and was the half that still meant
+                                opening the report. %>
+                            <form class="filing" method="post"
+                                  action="<%= to("/#{entry['id']}/archive", false) %>">
+                                <input type="hidden" name="from"
+                                       value="<%= archived ? "archive" : "list" %>">
+                                <input type="hidden" name="archived"
+                                       value="<%= archived ? "0" : "1" %>">
+                                <button class="badge a-archive"
+                                        title="<%= archived ? "Back to the working list" : "Out of the list, keeping everything" %>"><%= archived ? "restore" : "archive" %></button>
                             </form>
                         </td>
                     </tr>

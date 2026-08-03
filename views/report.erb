@@ -176,21 +176,35 @@
 <h2>State</h2>
 
 <div class="states">
-    <form method="post" action="<%= to("/#{id}/state", false) %>">
+    <%# One control rather than three buttons that happen to be beside
+        each other, and the current state is the filled segment. It used
+        to be the disabled one, which differed from its neighbours by a
+        shade of grey: this line is read at a glance far more often than
+        it is pressed, and "which one is it?" should not be answered by
+        comparing five greys. %>
+    <form class="segment" method="post"
+          action="<%= to("/#{id}/state", false) %>">
         <% Corrigenda::Store::STATES.each do |value| %>
-            <button name="state" value="<%= value %>"<%= value == state ? " disabled" : "" %>><%= value %></button>
+            <% now = value == state %>
+            <button name="state" value="<%= value %>"
+                    <%= now ? %(aria-current="true" disabled) : "" %>
+                    title="<%= now ? "Already #{value}" : "Mark #{value}" %>"><%= value %></button>
         <% end %>
     </form>
 
     <%# Archiving says nothing about the defect -- a report is archived
         and fixed, or archived and wontfix -- so it is its own control,
-        and deleting is not a state at all. %>
+        outside the segment, and deleting is not a state at all. %>
     <form method="post" action="<%= to("/#{id}/archive", false) %>">
         <input type="hidden" name="archived" value="<%= archived ? "0" : "1" %>">
-        <button><%= archived ? "Unarchive" : "Archive" %></button>
+        <button><%= archived ? "Restore" : "Archive" %></button>
     </form>
 
-    <form method="post" action="<%= to("/#{id}/delete", false) %>">
+    <%# At the other end of the row: it is the one press here that
+        cannot be taken back, and it should not sit a thumb's width
+        from the one that files the report. %>
+    <form class="apart" method="post"
+          action="<%= to("/#{id}/delete", false) %>">
         <button class="is-danger">Delete…</button>
     </form>
 </div>

@@ -78,8 +78,14 @@ To see the widget without any of that:
 ## Reading what came in
 
 The review UI is at `/review` behind the same login as the endpoint.
-States are set from the listing as well as from a report's own page,
-so triaging a morning's reports does not mean opening each one.
+A report is triaged from its row in the listing as well as from its own
+page: **open, fixed or wontfix** for what happened to the defect, and
+**archive** for whether it is still worth looking at. Both are on every
+row, so a morning's reports do not mean opening each one.
+
+Archiving keeps everything and can be undone — the archived list has
+the same controls and a **restore** on each row. Deleting is on the
+report's own page, at the far end of the row, and asks again.
 
 From a terminal on the host, the same store, without the proxy:
 

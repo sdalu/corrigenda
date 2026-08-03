@@ -747,6 +747,10 @@ svg {
        controls. The one that is disabled is the current state — it is
        the only one in full ink, which is what makes the column
        scannable. */
+    /* Two forms, one under the other, and the cell itself left alone: a
+       td asked to be a flex container stops being the row's cell — the
+       table wraps it in an anonymous one — and the rule under it then
+       lands at its own height instead of the row's. */
     .setting {
         form {
             display: flex;
@@ -779,6 +783,26 @@ svg {
 
                 &::before { border-color: var(--ink); }
             }
+        }
+
+        /* Filing, which is not a state and does not read as one: no
+           dot, lower case, the muted ink. The words above it say what
+           happened to the defect; this one says whether anybody still
+           wants it in front of them.
+
+           And it takes the line under them rather than the width beside
+           them. These rows are already several lines tall, so a second
+           line in one cell costs nothing — where the width did: beside
+           the states it pushed the table past its scroller and left the
+           control off the edge of the page. */
+        .filing button {
+            margin-block-start: 0.1rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.04em;
+            text-transform: none;
+            color: var(--muted);
+
+            &::before { display: none; }
         }
     }
 
@@ -894,6 +918,48 @@ svg {
             align-items: center;
             text-decoration: none;
         }
+
+        /* The three states are one control: a segment each, sharing a
+           border, and the current one filled rather than greyed out. A
+           selected item a shade paler than its neighbours has to be
+           compared with them to be read, and this row is read far more
+           often than it is pressed. The tick is there because the fill
+           is a colour, and a colour on its own is not an answer for
+           everyone. */
+        .segment {
+            gap: 0;
+            border: 1px solid var(--rule);
+            border-radius: 3px;
+            /* So the fill on an end segment stops at the rounded corner
+               instead of squaring it off. */
+            overflow: clip;
+
+            button {
+                border: 0;
+                border-radius: 0;
+                background: var(--paper);
+
+                & + button { border-inline-start: 1px solid var(--rule); }
+
+                &:hover { background: var(--panel); }
+
+                &[aria-current] {
+                    color: var(--paper);
+                    background: var(--ink);
+
+                    &::before {
+                        content: "✓";
+                        margin-inline-end: 0.4em;
+                    }
+                }
+            }
+        }
+
+        /* At the far end of the row. The one press here that cannot be
+           taken back should not sit against the one that files the
+           report, and when the row runs out of width this is what wraps
+           away from the rest rather than into it. */
+        .apart { margin-inline-start: auto; }
 
         .is-danger {
             color: var(--danger);
