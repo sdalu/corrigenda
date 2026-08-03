@@ -31,11 +31,6 @@ class DeployTest < CorrigendaTest
         assert_includes out, "<Macro CorrigendaEndpoint>"
     end
 
-    def test_the_template_names_no_real_host
-        refute_match(/sdalu|alux|kuiristo/i, File.read(TEMPLATE),
-                     "the template carries a host from this deployment")
-    end
-
     def test_a_missing_config_says_what_to_copy
         Dir.mktmpdir do |dir|
             out = IO.popen([MACRO, "--stdout", "--config",

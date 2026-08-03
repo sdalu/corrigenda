@@ -158,8 +158,8 @@ conf = <<~APACHE
             # the review UI points one level too high.
             RequestHeader set X-Forwarded-Prefix "#{mount}"
 
-            # Unix socket, as kuiristo.eu and www.sdalu.com already do
-            # here. /var/run rather than their /tmp: /tmp is
+            # Unix socket, as the other proxied vhosts here already do.
+            # /var/run rather than their /tmp: /tmp is
             # world-writable, and a socket there can be raced by any local
             # user before the service binds it.
             ProxyPass        unix:#{socket}|http://127.0.0.1/

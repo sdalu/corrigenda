@@ -45,7 +45,7 @@ const check = async (name, browser, executablePath, args) => {
     });
 
     // point the widget at the other origin, the way MoXoW's
-    // corrigenda="https://tools.sdalu.com|..." does
+    // corrigenda="https://tools.example.com|..." does
     await page.route(`${PAGE}/fixture.html`, async (route) => {
         const response = await route.fetch();
         const html = (await response.text()).replace(

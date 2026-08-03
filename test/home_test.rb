@@ -87,10 +87,10 @@ end
     end
 
     def test_it_names_the_allowlist_when_there_is_one
-        TestSupport.configure("sites" => ["tools.sdalu.com"])
+        TestSupport.configure("sites" => ["tools.example.com"])
         get "/"
 
-        assert_includes last_response.body, "tools.sdalu.com"
+        assert_includes last_response.body, "tools.example.com"
     ensure
         TestSupport.configure
     end

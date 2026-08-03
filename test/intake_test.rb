@@ -19,7 +19,7 @@ class IntakeTest < CorrigendaTest
     # default permits only localhost and friends, which made every real
     # request 403 "Host not permitted" until host_authorization was set.
     def test_a_vhost_host_header_is_accepted
-        get "/health", {}, { "HTTP_HOST" => "tools.sdalu.com" }
+        get "/health", {}, { "HTTP_HOST" => "tools.example.com" }
 
         assert_predicate last_response, :ok?
     end
@@ -27,7 +27,7 @@ class IntakeTest < CorrigendaTest
     def test_a_vhost_host_header_is_accepted_on_a_report
         post "/", JSON.generate(TestSupport.document),
              { "CONTENT_TYPE" => "application/json",
-               "HTTP_HOST" => "tools.sdalu.com" }
+               "HTTP_HOST" => "tools.example.com" }
 
         assert_equal 201, last_response.status
     end
@@ -42,18 +42,18 @@ class IntakeTest < CorrigendaTest
 
     def test_the_reporter_comes_from_the_web_server
         post "/", JSON.generate(TestSupport.document),
-             { "CONTENT_TYPE" => "application/json", "REMOTE_USER" => "sdalu" }
+             { "CONTENT_TYPE" => "application/json", "REMOTE_USER" => "alice" }
 
-        assert_equal "sdalu", store.entries.first["reporter"]
+        assert_equal "alice", store.entries.first["reporter"]
     end
 
     # Behind ProxyPass there is no REMOTE_USER, only what Apache resends.
     def test_the_reporter_survives_the_proxy_hop
         post "/", JSON.generate(TestSupport.document),
              { "CONTENT_TYPE" => "application/json",
-               "HTTP_X_REMOTE_USER" => "sdalu" }
+               "HTTP_X_REMOTE_USER" => "alice" }
 
-        assert_equal "sdalu", store.entries.first["reporter"]
+        assert_equal "alice", store.entries.first["reporter"]
     end
 
     # The client gzips; the magic number is how the endpoint knows.
@@ -86,7 +86,8 @@ class IntakeTest < CorrigendaTest
     end
 
     def test_an_unlisted_site_is_refused
-        TestSupport.configure("sites" => ["www.sdalu.com"])
+        # Deliberately not the site the fixture report claims.
+        TestSupport.configure("sites" => ["elsewhere.example.com"])
         post_json(TestSupport.document)
 
         assert_equal 403, last_response.status
@@ -95,7 +96,7 @@ class IntakeTest < CorrigendaTest
     end
 
     def test_a_listed_site_is_accepted
-        TestSupport.configure("sites" => ["www.alux.fr"])
+        TestSupport.configure("sites" => ["www.example.com"])
         post_json(TestSupport.document)
 
         assert_equal 201, last_response.status
@@ -124,15 +125,15 @@ class IntakeTest < CorrigendaTest
     # from its own origin, and the browser decides whether that happens.
     # ----------------------------------------------------------------
     def setup_allowlist
-        TestSupport.configure("sites" => ["www.alux.fr", "tools.sdalu.com"])
+        TestSupport.configure("sites" => ["www.example.com", "tools.example.com"])
     end
 
     def test_a_preflight_from_a_listed_site_is_answered
         setup_allowlist
-        options "/", {}, { "HTTP_ORIGIN" => "https://www.alux.fr" }
+        options "/", {}, { "HTTP_ORIGIN" => "https://www.example.com" }
 
         assert_equal 204, last_response.status
-        assert_equal "https://www.alux.fr",
+        assert_equal "https://www.example.com",
                      last_response.headers["access-control-allow-origin"]
         assert_equal "true",
                      last_response.headers["access-control-allow-credentials"]
@@ -146,7 +147,7 @@ class IntakeTest < CorrigendaTest
     # cannot be cached across origins.
     def test_the_answer_varies_by_origin
         setup_allowlist
-        options "/", {}, { "HTTP_ORIGIN" => "https://www.alux.fr" }
+        options "/", {}, { "HTTP_ORIGIN" => "https://www.example.com" }
 
         assert_includes last_response.headers["vary"].to_s, "Origin"
         refute_equal "*", last_response.headers["access-control-allow-origin"]
@@ -163,7 +164,7 @@ class IntakeTest < CorrigendaTest
     # http is not a scheme to hand credentials to, listed or not.
     def test_an_insecure_origin_is_refused
         setup_allowlist
-        options "/", {}, { "HTTP_ORIGIN" => "http://www.alux.fr" }
+        options "/", {}, { "HTTP_ORIGIN" => "http://www.example.com" }
 
         assert_equal 404, last_response.status
     end
@@ -172,10 +173,10 @@ class IntakeTest < CorrigendaTest
         setup_allowlist
         post "/", JSON.generate(TestSupport.document),
              { "CONTENT_TYPE" => "application/json",
-               "HTTP_ORIGIN" => "https://www.alux.fr" }
+               "HTTP_ORIGIN" => "https://www.example.com" }
 
         assert_equal 201, last_response.status
-        assert_equal "https://www.alux.fr",
+        assert_equal "https://www.example.com",
                      last_response.headers["access-control-allow-origin"]
     end
 

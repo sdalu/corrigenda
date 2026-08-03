@@ -15,6 +15,14 @@ require "corrigenda/intake"
 require "corrigenda/prefix"
 require "corrigenda/review"
 
+# Untracked, and usually absent: the place for anything a test needs
+# that names a deployment rather than the program. Everything here
+# runs on example.com, so a checkout needs no such file -- but when
+# a real host is genuinely required, it goes in one file that is not
+# committed rather than scattered through the suites.
+LOCAL = File.expand_path("local.rb", __dir__)
+require_relative "local" if File.exist?(LOCAL)
+
 # One store per process, pointed at a temporary directory. Both apps read
 # their config at class level, so the override happens once, here.
 module TestSupport
@@ -32,7 +40,7 @@ module TestSupport
         {
             "schema" => 1,
             "type"   => "visual",
-            "page"   => { "url" => "https://www.alux.fr/", "site" => "www.alux.fr" },
+            "page"   => { "url" => "https://www.example.com/", "site" => "www.example.com" },
             "message" => "The caption overlaps the photo"
         }.merge(overrides.transform_keys(&:to_s))
     end

@@ -17,7 +17,7 @@ a supervisor; the process is an ordinary foreground puma.
 
 §4 originally gated injection on `<If "%{REMOTE_USER} != ''">`. That
 only fires when Apache authenticated the **page**, and of the fourteen
-vhosts here only tools.sdalu.com authenticates anything — on the
+vhosts here only this one authenticates anything — on the
 exhibition sites `REMOTE_USER` is always empty, so the widget would
 never appear on precisely the sites whose CSS is under investigation.
 `mod_substitute` is also commented out at httpd.conf:106.
@@ -29,7 +29,7 @@ different bodies depending on something no `Vary` header mentions.
 
 ## How it is wired here
 
-As deployed on this host (pilot: **tools.sdalu.com**), httpd.conf
+As deployed on this host, httpd.conf
 includes this repo's macro file directly rather than a copy of it:
 
     Include /web/ops/Corrigenda/deploy/macro-corrigenda.conf

@@ -21,7 +21,7 @@ class ReviewTest < CorrigendaTest
                 "environment" => { "viewport" => "390x844" }
             ),
             files: { "screenshot.webp" => "RIFF....WEBP".b },
-            reporter: "sdalu"
+            reporter: "alice"
         )
     end
 
@@ -29,11 +29,11 @@ class ReviewTest < CorrigendaTest
         get "/"
 
         assert_predicate last_response, :ok?
-        assert_includes last_response.body, "www.alux.fr"
+        assert_includes last_response.body, "www.example.com"
     end
 
     def test_the_listing_is_reachable_under_a_vhost_host_header
-        get "/", {}, { "HTTP_HOST" => "tools.sdalu.com" }
+        get "/", {}, { "HTTP_HOST" => "tools.example.com" }
 
         assert_predicate last_response, :ok?
     end
@@ -179,6 +179,6 @@ end
         get "/#{id}"
 
         assert_includes last_response.body,
-                        "&lt;base href=&quot;https://www.alux.fr/&quot;&gt;"
+                        "&lt;base href=&quot;https://www.example.com/&quot;&gt;"
     end
 end

@@ -98,7 +98,7 @@ Both load the identical module; they differ only in when it starts.
 original plan was `mod_substitute` inside
 `<If "%{REMOTE_USER} != ''">`. That expression is only non-empty when
 Apache authenticated **the page**, and of the fourteen vhosts on this
-host exactly one — tools.sdalu.com — authenticates anything. On the
+host exactly one authenticates anything. On the
 exhibition sites `REMOTE_USER` is always empty, so the widget would
 never appear on precisely the sites whose CSS is under investigation.
 `mod_substitute` is also not loaded (commented at `httpd.conf:106`).
@@ -127,7 +127,7 @@ for "I am looking at something odd right now"; a testing pass wants (C).
 of every page:
 
 ```html
-<link rel="corrigenda" href="https://tools.sdalu.com/.corrigenda">
+<link rel="corrigenda" href="https://tools.example.com/.corrigenda">
 ```
 
 Everything reads it: the widget when nothing on its own tag says
@@ -142,7 +142,7 @@ waiting to be asked:
 ```html
 <script src="/.corrigenda/corrigenda.js"
         data-endpoint="/.corrigenda/report"
-        data-site="www.alux.fr"
+        data-site="www.example.com"
         data-build="2026-08-02.3"
         data-lang="fr" defer></script>
 ```
@@ -353,8 +353,8 @@ to it, inside its own auth macro:
 </Macro>
 ```
 
-A unix socket rather than a loopback port, as `kuiristo.eu` and
-`www.sdalu.com` already do here — no port to allocate, and reachability
+A unix socket rather than a loopback port, as `gallery.example.com` and
+`www.example.com` already do here — no port to allocate, and reachability
 is a filesystem permission instead of "any local process may connect".
 `/var/run/corrigenda/` rather than their `/tmp`, which is world-writable
 and lets any local user race the path before the service binds it.

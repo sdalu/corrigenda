@@ -23,3 +23,10 @@ deploy/macro-corrigenda.conf
 # This deployment: its hosts, its directory server, its paths. Copy
 # deploy/corrigenda-template.yml to make one.
 deploy/corrigenda.yml
+
+# Anything a test needs that names this deployment rather than the
+# program: real hostnames, a real account. Loaded by test_helper.rb if
+# it exists, absent from a checkout, and the suites pass without it --
+# see test/tracked_files_test.rb, which is what keeps such things out
+# of the tracked files in the first place.
+test/local.rb
