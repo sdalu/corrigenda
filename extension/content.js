@@ -68,6 +68,21 @@
         window.postMessage({ source: FROM_EXT, id, ...payload }, window.origin);
     };
 
+    /* true, false, or null for "could not ask". The three are different:
+     * a refusal is the browser's answer about this site, and null is
+     * this half failing to reach the other one. */
+    const mayCapture = async () => {
+        try {
+            const answer = await api.runtime.sendMessage({
+                type: READY, origin: window.origin
+            });
+
+            return answer?.granted === true;
+        } catch {
+            return null;
+        }
+    };
+
     /* Where the viewport sits in the page. Only this side can read it,
      * and Chrome's captureVisibleTab needs it to say what it returned. */
     const viewport = () => ({
@@ -100,18 +115,23 @@
              * The build travels here rather than on the element:
              * nothing branches on it, and a report that says which
              * helper took its picture is worth having. */
-            let granted = false;
-            try {
-                const answer = await api.runtime.sendMessage({
-                    type: READY, origin: window.origin
-                });
-                granted = answer?.granted === true;
-            } catch {
-                granted = false;
+            let granted = await mayCapture();
+
+            /* Once more if it could not be reached at all. The
+             * background half sleeps between uses -- an event page in
+             * Firefox, a service worker in Chrome -- and sending to it
+             * is what wakes it; a message that arrives mid-wake can be
+             * lost, and answering "no" to that would take the cropping
+             * away from a site that is perfectly well granted. Silence
+             * twice is an answer; silence once is a nap. */
+            if (granted === null) {
+                await new Promise((wait) => setTimeout(wait, 200));
+                granted = await mayCapture();
             }
 
             reply(message.id, { type: "pong", helper: HELPER,
-                                version: VERSION, granted });
+                                version: VERSION,
+                                granted: granted === true });
             return;
         }
 
