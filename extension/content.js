@@ -64,6 +64,15 @@
     api.runtime.sendMessage({ type: READY, origin: window.origin })
        .catch(() => {});
 
+    /* And to the page. On a normal load nothing is listening yet and
+     * this is ignored; injected into a tab that is already open --
+     * which is what pressing the toolbar button does -- it is the only
+     * thing that tells a widget already on the page that cropping just
+     * became possible. Without it the reader presses the button, is
+     * told to press the button, and reloads to find out it worked. */
+    window.postMessage({ source: FROM_EXT, type: "hello", helper: HELPER },
+                       window.origin);
+
     /* This runs at document_start, where <head> has not been parsed and
      * the link cannot be there yet. The announcement above must stay
      * that early -- the widget reads it synchronously -- but the reading

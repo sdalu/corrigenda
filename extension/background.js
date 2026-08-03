@@ -146,6 +146,26 @@ const originOf = (url) => {
 const recalled = async () =>
     (await api.storage.local.get(REMEMBERED))[REMEMBERED] || null;
 
+/* The bridge, into the page that is already open. registerBridge() puts
+ * it on every later load of a granted origin, but the tab somebody just
+ * pressed the button in has no content script in it yet -- and telling
+ * them to reload the page they are reporting on is telling them to lose
+ * the state they were reporting about. */
+const arm = async (tab) => {
+    if (tab?.id === undefined) return;
+
+    try {
+        await api.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ["content.js"]
+        });
+    } catch {
+        /* A page no extension may script, or one that navigated away
+         * while the prompt was open. The next load gets it from the
+         * registration either way. */
+    }
+};
+
 /* DISABLED. Kept whole rather than deleted: turning it back on is one
  * call in the listener below, and the reasoning it encodes -- the
  * endpoint is the page's own link, then the last one this add-on
@@ -197,12 +217,7 @@ const inject = async (tab) => {
  * capture with nothing to press. Injecting the widget was the other half
  * and is switched off: inject(tab) here brings it back.
  *
- * `asked` keeps a refusal from being re-asked at every click. It is
- * memory, not storage, because storage would have to be awaited: it
- * lasts as long as this background context does, and a refuser is asked
- * again at most once per browser session.
  */
-const asked = new Set();
 
 /* The button is the only place a permission can be asked from -- a
  * browser will not raise that prompt without a user gesture, and an
@@ -230,20 +245,21 @@ api.action.onClicked.addListener((tab) => {
     const origin = originOf(tab?.url || "");
     if (!origin) return;
 
-    /* Asking is the privileged call and goes first, unasked. Once
-     * asked -- granted or refused -- there is nothing to ask again, so
-     * the state is simply read; contains() needs no gesture. */
-    let answer;
-    if (asked.has(origin)) {
-        answer = api.permissions.contains({ origins: [origin] });
-    } else {
-        asked.add(origin);
-        answer = api.permissions.request({ origins: [origin] });
-    }
-
-    Promise.resolve(answer)
-        .then((on) => announce(tab?.id, on))
-        .catch(() => { /* refused, or a prompt the browser would not raise */ });
+    /* Asked every time, and synchronously: a browser will only raise
+     * this prompt inside the gesture that asked for it, so anything
+     * awaited first loses the right to ask. Where the origin is already
+     * granted there is no prompt -- request() answers true and nothing
+     * is shown -- so the cost of asking again is nothing, and the
+     * benefit is that a press after a dismissed prompt asks again.
+     * Remembering the dismissal made the button dead for the rest of
+     * the session on the one site somebody was trying to switch on.
+     */
+    api.permissions.request({ origins: [origin] })
+       .then(async (on) => {
+           announce(tab?.id, on);
+           if (on) await arm(tab);
+       })
+       .catch(() => { /* a prompt the browser would not raise */ });
 
     /* Switched off with the injector above. Restoring it is this line:
      *

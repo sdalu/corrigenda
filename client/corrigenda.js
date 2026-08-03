@@ -554,6 +554,11 @@
      */
     let helperAnswers = null;
 
+    /* Set by the panel once it exists, so an add-on switched on while
+     * somebody is looking at the panel reaches the controls it changes.
+     */
+    let helperArrived = null;
+
     const askHelper = async () => {
         if (!extension()) {
             helperAnswers = false;
@@ -561,7 +566,13 @@
         }
 
         try {
-            const pong = await BRIDGE.ask("ping", {}, 2000);
+            /* Five seconds rather than two: this is a wake-up, not a
+             * round trip -- an event page that has been idle takes its
+             * time, and the answer decides whether the cropping scopes
+             * are offered at all. Nothing waits on it visibly; the
+             * warning is up until it lands and clears itself when it
+             * does. */
+            const pong = await BRIDGE.ask("ping", {}, 5000);
             /* An add-on that answers but speaks an older contract is one
              * this page must not talk to. It says which it speaks; a
              * helper too old to say is helper 1. */
@@ -609,6 +620,14 @@
         receive(event) {
             if (event.source !== window) return;
             if (event.data?.source !== "corrigenda-extension") return;
+
+            /* Unsolicited: a bridge that has just been put into a page
+             * that was already open. Nothing asked for this, so there is
+             * no promise waiting on it -- it is a nudge to ask again. */
+            if (event.data.type === "hello") {
+                askHelper().then(() => helperArrived?.());
+                return;
+            }
 
             const pending = this.waiting.get(event.data.id);
             if (!pending) return;
@@ -856,13 +875,25 @@
              * not take the screenshot away with it. */
             if (provider() !== PROVIDERS.extension) throw error;
 
-            /* And having found out the hard way, say so: the cropping
-             * scopes go and the warning comes back, rather than the next
-             * capture discovering it again. */
-            helperAnswers = false;
-            syncScopes();
+            /* One more attempt through the bridge before anything
+             * louder. The background half sleeps between uses and the
+             * first message through is what wakes it, so a failure here
+             * is as often a nap as a refusal -- and the fallback is the
+             * share dialog, which is a permission prompt in somebody's
+             * face on a site that had already been granted. Ask twice
+             * before doing that.
+             */
+            try {
+                frame = await PROVIDERS.extension.grab();
+            } catch {
+                /* Twice is an answer. Say so: the cropping scopes go and
+                 * the warning comes back, rather than the next capture
+                 * discovering it again. */
+                helperAnswers = false;
+                syncScopes();
 
-            frame = await PROVIDERS.display.grab();
+                frame = await PROVIDERS.display.grab();
+            }
         } finally {
             host.style.visibility = "";
         }
@@ -3020,6 +3051,7 @@ input:where(:not(:checked)) + .chip {
 
     syncScopes();
     askHelper().then(() => syncScopes());
+    helperArrived = syncScopes;
 
     /* The crop and the redaction happen at capture time, so a new scope
      * needs a new capture rather than silently keeping the old image. */
