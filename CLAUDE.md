@@ -3,8 +3,12 @@
 Notes for an agent working here. Everything a person needs is in
 [README.md](README.md), [DESIGN.md](DESIGN.md) and the READMEs
 under `deploy/`, `extension/` and `test/browser/`; what follows is the
-part that would be noise in those — the host's quirks, the guards that
-will fail a commit, and the habits this codebase is written in.
+part that would be noise in those — the guards that will fail a commit
+and the habits this codebase is written in. The host's quirks are one
+level up, in [`/web/CLAUDE.md`](../../CLAUDE.md): which binary sees
+which filesystem, how to find the browser toolchain, patch-script
+traps. The general working rules are in `~/.claude/CLAUDE.md` and the
+AI-BASELINE it imports.
 
 **Where a sentence belongs.** The READMEs are written in the present
 tense: how it works now, and what it will not do. What was tried and
@@ -51,25 +55,11 @@ throwaway config instead.
 `test/browser/run` (behind `rake test:browser`) starts the servers,
 finds the toolchain and runs the four checks. The toolchain is not in
 this repository and not installed by it: it is a playwright-core plus
-browser build that happens to be on this host, under
-
-    /root/.claude/tools/playwright-chromium
-
-**Probe for a file it must contain, never for the directory.** On
-2026-08-02 both that path and `/compat/linux/root/.claude/...` existed
-and only the second was populated, so a `Dir.exist?` test picked the
-empty husk and node died on a missing executable. Which side holds the
-real tool is a property of the moment:
-
-    TOOLS=$(ruby -e 'b = "/root/.claude/tools/playwright-chromium"
-                     puts ["/compat/linux#{b}", b].find { File.exist?("#{it}/shim.js") }')
-
-Then `CHROMIUM=$TOOLS`, `NODE_PATH=$TOOLS/node_modules`,
-`LD_LIBRARY_PATH=$TOOLS/libs/usr/lib64:$TOOLS/libs/lib64`, and run node
-from inside `$TOOLS` — playwright-core resolves the browsers it launches
-relative to where it is installed. `test/browser/run` does all of this;
-prefer it, and reach for the raw commands only when a check fails and
-you want to drive the same page yourself.
+browser build that happens to be on this host, and finding it —
+probing for a file rather than for the directory, and the environment
+it wants — is in `/web/CLAUDE.md`. `test/browser/run` does all of that,
+so prefer it, and reach for the raw commands only when a check fails
+and you want to drive the same page yourself.
 
 ## Reading the reports as a program
 
@@ -115,24 +105,6 @@ the report page prints it next to the conditions the report itself
 names, so a comparison made under others is visible rather than
 assumed.
 
-## The host splits paths
-
-This host runs a Linux compatibility layer: a Linux-side process
-resolves `/web/X` by trying `/compat/linux/web/X` first. So a write
-addressed to a file under `/web` can land in a shadow while the real
-file stays untouched, and a listing can look inconsistent afterwards.
-
-- Ruby is a native build; the shell and the editing tools may not be.
-  When something must land natively, write it with Ruby.
-- **Verify every write into `/web` with `git status`, not with `ls`.**
-  A new file must appear as untracked; a changed one as modified.
-- If a shadow appears (`/compat/linux/web/...`), do not try to clear it
-  yourself — the permission classifier refuses. Save what is in it,
-  hand the owner `! rm -rf /compat/linux/web`, then write again.
-- The session scratchpad is itself already a `/compat/linux` path and
-  may be resolved twice. Never put one in a command handed to the
-  owner's shell: their shell will not find it.
-
 ## Guards that will fail a commit
 
 - `test/tracked_files_test.rb` refuses **any private hostname of this
@@ -164,7 +136,5 @@ be renamed with `mv`. When you write one, write that kind: the next
 reader's question, answered. Commit messages are the same voice, a
 sentence-shaped subject and prose below it.
 
-When patching a file with a script, anchor on exact text and **assert
-the hit count** before substituting; a heredoc's `<<~` will strip the
-indentation an anchor depends on, and `gsub`'s replacement string eats
-`\1`. Both have cost time here.
+Patch scripts, and the traps in them, are in `/web/CLAUDE.md`: both of
+the ones named there cost time in this repository first.
