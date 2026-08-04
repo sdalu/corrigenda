@@ -458,16 +458,23 @@ end
         refute_includes last_response.body, "Showing the newest"
     end
 
+    # Asked with a limit the whole list fits inside, rather than with
+    # the default: the shared store can be past a hundred by the time
+    # this runs, and the claim under test is "a list that fits", not
+    # "the store is small today".
     def test_a_list_that_fits_says_nothing_about_a_limit
-        get "/"
+        store.save(TestSupport.document)
+
+        get "/?limit=#{working}"
 
         assert_predicate last_response, :ok?
-        assert_operator working, :<, Corrigenda::Review::LISTED
         refute_includes last_response.body, "Showing the newest"
     end
 
     # A hand-typed limit is answered with the list, not with an error
-    # page: the same convention /api/reports reads it under.
+    # page: the same convention /api/reports reads it under. What "the
+    # default" shows depends on how full the shared store already is,
+    # so the expectation is computed rather than assumed small.
     def test_a_limit_that_is_not_a_number_is_the_default
         2.times { store.save(TestSupport.document) }
         total = working
@@ -475,9 +482,7 @@ end
         get "/?limit=bananas"
 
         assert_predicate last_response, :ok?
-        assert_operator total, :<, Corrigenda::Review::LISTED
-        assert_equal total, rows
-        refute_includes last_response.body, "Showing the newest"
+        assert_equal [total, Corrigenda::Review::LISTED].min, rows
     end
 
     # The way out of a cut archive stays in the archive.
