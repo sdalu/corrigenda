@@ -121,12 +121,6 @@ module Corrigenda
             sites.include?(site)
         end
 
-        # Which origins may post from another host. Derived from the site
-        # list rather than configured beside it: a second list is a list
-        # that falls out of step, and the answer to "may this page send
-        # reports" was never going to differ from "may a report say it
-        # came from that site".
-        #
         # The public URL of this service, without a trailing slash, or
         # nil when nobody said. Only ever displayed: what a report does
         # is decided by where it arrived, not by this.
@@ -135,11 +129,16 @@ module Corrigenda
             value&.sub(%r{/+\z}, "")
         end
 
-        # Written out when they differ from the sites, derived from them
-        # when they do not. Either way this is a list of origins, and an
-        # origin is a scheme and a host: a bare hostname in the file is
-        # read as https, since that is the only scheme a page on this
-        # estate is served over.
+        # Which origins may post from another host. Written out when
+        # they differ from the sites, derived from them when they do
+        # not: a second list is a list that falls out of step, and the
+        # answer to "may this page send reports" was never going to
+        # differ from "may a report say it came from that site".
+        #
+        # Either way this is a list of origins, and an origin is a
+        # scheme and a host: a bare hostname in the file is read as
+        # https, since that is the only scheme a page on this estate is
+        # served over.
         def origins
             listed = @values.fetch("origins")
             return normalise(listed) unless listed.nil?
@@ -201,7 +200,7 @@ module Corrigenda
         end
 
         # nil when there is no agent interface, otherwise what it is
-        # allowed to do. `ai: true` is the whole of a read-only one;
+        # allowed to do. `api: true` is the whole of a read-only one;
         # a mapping adds a token, or write access, or both.
         #
         # Read strictly, like retention and for the same reason: this
@@ -296,7 +295,6 @@ module Corrigenda
 
             API_GRANTS & wanted   # a stable order, for display
         end
-
 
         # A token is a secret or it is nothing. An empty string in the
         # file means somebody meant to paste one and did not, and reading

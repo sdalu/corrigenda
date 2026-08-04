@@ -43,7 +43,7 @@
             </colgroup>
             <thead>
                 <tr>
-                    <th>When</th><th>Kind</th><th>Page</th>
+                    <th>When (UTC)</th><th>Kind</th><th>Page</th>
                     <th>Summary</th><th>Sent</th><th>By</th><th>State</th>
                     <th>Archived</th>
                 </tr>
@@ -58,9 +58,14 @@
                             the title, and in the report. %>
                         <td><a href="<%= to("/#{entry['id']}", false) %>"
                                title="<%= entry["at"] %>"><%=
-                            entry["at"].to_s[0, 16].tr("T", " ") %></a></td>
+                            short_stamp(entry["at"]) %></a></td>
                         <td><%= entry["type"] %></td>
-                        <td><%= entry["url"] %></td>
+                        <%# The scene of the defect, one click from the
+                            list; a URL that is not a web address stays
+                            words. %>
+                        <td><% if (href = page_href(entry["url"])) %><a
+                            href="<%= href %>"><%= entry["url"] %></a><%
+                            else %><%= entry["url"] %><% end %></td>
                         <td><%= summarise(entry) %></td>
                         <td><%== channels(entry["channels"]) %></td>
                         <td><%= entry["reporter"] %></td>
@@ -74,8 +79,13 @@
 
                             `from` is what sends you back here rather
                             than into the report: the same handler, told
-                            where the press came from. %>
-                        <td class="setting">
+                            where the press came from.
+
+                            Filing has a column of its own now, so
+                            nothing else lives in this cell — a control
+                            under the states was read as a fourth
+                            state. %>
+                        <td>
                             <form class="pick is-compact" method="post"
                                   action="<%= to("/#{entry['id']}/state", false) %>">
                                 <input type="hidden" name="from"

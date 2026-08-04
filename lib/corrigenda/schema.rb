@@ -28,7 +28,12 @@ module Corrigenda
         required(:type).value(:string, included_in?: Corrigenda::TYPES)
 
         required(:page).hash do
-            required(:url).filled(:string, max_size?: 2048)
+            # A web address only: the review UI renders this as a link
+            # the reviewer clicks, and a javascript: URL filed as a
+            # report must not become one. Refused here, where the
+            # refusal is visible, rather than quietly unlinked later.
+            required(:url).filled(:string, max_size?: 2048,
+                                           format?: %r{\Ahttps?://}i)
             optional(:title).maybe(:string)
             optional(:site).maybe(:string)
             optional(:build).maybe(:string)

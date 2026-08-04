@@ -11,6 +11,7 @@ class ReviewTest < CorrigendaTest
 
     def setup
         TestSupport.configure
+        context = "@layer components / @media (width > 20rem)"
         @id = store.save(
             TestSupport.document(
                 "target" => {
@@ -19,7 +20,7 @@ class ReviewTest < CorrigendaTest
                     "rules" => [
                         { "href" => "/common/style/exhibition-standard.css",
                           "selector" => ".caption",
-                          "context" => "@layer components / @media (width > 20rem)" }
+                          "context" => context }
                     ]
                 },
                 "environment" => { "viewport" => "390x844" }
@@ -62,8 +63,9 @@ class ReviewTest < CorrigendaTest
         # condition, inside what.
         assert_includes last_response.body,
                         %(<li class="is-layer">@layer components</li>)
+        condition = "@media (width &gt; 20rem)"
         assert_includes last_response.body,
-                        %(<li class="is-condition">@media (width &gt; 20rem)</li>)
+                        %(<li class="is-condition">#{condition}</li>)
         assert_includes last_response.body, %(<span class="selector">.caption)
         assert_includes last_response.body, "2 deep"
     end
@@ -77,7 +79,8 @@ class ReviewTest < CorrigendaTest
 
         get "/#{id}"
 
-        assert_includes last_response.body, %(<li class="is-nesting">.crumbs</li>)
+        assert_includes last_response.body,
+                        %(<li class="is-nesting">.crumbs</li>)
     end
 
     # A rule that matched with no layer and no query has nothing to
@@ -91,7 +94,10 @@ class ReviewTest < CorrigendaTest
         get "/#{id}"
 
         assert_includes last_response.body, %(<p class="rule is-bare">)
-        refute_includes last_response.body, %(<details class="rule">\n                <summary>\n                    <span class="selector">.plain)
+        refute_includes last_response.body,
+                        "<details class=\"rule\">\n                " \
+                        "<summary>\n                    " \
+                        "<span class=\"selector\">.plain"
     end
 
     # The review UI renders strings a browser sent us. escape_html only
@@ -115,9 +121,11 @@ def test_the_listing_marks_which_channels_were_sent
     # The letter stands for the word the legend prints, not for the
     # payload key: "fragment" is the element you picked.
     assert_includes last_response.body,
-                    %(<span class="chip" data-channel="fragment" title="element">E</span>)
+                    "<span class=\"chip\" data-channel=\"fragment\" " \
+                    "title=\"element\">E</span>"
     assert_includes last_response.body,
-                    %(<span class="chip" data-channel="rules" title="css rules">R</span>)
+                    "<span class=\"chip\" data-channel=\"rules\" " \
+                    "title=\"css rules\">R</span>"
     # The legend prints a chip for every channel, so absence has to
     # be asserted on a ROW chip -- those carry the title.
     refute_includes last_response.body,
@@ -239,7 +247,8 @@ end
     # where its contents came from.
     def test_the_fragment_resolves_against_the_page_it_came_from
         store.save(TestSupport.document(
-            "target" => { "selector" => "figure", "html" => "<img src='photo.jpg'>" }))
+            "target" => { "selector" => "figure",
+                          "html" => "<img src='photo.jpg'>" }))
         id = store.entries(limit: 1).first.fetch("id")
 
         get "/#{id}"
@@ -294,7 +303,8 @@ end
     def test_the_archive_switch_shows_where_it_stands
         get "/#{@id}"
 
-        assert_match %r{role="switch"\s+aria-checked="false"}, last_response.body
+        assert_match %r{role="switch"\s+aria-checked="false"},
+                     last_response.body
         assert_match %r{name="archived" value="1"}, last_response.body
 
         post "/#{@id}/archive", { "archived" => "1" }

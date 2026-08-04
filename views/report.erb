@@ -9,7 +9,14 @@
 <p class="lede">
     <span class="badge is-<%= state %>"><%= state %></span>
     <% if archived %><span class="badge is-archived">archived</span><% end %>
-    <a href="<%= document.dig("page", "url") %>"><%= document.dig("page", "url") %></a>
+    <%# Older reports predate the intake's scheme check, so a URL that
+        is not a web address is shown rather than linked. %>
+    <% url = document.dig("page", "url") %>
+    <% if (href = page_href(url)) %>
+        <a href="<%= href %>"><%= url %></a>
+    <% else %>
+        <code><%= url %></code>
+    <% end %>
 </p>
 
 <% unless document["message"].to_s.empty? %>
@@ -25,7 +32,7 @@
         selector above is where to open the page; this is what the
         report is actually about. %>
     <% unless (covers = target["covers"] || []).empty? %>
-        <p class="empty">
+        <p class="aside">
             <% if target["region"] %>
                 Covering <%= covers.length %>
                 element<%= "s" unless covers.length == 1 %>:
@@ -83,7 +90,7 @@
         <% end %>
     <% end %>
     <% if (unreadable = target["unreadable"]) && !unreadable.empty? %>
-        <p class="empty">
+        <p class="aside">
             Not readable from the page, so not searched:
             <%= unreadable.join(", ") %>.
         </p>
@@ -211,7 +218,7 @@
     </form>
 </div>
 
-<p class="empty">
+<p class="aside">
     Archiving takes it out of the list and keeps everything. Deleting
     asks once more, then removes the report and its files from disk.
 </p>
@@ -224,7 +231,7 @@
 
     <dl class="railed trail">
         <% journal.each do |entry| %>
-            <dt><time datetime="<%= entry["at"] %>"><%= entry["at"].to_s[0, 16].tr("T", " ") %></time></dt>
+            <dt><time datetime="<%= entry["at"] %>"><%= short_stamp(entry["at"]) %></time></dt>
             <dd>
                 <%= entry["note"] %>
                 <% who = [entry["by"], entry["agent"]].compact %>
@@ -261,7 +268,7 @@
                                     <figure>
                                         <img class="shot" src="<%= shot %>" loading="lazy"
                                              alt="The page after: <%= entry["note"] %>">
-                                        <figcaption><%= entry["at"].to_s[0, 16].tr("T", " ") %></figcaption>
+                                        <figcaption><%= short_stamp(entry["at"]) %></figcaption>
                                     </figure>
                                 </div>
                             </details>
@@ -272,13 +279,13 @@
         <% end %>
     </dl>
 
-    <p class="empty">
+    <p class="aside">
         Appended, never rewritten. A state changed through the API or on
         the command line writes its own line here.
     </p>
 <% end %>
 
-<p class="empty">
+<p class="aside">
     <a href="<%= to("/#{id}/file/report.json", false) %>">report.json</a>
     — everything above, as it was received.
 </p>

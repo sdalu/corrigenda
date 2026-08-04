@@ -27,7 +27,8 @@ class DeployTest < CorrigendaTest
     def test_the_template_generates
         out = IO.popen([MACRO, "--stdout", "--config", TEMPLATE], &:read)
 
-        assert_predicate $CHILD_STATUS, :success?, "the template does not generate"
+        assert_predicate $CHILD_STATUS, :success?,
+                         "the template does not generate"
         assert_includes out, "<Macro CorrigendaEndpoint>"
     end
 
@@ -51,7 +52,8 @@ class DeployTest < CorrigendaTest
 
         assert_includes macro, "unix:#{config.fetch('socket')}|"
         assert_includes macro, "<Location #{mount}>"
-        assert_includes macro, %(RequestHeader set X-Forwarded-Prefix "#{mount}")
+        assert_includes macro,
+                        %(RequestHeader set X-Forwarded-Prefix "#{mount}")
         # the one public path, under the same mount
         assert_includes macro, "<Location #{mount}/corrigenda.js>"
         assert_includes macro, config.dig("auth", "url").to_s
@@ -74,14 +76,15 @@ class DeployTest < CorrigendaTest
     # ----------------------------------------------------------------
     def render(auth)
         Dir.mktmpdir do |dir|
-            path = File.join(dir, "corrigenda.yml")
-            File.write(path, YAML.dump(
-                                 "socket" => "/var/run/corrigenda/corrigenda.sock",
-                                 "endpoint" => "https://tools.example.com/.corrigenda",
-                                 "auth" => auth))
+            path   = File.join(dir, "corrigenda.yml")
+            config = { "socket"   => "/var/run/corrigenda/corrigenda.sock",
+                       "endpoint" => "https://tools.example.com/.corrigenda",
+                       "auth"     => auth }
+            File.write(path, YAML.dump(config))
 
             out = IO.popen([MACRO, "--stdout", "--config", path], &:read)
-            assert_predicate $CHILD_STATUS, :success?, "macro refused #{auth.inspect}"
+            assert_predicate $CHILD_STATUS, :success?,
+                             "macro refused #{auth.inspect}"
             out
         end
     end
@@ -97,10 +100,12 @@ class DeployTest < CorrigendaTest
     end
 
     def test_a_password_file_is_a_provider_too
-        conf = render("type" => "file", "file" => "/usr/local/etc/corrigenda.htpasswd")
+        conf = render("type" => "file",
+                      "file" => "/usr/local/etc/corrigenda.htpasswd")
 
         assert_includes conf, "AuthBasicProvider   file"
-        assert_includes conf, "AuthUserFile        /usr/local/etc/corrigenda.htpasswd"
+        assert_includes conf, "AuthUserFile        " \
+                              "/usr/local/etc/corrigenda.htpasswd"
         refute_includes conf, "ldap"
     end
 
@@ -119,7 +124,8 @@ class DeployTest < CorrigendaTest
     # it turns a cross-origin report into a 401 the page never sees.
     def test_the_preflight_is_never_gated
         %w[ldap file].each do |type|
-            extra = type == "ldap" ? { "url" => "ldap://x/" } : { "file" => "/x" }
+            extra = type == "ldap" ? { "url" => "ldap://x/" } :
+                    { "file" => "/x" }
             conf  = render({ "type" => type }.merge(extra))
 
             assert_includes conf, "<LimitExcept OPTIONS>",
@@ -130,10 +136,10 @@ class DeployTest < CorrigendaTest
     # A missing block is a mistake, not a licence to serve it openly.
     def test_no_auth_block_is_refused
         Dir.mktmpdir do |dir|
-            path = File.join(dir, "corrigenda.yml")
-            File.write(path, YAML.dump(
-                                 "socket" => "/s.sock",
-                                 "endpoint" => "https://example.test/.corrigenda"))
+            path   = File.join(dir, "corrigenda.yml")
+            config = { "socket" => "/s.sock",
+                       "endpoint" => "https://example.test/.corrigenda" }
+            File.write(path, YAML.dump(config))
 
             ok = system(MACRO, "--stdout", "--config", path,
                         out: File::NULL, err: File::NULL)

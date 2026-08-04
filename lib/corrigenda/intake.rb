@@ -6,6 +6,7 @@ require "stringio"
 require "zlib"
 
 require_relative "../corrigenda"
+require_relative "prefix"
 
 module Corrigenda
     # POST target for the widget. Apache authenticates in front of this
@@ -36,19 +37,12 @@ module Corrigenda
             set :host_authorization, { permitted_hosts: [] }
         end
 
+        helpers RemoteUser
+
         helpers do
             def config = settings.feedback_config
 
             def store = @store ||= Store.new(config.store_path)
-
-            # REMOTE_USER is a server variable, not a header, so it does
-            # NOT cross the proxy: Apache re-sends it as X-Remote-User
-            # with `RequestHeader set`, which overwrites anything a
-            # client tried to put there. The fallback covers running the
-            # app without a proxy in front.
-            def reporter
-                request.env["HTTP_X_REMOTE_USER"] || request.env["REMOTE_USER"]
-            end
 
             def bail(code, message)
                 halt code, { "content-type" => "application/json" },
@@ -66,7 +60,8 @@ module Corrigenda
 
                 limit = config.max_report
                 data  = Zlib::GzipReader.new(StringIO.new(raw)).read(limit + 1)
-                bail(413, "report too large decompressed") if too_big?(data, limit)
+                bail(413, "report too large decompressed") if
+                    too_big?(data, limit)
                 data
             end
 
@@ -92,7 +87,8 @@ module Corrigenda
                           part("report", :report)
                       end
                 bail(400, "no report") if raw.nil? || raw.empty?
-                bail(413, "report too large") if too_big?(raw, config.max_report)
+                bail(413, "report too large") if
+                    too_big?(raw, config.max_report)
                 JSON.parse(gunzip(raw))
             rescue JSON::ParserError
                 bail(400, "report is not JSON")
@@ -150,7 +146,8 @@ module Corrigenda
             site     = document.dig("page", "site")
             bail(403, "unknown site: #{site}") unless config.site_allowed?(site)
 
-            id = store.save(document, files: attachments, reporter:)
+            id = store.save(document, files: attachments,
+                                      reporter: remote_user)
             status 201
             content_type :json
             JSON.generate(id:, review: "/review/#{id}")

@@ -293,60 +293,60 @@
 <% if endpoint %>
     <dt>This endpoint</dt>
     <dd>
-<p><code><%= endpoint %></code></p>
-<p>Where this page came from, and where its reports go. The
-paths below are relative to it.</p>
+        <p><code><%= endpoint %></code></p>
+        <p>Where this page came from, and where its reports go. The
+        paths below are relative to it.</p>
 
-<%# Its own scroll region rather than a narrower table: these are paths,
-    and a path broken across two lines is a path somebody mistypes. %>
-<div class="scroller">
-<table class="paths">
-    <tbody>
-        <tr>
-            <td><code>/corrigenda.js</code></td>
-            <th scope="row">Anyone</th>
-            <td>The widget. Every page carrying it fetches it,
-            visitors included, so this is the one path here that
-            asks for no login.</td>
-        </tr>
-        <tr>
-            <td><code>/report/</code></td>
-            <th scope="row">Signed in</th>
-            <td>Where a report is posted, and
-            <code>/report/health</code> beside it.</td>
-        </tr>
-        <tr>
-            <td><code>/review/</code></td>
-            <th scope="row">Signed in</th>
-            <td>The reports, and everything sent with them.</td>
-        </tr>
-        <tr>
-            <td><code>/extension/…</code></td>
-            <th scope="row">Signed in</th>
-            <td>The add-on packages, the signing notes, and this
-            page.</td>
-        </tr>
-        <%# Listed only where they answer: with no api: key in the
-            config every path under /api is a 404, and a table that
-            names one would be describing a different deployment. %>
-        <% if api_offered? %>
-        <tr>
-            <td><code>/api/</code></td>
-            <th scope="row">Signed in</th>
-            <td>The same reports as JSON, for a program —
-            <%= api_state %>. Its schema is
-            <code>/api/openapi.json</code>.</td>
-        </tr>
-        <tr>
-            <td><code>/apidocs</code></td>
-            <th scope="row">Signed in</th>
-            <td>That schema, rendered: every route, what it takes
-            and what it answers.</td>
-        </tr>
-        <% end %>
-    </tbody>
-</table>
-</div>
+        <%# Its own scroll region rather than a narrower table: these are paths,
+            and a path broken across two lines is a path somebody mistypes. %>
+        <div class="scroller">
+            <table class="paths">
+                <tbody>
+                    <tr>
+                        <td><code>/corrigenda.js</code></td>
+                        <th scope="row">Anyone</th>
+                        <td>The widget. Every page carrying it fetches it,
+                        visitors included, so this is the one path here that
+                        asks for no login.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/report/</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>Where a report is posted, and
+                        <code>/report/health</code> beside it.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/review/</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>The reports, and everything sent with them.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/extension/…</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>The add-on packages, the signing notes, and this
+                        page.</td>
+                    </tr>
+                    <%# Listed only where they answer: with no api: key in the
+                        config every path under /api is a 404, and a table that
+                        names one would be describing a different deployment. %>
+                    <% if api_offered? %>
+                    <tr>
+                        <td><code>/api/</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>The same reports as JSON, for a program —
+                        <%= api_state %>. Its schema is
+                        <code>/api/openapi.json</code>.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/apidocs</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>That schema, rendered: every route, what it takes
+                        and what it answers.</td>
+                    </tr>
+                    <% end %>
+                </tbody>
+            </table>
+        </div>
     </dd>
 <% end %>
 
@@ -508,7 +508,7 @@ override somewhere else.
     </div>
 </div>
 
-<p class="empty">
+<p class="aside">
     Three things worth keeping if you write your own: point it at
     <code>/api/</code> first, so it learns what it may do rather than
     discovering a 403 halfway through; say what <em>fixed</em> means to

@@ -68,6 +68,13 @@
         --state-wontfix: light-dark(oklch(79% 0.015 265), oklch(68% 0.02 265));
         --link:   light-dark(oklch(45%   0.12 250),  oklch(80% 0.10 250));
 
+        /* The signal, dark enough to be a focus ring: the amber above
+           measures 2.45:1 against light paper (canvas readback, not
+           arithmetic on the oklch numbers), and an outline is non-text
+           that must reach 3:1. Same hue, 4.2:1 on paper, and the dark
+           scheme keeps the signal itself, which was passing at 9. */
+        --focus: light-dark(oklch(58% 0.15 70), oklch(78% 0.14 70));
+
         /* The second saturated colour, and it is spent on one
            thing: the button that destroys a report. Amber says
            "look"; this says "gone". */
@@ -142,7 +149,7 @@
     code, pre, kbd { font-family: var(--mono); font-size: 0.9em; }
 
     :focus-visible {
-        outline: 2px solid var(--signal);
+        outline: 2px solid var(--focus);
         outline-offset: 3px;
     }
 
@@ -496,21 +503,21 @@
         gap: 0.2rem;
         font-size: 0.9375rem;
 
-/* What both browsers do, on the same panel as the boxes below
- and spanning the width of both: it belongs to the pair, not
- to either one. Spaced apart rather than left-packed, so the
- three read as three rather than as a sentence. */
-&.is-shared {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
-  gap: 0.3rem 1.5rem;
-  margin-block-start: 0.75rem;
-  padding: 0.6rem 0.9rem;
-  color: var(--muted);
-  background: var(--panel);
-  border: 1px solid var(--rule);
-}
+        /* What both browsers do, on the same panel as the boxes below
+           and spanning the width of both: it belongs to the pair, not
+           to either one. Spaced apart rather than left-packed, so the
+           three read as three rather than as a sentence. */
+        &.is-shared {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            gap: 0.3rem 1.5rem;
+            margin-block-start: 0.75rem;
+            padding: 0.6rem 0.9rem;
+            color: var(--muted);
+            background: var(--panel);
+            border: 1px solid var(--rule);
+        }
 
         li {
             padding-inline-start: 1.4rem;
@@ -537,6 +544,8 @@
         justify-items: end;
         margin: 0;
         text-align: end;
+
+        .weight { font-size: 0.8125rem; color: var(--muted); }
     }
 
     .steps {
@@ -608,7 +617,6 @@
     /* The same signal as the bookmarklet, hollow: both are ways to get
        the widget, and neither is the more important one. */
     .package {
-        display: inline-block;
         min-block-size: 2.25rem;
         padding: 0.45rem 0.9rem;
         font-family: var(--display);
@@ -618,22 +626,22 @@
         color: var(--ink);
         border: 1px solid var(--signal);
         border-radius: 2px;
-text-decoration: none;
+        text-decoration: none;
 
-/* Font Awesome Free download arrow (CC BY 4.0), sized to the
- word beside it rather than to a pixel count, so the two
- scale together. */
-display: inline-flex;
-gap: 0.5em;
-align-items: center;
+        /* Font Awesome Free download arrow (CC BY 4.0), sized to the
+           word beside it rather than to a pixel count, so the two
+           scale together. */
+        display: inline-flex;
+        gap: 0.5em;
+        align-items: center;
 
-svg {
-  inline-size: 0.9em;
-  block-size: 0.9em;
-  fill: currentColor;
-}
+        svg {
+            inline-size: 0.9em;
+            block-size: 0.9em;
+            fill: currentColor;
+        }
 
-&:hover { background: color-mix(in oklab, var(--signal) 18%, transparent); }
+        &:hover { background: color-mix(in oklab, var(--signal) 18%, transparent); }
     }
 
     .railed {
@@ -785,20 +793,6 @@ svg {
         th:last-child, td:last-child { padding-inline-end: 0; }
     }
 
-    /* The state column, set from the row: the same switch as on the
-       report's own page, in its small size, so the column reads down as
-       a column of states rather than as a strip of controls.
-
-       Two forms, one under the other, and the cell itself left alone: a
-       td asked to be a flex container stops being the row's cell — the
-       table wraps it in an anonymous one — and the rule under it then
-       lands at its own height instead of the row's. */
-    .setting {
-        /* Nothing else lives in this cell: filing has a column
-           of its own now, where a switch reads down a page
-           without being taken for a fourth state. */
-    }
-
     /* The state, picked from a list. A native select says what it is
        while shut, holds the alternatives out of the way until asked,
        and costs one column whatever the words in it are — where three
@@ -872,15 +866,19 @@ svg {
            a form with no way to submit it. */
         &.is-live button { display: none; }
 
-        /* In a table row, where the same control is read down a page. */
+        /* In a table row, where the same control is read down a page.
+           At this type size the box fell under the 24px target floor;
+           the row stays dense, the target does not shrink with it. */
         &.is-compact {
             select {
+                min-block-size: 1.5rem;
                 font-size: 0.75rem;
                 letter-spacing: 0.02em;
                 padding: 0.2rem 0.25rem;
             }
 
             button {
+                min-block-size: 1.5rem;
                 padding: 0.2rem 0.4rem;
                 font-size: 0.6875rem;
             }
@@ -898,7 +896,6 @@ svg {
     .toggle {
         --track: 2.2rem;
         --knob: 0.95rem;
-
 
         position: relative;
         display: inline-flex;
@@ -1339,7 +1336,8 @@ svg {
        page with it, and this one is wider than a phone. */
     .bookmarklet-source { word-break: break-all; }
 
-    .a-copy {
+    /* The a- prefix is the hook; the element says what wears the style. */
+    button.a-copy {
         position: absolute;
         inset-block-start: 0.4rem;
         inset-inline-end: 0.4rem;
@@ -1364,17 +1362,20 @@ svg {
         font-size: 1.125rem;
         color: var(--muted);
     }
+
+    /* A remark under a section -- what the controls above will and
+       will not do, where the raw file is. It borrowed .empty for a
+       while, whose name and 2rem of padding both said "missing
+       section" about what is only a footnote. */
+    .aside {
+        max-inline-size: var(--measure);
+        margin-block-start: 0.75rem;
+        font-size: 0.9375rem;
+        color: var(--muted);
+    }
 }
 
 @layer utilities {
-    .visually-hidden {
-        position: absolute;
-        clip-path: inset(50%);
-        inline-size: 1px;
-        block-size: 1px;
-        overflow: hidden;
-    }
-
     /* Last layer, so it beats the measure each of these sets for itself
        — that is what the layer is for, and why no !important is needed. */
     .page.is-wide :is(p, dd, .lede, .cascade, .covers, .specimen) {
@@ -1384,8 +1385,15 @@ svg {
 
 @media (prefers-reduced-motion: no-preference) {
     @layer components {
+        /* Named, because an unqualified transition is `all`, which
+           animates layout nobody meant to animate. */
         .bookmarklet, .states button, .listing tbody tr, .pick select,
-        .toggle::before, .toggle::after { transition: 120ms ease-out; }
+        .toggle::before, .toggle::after {
+            transition-property: background-color, border-color, color,
+                                 box-shadow, translate, scale;
+            transition-duration: 120ms;
+            transition-timing-function: ease-out;
+        }
     }
 }
 

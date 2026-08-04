@@ -108,46 +108,47 @@ class APITest < CorrigendaTest
     # Where work may happen, and where there is any. An agent asking
     # this does not have to be handed a hostname.
     def test_the_sites_come_with_their_counts
-    enable
-    store.mark(@id, "fixed")
-    open_one = store.save(TestSupport.document)
+        enable
+        store.mark(@id, "fixed")
+        open_one = store.save(TestSupport.document)
 
-    get "/sites"
+        get "/sites"
 
-    assert_equal 200, last_response.status
-    mine = body["sites"].find { it["site"] == "www.example.com" }
+        assert_equal 200, last_response.status
+        mine = body["sites"].find { it["site"] == "www.example.com" }
 
-    assert_operator mine["total"], :>=, 2
-    assert_operator mine["open"], :>=, 1
-    assert_includes body["sites"].map { it["site"] }, "www.example.com"
-    refute_nil open_one
-end
+        assert_operator mine["total"], :>=, 2
+        assert_operator mine["open"], :>=, 1
+        assert_includes body["sites"].map { it["site"] }, "www.example.com"
+        refute_nil open_one
+    end
 
     # The allowlist and what has been filed are different questions, and
     # the answer says both: a site with reports but off the list is
     # worth seeing rather than hiding.
     def test_a_site_off_the_allowlist_is_shown_as_such
-    TestSupport.configure("api" => true, "sites" => ["only.example.com"])
+        TestSupport.configure("api" => true,
+                              "sites" => ["only.example.com"])
 
-    get "/sites"
+        get "/sites"
 
-    by_name = body["sites"].to_h { [it["site"], it] }
+        by_name = body["sites"].to_h { [it["site"], it] }
 
-    assert_equal ["only.example.com"], body["allowlist"]
-    assert by_name["only.example.com"]["allowed"]
-    refute by_name["www.example.com"]["allowed"]
+        assert_equal ["only.example.com"], body["allowlist"]
+        assert by_name["only.example.com"]["allowed"]
+        refute by_name["www.example.com"]["allowed"]
     ensure
-    TestSupport.configure
-end
+        TestSupport.configure
+    end
 
     def test_no_allowlist_means_every_site_is_allowed
-    enable
+        enable
 
-    get "/sites"
+        get "/sites"
 
-    assert_nil body["allowlist"]
-    assert body["sites"].all? { it["allowed"] }
-end
+        assert_nil body["allowlist"]
+        assert body["sites"].all? { it["allowed"] }
+    end
 
     def test_one_report_carries_its_state_and_its_files
         enable
@@ -382,8 +383,10 @@ end
         enable("write" => true)
         post "/reports/#{@id}/journal",
              JSON.generate("note" => "raised the contrast",
-                           "image" => { "type" => "image/webp",
-                                        "data" => Base64.strict_encode64("RIFF-after") }),
+                           "image" => {
+                               "type" => "image/webp",
+                               "data" => Base64.strict_encode64("RIFF-after")
+                           }),
              { "CONTENT_TYPE" => "application/json" }
 
         assert_equal 201, last_response.status
@@ -402,8 +405,10 @@ end
         enable("write" => true)
         post "/reports/#{@id}/journal",
              JSON.generate("note" => "after",
-                           "image" => { "data" => "data:image/png;base64," +
-                                                  Base64.strict_encode64("PNG") }),
+                           "image" => {
+                               "data" => "data:image/png;base64," +
+                                         Base64.strict_encode64("PNG")
+                           }),
              { "CONTENT_TYPE" => "application/json" }
 
         assert_equal 201, last_response.status
@@ -413,7 +418,8 @@ end
     def test_a_picture_that_is_not_base64_is_refused
         enable("write" => true)
         post "/reports/#{@id}/journal",
-             JSON.generate("note" => "after", "image" => { "data" => "not base64!" }),
+             JSON.generate("note" => "after",
+                           "image" => { "data" => "not base64!" }),
              { "CONTENT_TYPE" => "application/json" }
 
         assert_equal 422, last_response.status
@@ -425,13 +431,34 @@ end
     def test_a_state_change_can_carry_the_picture_with_its_reason
         enable("write" => true)
         patch "/reports/#{@id}",
-              JSON.generate("state" => "fixed", "note" => "footer no longer overlaps",
-                            "image" => { "data" => Base64.strict_encode64("RIFF") }),
+              JSON.generate("state" => "fixed",
+                            "note" => "footer no longer overlaps",
+                            "image" => {
+                                "data" => Base64.strict_encode64("RIFF")
+                            }),
               { "CONTENT_TYPE" => "application/json" }
 
         assert_predicate last_response, :ok?
         assert_equal "fixed", store.state(@id)
         assert_equal "shot-1.webp", store.journal(@id).last["shot"]
+    end
+
+    # The alternative was a 200 that quietly dropped the picture: a
+    # shot only rides with a note, and a client that sent one without
+    # the other should hear so now rather than when the comparison it
+    # was counting on turns out never to have been filed.
+    def test_a_picture_without_a_note_is_refused_not_dropped
+        enable("write" => true)
+        patch "/reports/#{@id}",
+              JSON.generate("state" => "fixed",
+                            "image" => { "data" =>
+                                         Base64.strict_encode64("RIFF") }),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+        assert_match(/note/, body["error"])
+        assert_equal "open", store.state(@id)
+        assert_empty store.shots(@id)
     end
 
     def test_a_note_can_be_recorded_and_read_back
@@ -527,7 +554,8 @@ end
         enable("write" => ["journal"])
 
         post "/reports/#{@id}/journal",
-             JSON.generate("note" => "reproduced at 380px", "agent" => "claude"),
+             JSON.generate("note" => "reproduced at 380px",
+                           "agent" => "claude"),
              { "CONTENT_TYPE" => "application/json" }
 
         assert_equal 201, last_response.status

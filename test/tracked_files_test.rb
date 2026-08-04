@@ -15,7 +15,8 @@ class TrackedFilesTest < CorrigendaTest
     # Hostnames of the estate this was written for. Bare words are not
     # listed on purpose: "sdalu" appears in the MoXoW project URL, which
     # is a real reference to a real project and is meant to be there.
-    PRIVATE = /\b(?:[\w-]+\.)*(?:sdalu\.com|alux\.fr|kuiristo\.eu|moxow\.org)\b/i
+    PRIVATE = /\b (?:[\w-]+\.)*
+                  (?:sdalu\.com|alux\.fr|kuiristo\.eu|moxow\.org) \b/ix
 
     # Whatever a test needs that a fixture cannot be: an untracked file
     # beside the tracked ones. Nothing here reads it today -- the suites
@@ -28,7 +29,8 @@ class TrackedFilesTest < CorrigendaTest
     end
 
     def test_no_tracked_file_names_a_private_host
-        skip "not a git checkout" unless File.directory?(File.join(ROOT, ".git"))
+        git = File.join(ROOT, ".git")
+        skip "not a git checkout" unless File.directory?(git)
 
         offenders = tracked.filter_map do |rel|
             path = File.join(ROOT, rel)
@@ -59,7 +61,8 @@ class TrackedFilesTest < CorrigendaTest
     end
 
     def test_the_local_file_is_not_tracked
-        skip "not a git checkout" unless File.directory?(File.join(ROOT, ".git"))
+        git = File.join(ROOT, ".git")
+        skip "not a git checkout" unless File.directory?(git)
 
         refute_includes tracked, "test/local.rb",
                         "test/local.rb is for what must not be committed"

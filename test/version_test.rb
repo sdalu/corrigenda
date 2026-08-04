@@ -49,14 +49,17 @@ class VersionTest < CorrigendaTest
     def required = File.read(CLIENT)[/const HELPER_REQUIRED = (\d+)/, 1].to_i
 
     def test_the_helper_numbers_are_declared
-        assert_operator provided, :>=, 1, "extension/content.js declares no HELPER"
-        assert_operator required, :>=, 1, "the widget declares no HELPER_REQUIRED"
+        assert_operator provided, :>=, 1,
+                        "extension/content.js declares no HELPER"
+        assert_operator required, :>=, 1,
+                        "the widget declares no HELPER_REQUIRED"
     end
 
     def test_the_add_on_provides_what_the_widget_requires
         assert_operator provided, :>=, required,
                         "the add-on in this checkout (helper #{provided}) is " \
-                        "below what its own widget requires (#{required}), so " \
+                        "below what its own widget requires " \
+                        "(#{required}), so " \
                         "the widget would ignore it and take the share dialog"
     end
 
@@ -81,7 +84,8 @@ class VersionTest < CorrigendaTest
     end
 
     def test_the_manifests_carry_a_release_number
-        assert_match(/\A\d+\.\d+(\.\d+)?\z/, manifest("firefox").fetch("version"))
+        assert_match(/\A\d+\.\d+(\.\d+)?\z/,
+                     manifest("firefox").fetch("version"))
     end
 
     # The landing page reads the version out of the built package, which
@@ -89,7 +93,8 @@ class VersionTest < CorrigendaTest
     # the build is current. rake addon:version rebuilds for this reason.
     def test_a_built_package_is_not_older_than_its_manifest
         %w[firefox chrome].each do |target|
-            built = File.join(ROOT, "extension", "dist", target, "manifest.json")
+            built = File.join(ROOT, "extension", "dist", target,
+                              "manifest.json")
             next unless File.exist?(built)
 
             assert_equal manifest(target).fetch("version"),

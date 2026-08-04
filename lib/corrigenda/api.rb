@@ -17,18 +17,10 @@ module Corrigenda
     #
     # Off unless the deployment asks for it. An estate that does not put
     # agents anywhere near its bug list should not have to argue with an
-    # interface built for them, so an absent `ai:` key means every path
+    # interface built for them, so an absent `api:` key means every path
     # here answers 404 — not 403, because a route that is switched off
     # should not advertise that it exists.
     class API < Sinatra::Base
-        ID = /\A\d{8}T\d{6}Z-[0-9a-f]{8}\z/
-
-        SERVABLE = {
-            "screenshot.webp" => "image/webp",
-            "snapshot.html"   => "text/html",
-            "report.json"     => "application/json"
-        }.freeze
-
         # The schema, beside the code it describes. Read once and held:
         # it is a few kilobytes and it cannot change while the service
         # runs, since a checkout is not edited underneath a process.
@@ -43,6 +35,8 @@ module Corrigenda
             set :show_exceptions, false
             set :host_authorization, { permitted_hosts: [] }
         end
+
+        helpers RemoteUser
 
         helpers do
             def config = settings.feedback_config
@@ -63,7 +57,8 @@ module Corrigenda
                                                   status:)
 
             def report!(id)
-                fail_with(404, "no such report: #{id}") unless id.match?(ID)
+                fail_with(404, "no such report: #{id}") unless
+                    id.match?(Store::ID)
 
                 document = store.read(id)
                 fail_with(404, "no such report: #{id}") if document.nil?
@@ -97,7 +92,8 @@ module Corrigenda
 
                 data = given.is_a?(Hash) ? given["data"] : given
                 type = given.is_a?(Hash) ? given["type"] : nil
-                if (url = data.to_s.match(%r{\Adata:(image/[\w.+-]+);base64,(.*)\z}m))
+                data_url = %r{\Adata:(image/[\w.+-]+);base64,(.*)\z}m
+                if (url = data.to_s.match(data_url))
                     type, data = url[1], url[2]
                 end
 
@@ -105,20 +101,12 @@ module Corrigenda
             end
 
             def decoded(data)
-                fail_with(422, "image: expected base64 data") if data.to_s.empty?
+                fail_with(422, "image: expected base64 data") if
+                    data.to_s.empty?
 
                 Base64.strict_decode64(data.to_s.gsub(/\s+/, ""))
             rescue ArgumentError
                 fail_with(422, "image: not base64")
-            end
-
-            # Two different facts, kept apart. `by` is what the server
-            # knows: the user Apache authenticated, which a process
-            # coming through the socket does not have. `agent` is what
-            # the caller calls itself, which is worth recording and is
-            # not identification.
-            def acting_user
-                request.env["HTTP_X_REMOTE_USER"] || request.env["REMOTE_USER"]
             end
 
             # A form post is what a shell reaches for first; JSON is what
@@ -310,6 +298,13 @@ module Corrigenda
                                "#{unknown.join(", ")}")
             end
 
+            # A picture only rides with a note -- silently dropping it
+            # was the alternative, and a 200 that lost the image is the
+            # kind of answer nobody debugs until they need the picture.
+            if changes["image"] && !changes["note"]
+                fail_with(422, "an image rides with a note: say what it shows")
+            end
+
             # Asked for by what the body carries, not by the verb: a
             # PATCH that only says what was tried needs the permission
             # to say things, and a deployment can grant that without
@@ -325,12 +320,12 @@ module Corrigenda
                     fail_with(422, "no such state: #{state.inspect} " \
                                    "(#{Store::STATES.join(", ")})")
                 end
-                store.mark(id, state, by: acting_user, agent: changes["agent"])
+                store.mark(id, state, by: remote_user, agent: changes["agent"])
             end
 
             if changes.key?("archived")
                 store.archive(id, yes: truthy(changes["archived"]),
-                                  by: acting_user, agent: changes["agent"])
+                                  by: remote_user, agent: changes["agent"])
             end
 
             # A change and the reason for it, in one request: an agent
@@ -338,7 +333,7 @@ module Corrigenda
             # and asking for a second call is how a trail ends up with
             # states nobody explained.
             if changes["note"]
-                store.record(id, changes["note"], by: acting_user,
+                store.record(id, changes["note"], by: remote_user,
                                                   agent: changes["agent"],
                                                   refs: changes["refs"],
                                                   shot: shot_from(changes))
@@ -368,7 +363,7 @@ module Corrigenda
             note = body_params["note"].to_s
             fail_with(422, "a journal entry needs a note") if note.strip.empty?
 
-            entry = store.record(id, note, by: acting_user,
+            entry = store.record(id, note, by: remote_user,
                                            agent: body_params["agent"],
                                            refs: body_params["refs"],
                                            shot: shot_from(body_params))
@@ -380,9 +375,10 @@ module Corrigenda
         # a visual defect wants the picture, not a description of it.
         get "/reports/:id/file/:name" do
             id, name = params.values_at(:id, :name)
-            fail_with(404, "no such report: #{id}") unless id.match?(ID)
+            fail_with(404, "no such report: #{id}") unless
+                id.match?(Store::ID)
 
-            type = SERVABLE[name] || Store.shot_type(name)
+            type = Store.file_type(name)
             fail_with(404, "not servable: #{name}") if type.nil?
 
             path = store.dir_for(id) / name
@@ -409,7 +405,7 @@ module Corrigenda
                                "(#{Store::STATES.join(", ")})")
             end
 
-            store.mark(id, state, by: acting_user,
+            store.mark(id, state, by: remote_user,
                                   agent: body_params["agent"])
             json(described(id, store.read(id)))
         end
@@ -420,7 +416,7 @@ module Corrigenda
             report!(id)
 
             wanted = body_params.fetch("archived", true)
-            store.archive(id, yes: truthy(wanted), by: acting_user,
+            store.archive(id, yes: truthy(wanted), by: remote_user,
                               agent: body_params["agent"])
             json(described(id, store.read(id)))
         end
@@ -490,18 +486,35 @@ module Corrigenda
                 "#{prefix.to_s.chomp("/")}#{path}"
             end
 
+            # The orientation a client that knows nothing reads first,
+            # so a route missing from here is a route agents never
+            # find; test/openapi_test.rb holds it to the schema.
             def routes_description
                 {
-                    "GET /sites"               => "where reports may " \
-                                                  "come from, and how many " \
-                                                  "are open for each",
-                    "GET /reports"             => "id, at, site, state, " \
-                                                  "archived, channels, summary",
-                    "GET /reports/:id"         => "the report as filed",
+                    "GET /sites"    => "where reports may come from, " \
+                                       "and how many are open for each",
+                    "GET /reports"  => "id, at, site, state, archived, " \
+                                       "channels, summary",
+                    "GET /reports/:id"            => "the report as " \
+                                                     "filed, its state " \
+                                                     "and its journal",
+                    "GET /reports/:id/journal"    => "what has been " \
+                                                     "done about it",
                     "GET /reports/:id/file/:name" =>
-                        SERVABLE.keys.join(", "),
-                    "POST /reports/:id/state"   => "{\"state\": \"fixed\"}",
-                    "POST /reports/:id/archive" => "{\"archived\": true}"
+                        "#{Store::SERVABLE.keys.join(", ")}, shot-N.webp",
+                    "GET /openapi.json"           => "the full schema, " \
+                                                     "a note to an agent " \
+                                                     "on every operation",
+                    "PATCH /reports/:id"          => "state, archived, " \
+                                                     "note, image -- any " \
+                                                     "of them, at once",
+                    "POST /reports/:id/journal"   =>
+                        "{\"note\": \"what you did\"}",
+                    "POST /reports/:id/state"     => "{\"state\": \"fixed\"}",
+                    "POST /reports/:id/archive"   => "{\"archived\": true}",
+                    "DELETE /reports/:id"         => "never -- deleting " \
+                                                     "stays in the review " \
+                                                     "UI, which asks twice"
                 }
             end
         end

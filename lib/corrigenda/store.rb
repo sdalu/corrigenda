@@ -15,6 +15,12 @@ module Corrigenda
         INDEX  = "index.jsonl"
         STATES = %w[open fixed wontfix].freeze
 
+        # The shape of an id this store mints, for anything that must
+        # refuse one before asking the disk. The review UI and the API
+        # both check against this rather than each keeping a copy that
+        # could drift from generate_id.
+        ID = /\A\d{8}T\d{6}Z-[0-9a-f]{8}\z/
+
         # Archiving is not a fourth state: a report is archived *and*
         # fixed, or archived and wontfix. What happened to the defect and
         # whether anyone still wants it in front of them are two
@@ -40,6 +46,15 @@ module Corrigenda
         # Kept by this class beside a report, rather than filed with it.
         MARKERS = ["state", ARCHIVE, JOURNAL].freeze
 
+        # The fixed names a report is filed under, and what each may be
+        # served as. Everything else beside a report is either a marker
+        # (never served) or a journal picture, which file_type knows.
+        SERVABLE = {
+            "screenshot.webp" => "image/webp",
+            "snapshot.html"   => "text/html",
+            "report.json"     => "application/json"
+        }.freeze
+
         # What a journal picture may be served as, or nil for a name
         # that is not one. The naming is this class's, so the answer is
         # too — both the review UI and the API ask.
@@ -49,6 +64,11 @@ module Corrigenda
 
             ext == "jpg" ? "image/jpeg" : "image/#{ext}"
         end
+
+        # Any servable file beside a report: the fixed names, or a
+        # journal picture. nil is the whole answer for everything else,
+        # which is what makes the file routes whitelists.
+        def self.file_type(name) = SERVABLE[name] || shot_type(name)
 
         attr_reader :root
 
@@ -301,7 +321,8 @@ module Corrigenda
                                     "bytes, and #{MAX_SHOT} is the limit"
             end
 
-            name = "shot-#{dir.children.count { it.basename.to_s.match?(SHOT) } + 1}.#{ext}"
+            taken = dir.children.count { it.basename.to_s.match?(SHOT) }
+            name  = "shot-#{taken + 1}.#{ext}"
             (dir / name).binwrite(bytes)
             name
         end
@@ -316,7 +337,8 @@ module Corrigenda
                 "url"      => page["url"],
                 "summary"  => document["message"].to_s.lines.first.to_s.strip,
                 "reporter" => reporter,
-                "channels" => document.fetch("capture", {}).select { |_, on| on }.keys
+                "channels" => document.fetch("capture", {})
+                                      .select { |_, on| on }.keys
             }
         end
 

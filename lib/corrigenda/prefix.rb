@@ -38,17 +38,17 @@ module Corrigenda
             false
         end
 
-# What a page asks about it, rather than having a template dig
-# through the settings hash: one grant at a time, by the name
-# the config uses.
-def api_allows?(grant) = api_settings["allows"].to_a.include?(grant)
-def api_needs_token?   = !api_settings["token"].nil?
+        # What a page asks about it, rather than having a template dig
+        # through the settings hash: one grant at a time, by the name
+        # the config uses.
+        def api_allows?(grant) = api_settings["allows"].to_a.include?(grant)
+        def api_needs_token?   = !api_settings["token"].nil?
 
-def api_settings
-    settings.feedback_config.api || {}
-rescue ArgumentError
-    {}
-end
+        def api_settings
+            settings.feedback_config.api || {}
+        rescue ArgumentError
+            {}
+        end
 
         # What it will let a caller do, in the words the startup
         # line uses. Both come from Config, so a page and a terminal
@@ -57,6 +57,19 @@ end
             settings.feedback_config.api_state
         rescue ArgumentError => e
             "misconfigured — #{e.message}"
+        end
+    end
+
+    # Who the proxy says is asking. REMOTE_USER is a server variable,
+    # not a header, so it does NOT cross the proxy: Apache re-sends it
+    # as X-Remote-User with `RequestHeader set`, which overwrites
+    # anything a client tried to put there. The fallback covers running
+    # an app with no proxy in front. The intake files this as the
+    # reporter, the review UI and the API as who acted — one fact, and
+    # it was three copies of the same two lines before it lived here.
+    module RemoteUser
+        def remote_user
+            request.env["HTTP_X_REMOTE_USER"] || request.env["REMOTE_USER"]
         end
     end
 
@@ -69,7 +82,9 @@ end
 
         def call(env)
             prefix = env[HEADER].to_s.chomp("/")
-            env["SCRIPT_NAME"] = prefix + env["SCRIPT_NAME"].to_s unless prefix.empty?
+            unless prefix.empty?
+                env["SCRIPT_NAME"] = prefix + env["SCRIPT_NAME"].to_s
+            end
             @app.call(env)
         end
     end

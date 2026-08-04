@@ -19,7 +19,9 @@ class SchemaTest < Minitest::Test
         document = TestSupport.document
         document.delete("schema")
 
-        assert_raises(Corrigenda::PayloadError) { Corrigenda.validate(document) }
+        assert_raises(Corrigenda::PayloadError) do
+            Corrigenda.validate(document)
+        end
     end
 
     def test_a_future_schema_version_is_refused
@@ -35,8 +37,20 @@ class SchemaTest < Minitest::Test
     end
 
     def test_a_page_without_a_url_is_refused
+        urlless = TestSupport.document("page" => { "site" => "x" })
+
         assert_raises(Corrigenda::PayloadError) do
-            Corrigenda.validate(TestSupport.document("page" => { "site" => "x" }))
+            Corrigenda.validate(urlless)
         end
+    end
+
+    # The URL is rendered as a link the reviewer clicks, so a scheme
+    # that runs script must never get as far as the store. Refused at
+    # intake, where the refusal is visible, rather than quietly
+    # unlinked at render.
+    def test_a_url_that_is_not_a_web_address_is_refused
+        bad = TestSupport.document("page" => { "url" => "javascript:alert(1)" })
+
+        assert_raises(Corrigenda::PayloadError) { Corrigenda.validate(bad) }
     end
 end

@@ -64,7 +64,7 @@ class OpenapiTest < CorrigendaTest
                       .dig("schema", "pattern")
         allowed = Regexp.new(offered)
 
-        Corrigenda::API::SERVABLE.each_key { assert_match allowed, it }
+        Corrigenda::Store::SERVABLE.each_key { assert_match allowed, it }
         assert_match allowed, "shot-1.webp"
         assert_match allowed, "shot-12.png"
         refute_match allowed, "journal.jsonl"
@@ -89,7 +89,7 @@ class OpenapiTest < CorrigendaTest
         pattern = SPEC.dig("components", "parameters", "ReportId",
                            "schema", "pattern")
 
-        assert_equal Corrigenda::API::ID.source,
+        assert_equal Corrigenda::Store::ID.source,
                      pattern.sub(/\A\^/, '\A').sub(/\$\z/, '\z')
     end
 
@@ -130,6 +130,31 @@ class OpenapiTest < CorrigendaTest
             above = description.split("\n---").first.to_s.strip
             refute_empty above, "#{name} opens with the rule"
         end
+    end
+
+    # GET /api/ is the orientation a client that knows nothing reads
+    # first, so an operation it does not mention is one agents never
+    # find -- which is exactly what happened to the journal write: it
+    # existed, the schema described it, and the route list at the door
+    # said nothing. Held to the schema so it cannot happen twice.
+    def test_the_orientation_names_every_operation
+        TestSupport.configure("api" => true)
+        get "/"
+
+        named = JSON.parse(last_response.body).fetch("routes").keys
+                    .map { it.split(" ", 2) }
+                    .map { |verb, path|
+                        [verb.downcase, self.class.as_openapi(path)]
+                    }.to_set
+
+        expected = documented.reject { |_, path| path == "/" }.to_set
+
+        assert_empty (expected - named).to_a,
+                     "operations GET / does not mention"
+        assert_empty (named - expected).to_a,
+                     "routes GET / invents"
+    ensure
+        TestSupport.configure
     end
 
     # It is served, and it is the file: a client reading the schema from

@@ -166,7 +166,9 @@ def test_a_picture_past_the_ceiling_is_refused
     huge = { type: "image/webp",
              bytes: "x".b * (Corrigenda::Store::MAX_SHOT + 1) }
 
-    assert_raises(Corrigenda::StorageError) { @store.record(id, "big", shot: huge) }
+    assert_raises(Corrigenda::StorageError) do
+        @store.record(id, "big", shot: huge)
+    end
     assert_empty @store.journal(id)
 end
 

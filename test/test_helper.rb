@@ -42,7 +42,8 @@ module TestSupport
         {
             "schema" => 1,
             "type"   => "visual",
-            "page"   => { "url" => "https://www.example.com/", "site" => "www.example.com" },
+            "page"   => { "url" => "https://www.example.com/",
+                          "site" => "www.example.com" },
             "message" => "The caption overlaps the photo"
         }.merge(overrides.transform_keys(&:to_s))
     end

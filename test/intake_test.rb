@@ -111,8 +111,10 @@ class IntakeTest < CorrigendaTest
             File.write(report, JSON.generate(TestSupport.document))
             File.binwrite(shot, "RIFF....WEBP".b)
 
-            post "/", "report" => Rack::Test::UploadedFile.new(report, "application/json"),
-                      "screenshot" => Rack::Test::UploadedFile.new(shot, "image/webp")
+            json = Rack::Test::UploadedFile.new(report, "application/json")
+            webp = Rack::Test::UploadedFile.new(shot, "image/webp")
+
+            post "/", "report" => json, "screenshot" => webp
 
             assert_equal 201, last_response.status
             id = JSON.parse(last_response.body).fetch("id")
@@ -125,7 +127,8 @@ class IntakeTest < CorrigendaTest
     # from its own origin, and the browser decides whether that happens.
     # ----------------------------------------------------------------
     def setup_allowlist
-        TestSupport.configure("sites" => ["www.example.com", "tools.example.com"])
+        TestSupport.configure("sites" => ["www.example.com",
+                                          "tools.example.com"])
     end
 
     def test_a_preflight_from_a_listed_site_is_answered

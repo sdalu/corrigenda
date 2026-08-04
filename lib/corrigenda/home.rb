@@ -52,7 +52,9 @@ module Corrigenda
         }.freeze
 
         helpers do
-            def store = @store ||= Store.new(settings.feedback_config.store_path)
+            def store
+                @store ||= Store.new(settings.feedback_config.store_path)
+            end
 
             # A signed .xpi if one has been made, the plain zip
             # otherwise. The difference is the whole install story on

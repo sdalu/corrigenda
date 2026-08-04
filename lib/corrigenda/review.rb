@@ -10,17 +10,6 @@ module Corrigenda
     # Read-mostly listing of what has been reported. Behind the same
     # Apache auth as the intake; the only write is the state marker.
     class Review < Sinatra::Base
-        # A timestamp and a digest, which is what generate_id makes.
-        # Checked here rather than left to the store, whose refusal is an
-        # exception and became an Internal Server Error on the way out.
-        ID = /\A\d{8}T\d{6}Z-[0-9a-f]{8}\z/
-
-        SERVABLE = {
-            "screenshot.webp" => "image/webp",
-            "snapshot.html"   => "text/html",
-            "report.json"     => "application/json"
-        }.freeze
-
         configure do
             set :views, File.expand_path("../../views", __dir__)
             set :erb, escape_html: true
@@ -39,18 +28,24 @@ module Corrigenda
             set :absolute_redirects, false
         end
 
-        helpers MountPath
+        helpers MountPath, RemoteUser
 
         helpers do
-            def store = @store ||= Store.new(settings.feedback_config.store_path)
+            def store
+                @store ||= Store.new(settings.feedback_config.store_path)
+            end
 
-            # The same fact the intake records as the reporter:
-            # Apache authenticated somebody, and a state changed by
-            # hand should say who as plainly as one changed by a
-            # program.
-            def acting_user
-                request.env["HTTP_X_REMOTE_USER"] ||
-                    request.env["REMOTE_USER"]
+            # To the minute, without the T and the Z, which are
+            # punctuation for a machine; the full stamp stays in the
+            # title and datetime attributes for whoever wants it exact.
+            def short_stamp(at) = at.to_s[0, 16].tr("T", " ")
+
+            # A report's URL becomes a link a reviewer clicks, so only
+            # a web address gets an href; anything else stays words.
+            # The intake now refuses other schemes too, but reports
+            # filed before that guard still render.
+            def page_href(url)
+                url if url.to_s.match?(%r{\Ahttps?://}i)
             end
 
             # Where a press should leave you. From a report's own page,
@@ -72,7 +67,7 @@ module Corrigenda
             end
 
             def find(id)
-                halt 404, "no such report\n" unless id.match?(ID)
+                halt 404, "no such report\n" unless id.match?(Store::ID)
 
                 document = store.read(id)
                 halt 404, "no such report\n" if document.nil?
@@ -110,9 +105,11 @@ module Corrigenda
         get "/" do
             @wide = true
             archived = params[:archived] == "1"
-            erb :index, locals: { entries: store.entries(archived:),
-                                  archived:,
-                                  other: store.entries(archived: !archived).size }
+            erb :index, locals: {
+                entries: store.entries(archived:),
+                archived:,
+                other: store.entries(archived: !archived).size
+            }
         end
 
         get "/:id" do
@@ -127,9 +124,9 @@ module Corrigenda
         # Whitelisted, because the name is a path component.
         get "/:id/file/:name" do
             id, name = params.values_at(:id, :name)
-            halt 404, "no such report\n" unless id.match?(ID)
+            halt 404, "no such report\n" unless id.match?(Store::ID)
 
-            type = SERVABLE[name] || Store.shot_type(name)
+            type = Store.file_type(name)
             halt 404, "not servable\n" if type.nil?
 
             path = store.dir_for(id) / name
@@ -142,7 +139,7 @@ module Corrigenda
         post "/:id/state" do
             id = params[:id]
             find(id)
-            store.mark(id, params[:state], by: acting_user)
+            store.mark(id, params[:state], by: remote_user)
             redirect back_to(id)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
@@ -154,7 +151,7 @@ module Corrigenda
             id = params[:id]
             find(id)
             store.archive(id, yes: params[:archived] != "0",
-                              by: acting_user)
+                              by: remote_user)
             redirect back_to(id)
         rescue StorageError => e
             halt 400, "#{e.message}\n"
