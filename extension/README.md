@@ -150,20 +150,20 @@ site you are on, the first time you press the button there — so adding
 a site to the estate is a line in the service's config, not a new build
 of the add-on that everyone has to install again.
 
-- `activeTab` — for the capture. It is granted by the click itself
-  and goes stale when you navigate away. The capture is always of
-  the tab the request came from: the tab id comes from the
-  messaging layer, never from the page.
 - `scripting` — to register the bridge on the sites you have
   granted. (It is what the disabled injector would use too.)
 - `storage` — for the last endpoint seen, and nothing else.
-- `optional_host_permissions: <all_urls>` — nothing is granted by
-  installing, and the prompt the first click raises asks for all sites.
-  It has to: `tabs.captureTab` and `captureVisibleTab` both refuse
-  anything narrower, and take `activeTab` only for as long as the visit
-  that granted it lasts — which is why a per-site grant captured
+- `optional_host_permissions: <all_urls>` — this is what the capture
+  runs on. Nothing is granted by installing, and the prompt the first
+  click raises asks for all sites. It has to: `tabs.captureTab` and
+  `captureVisibleTab` both refuse anything narrower, and the one
+  narrower thing they do take, `activeTab`, lasts only as long as the
+  visit that granted it — which is why an earlier build captured
   happily until the page was reloaded and then answered "Missing
-  activeTab permission" for ever.
+  activeTab permission" for ever. That is why the add-on no longer
+  asks for it at all. The capture is always of the tab the request
+  came from: the tab id comes from the messaging layer, never from
+  the page.
 
   **The permission is all sites; what the add-on does is not.** The
   sites it acts on are the ones somebody switched on with the button,

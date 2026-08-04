@@ -78,11 +78,12 @@ const capture = async (message, sender) => {
  * both stores' policies. What is left is the one thing nothing else can
  * do: photograph the tab in page coordinates.
  *
- * Nothing here names a host. The manifest asks for `activeTab`, which
- * the browser grants for the tab whose button you pressed and for as
- * long as that visit lasts; a site added to the estate tomorrow
- * therefore needs no new build and no reinstall, which is the whole
- * point -- baking the hosts in made every change of host a redeployment.
+ * Nothing here names a host, and the manifest names none either: what
+ * it declares is optional and empty until this button asks for it. A
+ * site added to the estate tomorrow therefore needs no new build and no
+ * reinstall, which is the whole point -- baking the hosts in made every
+ * change of host a redeployment. What the browser is asked for, and why
+ * it is not the one site being photographed, is below.
  */
 const REMEMBERED = "endpoint";
 const SCRIPT_ID = "corrigenda-bridge";

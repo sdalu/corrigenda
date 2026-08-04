@@ -40,6 +40,11 @@
 
     document.documentElement.dataset[MARK] = String(HELPER);
 
+    /* A sandboxed iframe or a data: document has origin "null", which
+     * postMessage refuses as a target -- and a bridge that cannot
+     * address its own window has nothing to say to it. */
+    const addressable = window.origin !== "null";
+
     /* Learned by walking past, not by being asked. A page of the estate
      * says where its reports go; telling the background half means the
      * toolbar button works later on a page that says nothing -- an app
@@ -70,8 +75,10 @@
      * thing that tells a widget already on the page that cropping just
      * became possible. Without it the reader presses the button, is
      * told to press the button, and reloads to find out it worked. */
-    window.postMessage({ source: FROM_EXT, type: "hello", helper: HELPER },
-                       window.origin);
+    if (addressable) {
+        window.postMessage({ source: FROM_EXT, type: "hello", helper: HELPER },
+                           window.origin);
+    }
 
     /* This runs at document_start, where <head> has not been parsed and
      * the link cannot be there yet. The announcement above must stay
@@ -84,6 +91,8 @@
     }
 
     const reply = (id, payload) => {
+        if (!addressable) return;
+
         window.postMessage({ source: FROM_EXT, id, ...payload }, window.origin);
     };
 

@@ -1,10 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Corrigenda capture",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Gives the corrigenda widget a screenshot the browser can crop: the tab itself, in page coordinates, with no share dialog.",
   "permissions": [
-    "activeTab",
     "scripting",
     "storage"
   ],
