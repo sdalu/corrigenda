@@ -420,4 +420,89 @@ end
 
         assert_equal 404, last_response.status
     end
+
+    # ----------------------------------------------------------------
+    # Where the list stops, and saying so. It used to stop at a hundred
+    # in silence, which made the hundred and first report look like a
+    # report nobody had filed.
+    # ----------------------------------------------------------------
+
+    # One state picker per row, and nothing but a row has one.
+    def rows = last_response.body.scan(%(<select name="state")).size
+
+    # One store serves the whole process and the tests run in any
+    # order, so what a list holds is asked of the store rather than
+    # counted on fingers here.
+    def working = store.entries(limit: nil).size
+    def filed   = store.entries(limit: nil, archived: true).size
+
+    def test_a_cut_listing_says_how_many_there_are
+        2.times { store.save(TestSupport.document) }
+        total = working
+
+        get "/?limit=2"
+
+        assert_predicate last_response, :ok?
+        assert_equal 2, rows
+        assert_includes last_response.body, "Showing the newest 2 of #{total}."
+        assert_includes last_response.body, %(href="/?limit=all")
+    end
+
+    def test_asking_for_all_of_them_gets_all_of_them
+        2.times { store.save(TestSupport.document) }
+        total = working
+
+        get "/?limit=all"
+
+        assert_equal total, rows
+        refute_includes last_response.body, "Showing the newest"
+    end
+
+    def test_a_list_that_fits_says_nothing_about_a_limit
+        get "/"
+
+        assert_predicate last_response, :ok?
+        assert_operator working, :<, Corrigenda::Review::LISTED
+        refute_includes last_response.body, "Showing the newest"
+    end
+
+    # A hand-typed limit is answered with the list, not with an error
+    # page: the same convention /api/reports reads it under.
+    def test_a_limit_that_is_not_a_number_is_the_default
+        2.times { store.save(TestSupport.document) }
+        total = working
+
+        get "/?limit=bananas"
+
+        assert_predicate last_response, :ok?
+        assert_operator total, :<, Corrigenda::Review::LISTED
+        assert_equal total, rows
+        refute_includes last_response.body, "Showing the newest"
+    end
+
+    # The way out of a cut archive stays in the archive.
+    def test_show_all_keeps_the_list_you_are_on
+        3.times { store.save(TestSupport.document) }
+        store.entries(limit: 3).each { store.archive(it.fetch("id")) }
+
+        get "/?archived=1&limit=2"
+
+        assert_equal 2, rows
+        assert_includes last_response.body, %(href="/?archived=1&amp;limit=all")
+    end
+
+    # The count in the switch-list link is about the other list, not
+    # about this one's window: cut the working list to a single row and
+    # the archive is still counted whole.
+    def test_the_other_list_is_counted_whole
+        2.times { store.save(TestSupport.document) }
+        store.entries(limit: 2).each { store.archive(it.fetch("id")) }
+        total = filed
+
+        get "/?limit=1"
+
+        assert_equal 1, rows
+        assert_operator total, :>=, 2
+        assert_includes last_response.body, "Archived (#{total})"
+    end
 end

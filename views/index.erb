@@ -127,6 +127,21 @@
         </table>
     </div>
 
+    <%# The API answers `count` beside `matched` so a caller that has
+        not seen everything knows it; a person reading the same list is
+        owed the same. Stopping at a hundred without a word is how a
+        report that was filed comes to look like a report that was
+        never made. The way out keeps the list you are on: asking for
+        all of the working list must not land you in the archive. %>
+    <% if total > entries.size %>
+        <p class="aside">
+            Showing the newest <%= entries.size %> of <%= total %>.
+            <a href="<%= to(archived ? "/?archived=1&limit=all" : "/?limit=all",
+                            false) %>">Show all of them</a> — or
+            <code>rake data:list</code> on the host.
+        </p>
+    <% end %>
+
     <dl class="legend">
         <% Corrigenda::CHANNELS.each do |key, (mark, label)| %>
             <dt><span class="chip" data-channel="<%= key %>"><%= mark %></span></dt>

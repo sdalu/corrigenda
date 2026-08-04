@@ -10,6 +10,11 @@ module Corrigenda
     # Read-mostly listing of what has been reported. Behind the same
     # Apache auth as the intake; the only write is the state marker.
     class Review < Sinatra::Base
+        # How many rows a list shows before it stops and says so. The
+        # same hundred /api/reports answers with, so the two interfaces
+        # cut a long store at the same place.
+        LISTED = 100
+
         configure do
             set :views, File.expand_path("../../views", __dir__)
             set :erb, escape_html: true
@@ -93,6 +98,19 @@ module Corrigenda
                 text = entry["summary"].to_s
                 text.empty? ? "(no message)" : text
             end
+
+            # How many rows to show, from the URL. `all` lifts the cut
+            # entirely; anything that is not a positive number falls
+            # back to the default rather than being refused, which is
+            # how /api/reports reads the same parameter — a hand-typed
+            # ?limit= should not be answered with an error page, and
+            # ?limit=0 is a typo, not a request for an empty list.
+            def listing_limit
+                return nil if params[:limit] == "all"
+
+                asked = Integer(params[:limit].to_s, exception: false)
+                asked&.positive? ? asked : LISTED
+            end
         end
 
         # Two lists, the same table: what is in front of you, and what has
@@ -102,13 +120,24 @@ module Corrigenda
         # is a table of eight columns, and a URL and a summary both
         # want room. At the prose width they wrapped to four lines
         # each and the rows were twice as tall as they needed to be.
+        #
+        # Unlimited from the store, then counted, then cut — the same
+        # order /api/reports takes, and for the same reason one level
+        # further on: a limit applied first makes every number measured
+        # after it a number about a window nobody chose. That is what
+        # made "Archived (100)" the answer for an archive of four
+        # hundred, and a count in a link is read as a fact.
         get "/" do
             @wide = true
             archived = params[:archived] == "1"
+            limit    = listing_limit
+            entries  = store.entries(limit: nil, archived:)
+
             erb :index, locals: {
-                entries: store.entries(archived:),
+                entries: limit ? entries.first(limit) : entries,
+                total: entries.size,
                 archived:,
-                other: store.entries(archived: !archived).size
+                other: store.entries(limit: nil, archived: !archived).size
             }
         end
 
