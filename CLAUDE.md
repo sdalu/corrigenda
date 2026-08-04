@@ -139,9 +139,11 @@ file stays untouched, and a listing can look inconsistent afterwards.
   estate in a tracked file**. Use `example.com`. This caught a CSS
   comment naming a site as an example of a long name — the guard is not
   only about code.
-- `test/version_test.rb` keeps `VERSION` in step across `lib/`, the
-  widget, and both add-on manifests. Change it with
-  `rake addon:version TO=...`, which also rebuilds the packages.
+- `test/version_test.rb` keeps `VERSION` in step between `lib/` and the
+  widget — bump both by hand together. The add-on's version is its own
+  (installed, not served); the test only requires the two manifests to
+  agree with each other, and `rake addon:version TO=...` is what raises
+  it and rebuilds the packages.
 - `test/deploy_test.rb` checks the generated Apache macro against the
   config it comes from.
 
