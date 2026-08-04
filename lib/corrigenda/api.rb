@@ -198,9 +198,25 @@ module Corrigenda
         # what the code does, which is exactly the thing a reader wants
         # checked against something else. test/openapi_test.rb is what
         # keeps the two in step, and it fails on either drifting.
+        #
+        # One correction on the way out: the file says `/api` because a
+        # file cannot know where a deployment mounts the service, and
+        # the viewer's Try it out sends its requests wherever `servers`
+        # points -- against the file's value, at the vhost root, where
+        # nothing answers. The served copy carries the mount this
+        # request actually came through.
         get "/openapi.json" do
+            here = mounted("")
+            spec = self.class.openapi.merge(
+                "servers" => [{
+                    "url"         => here.empty? ? "/api" : here,
+                    "description" => "This deployment, at the mount " \
+                                     "this copy was served from"
+                }]
+            )
+
             content_type "application/json"
-            JSON.pretty_generate(self.class.openapi) + "\n"
+            JSON.pretty_generate(spec) + "\n"
         end
 
         # The listing, filtered the way somebody actually asks: the open
@@ -477,13 +493,14 @@ module Corrigenda
                     "#{store.archived?(id) ? 1 : 0}-#{store.journal(id).size}"
             end
 
-            # Where this app is mounted, as the client sees it: the same
-            # header Apache sets for the pages, so a URL in a body is one
-            # a client can actually fetch.
+            # Where this app is mounted, as the client sees it.
+            # SCRIPT_NAME and nothing else: the Prefix middleware has
+            # already folded the proxy's stripped mount into it, and
+            # URLMap appended /api on top. Reading the raw header here
+            # as well lost that segment -- behind a vhost the openapi
+            # link pointed at <mount>/openapi.json, one level too high.
             def mounted(path)
-                prefix = request.env[Prefix::HEADER]
-                prefix = request.env["SCRIPT_NAME"] if prefix.to_s.empty?
-                "#{prefix.to_s.chomp("/")}#{path}"
+                "#{request.script_name.to_s.chomp("/")}#{path}"
             end
 
             # The orientation a client that knows nothing reads first,

@@ -157,15 +157,24 @@ class OpenapiTest < CorrigendaTest
         TestSupport.configure
     end
 
-    # It is served, and it is the file: a client reading the schema from
-    # a running service must not be reading a different one.
-    def test_the_schema_is_served_as_json
+    # It is served, and it is the file -- except `servers`, which the
+    # route rewrites to the mount the request came through, because Try
+    # it out sends requests wherever it points. Everything else must
+    # still be the file, byte for byte: a served copy that drifted
+    # further than that would be a second description.
+    def test_the_schema_is_served_as_json_with_its_own_mount
         TestSupport.configure("api" => true)
         get "/openapi.json"
 
         assert_equal 200, last_response.status
         assert_equal "application/json", last_response.content_type
-        assert_equal SPEC, JSON.parse(last_response.body)
+
+        served = JSON.parse(last_response.body)
+
+        assert_equal SPEC.except("servers"), served.except("servers")
+        # Unmounted (this test hits the app bare), the file's own
+        # default is the only honest answer.
+        assert_equal "/api", served.dig("servers", 0, "url")
     ensure
         TestSupport.configure
     end

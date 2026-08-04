@@ -9,6 +9,7 @@ class PrefixTest < CorrigendaTest
         Rack::Builder.new do
             use Corrigenda::Prefix
             map("/review") { run Corrigenda::Review }
+            map("/api")    { run Corrigenda::API }
         end.to_app
     end
 
@@ -33,16 +34,46 @@ class PrefixTest < CorrigendaTest
         refute_includes last_response.body, "http://example.org"
     end
 
-# The redirect after a state change is what sent a browser to
-# http://<vhost>/... : Sinatra re-absolutises Location against the
-# host it believes it has, which is the backend, over http.
-def test_the_state_redirect_is_a_path_not_an_absolute_url
-    post "/review/#{@id}/state", { "state" => "wontfix" },
-         { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
+    # The redirect after a state change is what sent a browser to
+    # http://<vhost>/... : Sinatra re-absolutises Location against the
+    # host it believes it has, which is the backend, over http.
+    def test_the_state_redirect_is_a_path_not_an_absolute_url
+        post "/review/#{@id}/state", { "state" => "wontfix" },
+             { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
 
-    assert_equal "/.corrigenda/review/#{@id}",
-                 last_response.headers["location"]
-end
+        assert_equal "/.corrigenda/review/#{@id}",
+                     last_response.headers["location"]
+    end
+
+    # The API builds its URLs from SCRIPT_NAME, where the middleware
+    # has already folded the stripped mount in and URLMap added /api.
+    # Reading the raw header instead lost the /api segment: behind a
+    # vhost the capability document pointed its reader at
+    # /.corrigenda/openapi.json, which nothing answers.
+    def test_the_api_names_its_own_mount_behind_the_proxy
+        TestSupport.configure("api" => true)
+        get "/api/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
+
+        assert_equal "/.corrigenda/api/openapi.json",
+                     JSON.parse(last_response.body)["openapi"]
+    ensure
+        TestSupport.configure
+    end
+
+    # And the schema it serves points Try it out at the same place:
+    # against the file's own /api a viewer rendered behind a vhost
+    # sends every request to the vhost root, where nothing answers.
+    def test_the_served_schema_aims_try_it_out_at_the_mount
+        TestSupport.configure("api" => true)
+        get "/api/openapi.json", {},
+            { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
+
+        assert_equal "/.corrigenda/api",
+                     JSON.parse(last_response.body)
+                         .dig("servers", 0, "url")
+    ensure
+        TestSupport.configure
+    end
 
     def test_without_the_header_nothing_changes
         get "/review/"

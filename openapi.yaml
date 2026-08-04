@@ -130,9 +130,11 @@ info:
 servers:
     - url: /api
       description: >
-          Relative to wherever the service is mounted. On the host,
-          through the unix socket; through a vhost, under the mount
-          Apache proxies and behind its authentication.
+          What the file can say: /api relative to the service root. The
+          copy served at /api/openapi.json replaces this with the mount
+          the request came through -- /.something/api behind a vhost --
+          so a viewer rendering that copy sends its Try it out requests
+          to the deployment it is reading about.
 
 security:
     - bearer: []
