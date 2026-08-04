@@ -15,7 +15,8 @@ usage() {
     cat <<'EOF'
 usage: run [-c CONFIG] [-p PORT | -s SOCKET] [-d STORE] [-f] [-h]
 
-  -c CONFIG  config to read (default deploy/corrigenda.yml)
+  -c CONFIG  config to read (default $CORRIGENDA_CONFIG if set,
+             else deploy/corrigenda.yml)
   -p PORT    listen on 127.0.0.1:PORT instead of the configured socket
   -s SOCKET  listen on this unix socket
   -d STORE   write reports here instead of the configured store
@@ -55,17 +56,21 @@ done
 
 cd "$(dirname "$0")"
 
-: "${conf:=deploy/corrigenda.yml}"
+# The same variable the rake tasks and a bare ruby already read, so a
+# shell that exported it gets one behaviour from all three. It used to
+# be silently ignored here, which is how a "throwaway" instance came up
+# reading the deployment's config and the real store.
+: "${conf:=${CORRIGENDA_CONFIG:-deploy/corrigenda.yml}}"
 
 if [ ! -f "$conf" ]; then
-echo "run: $conf does not exist." >&2
-echo >&2
-echo "     cp deploy/corrigenda-template.yml deploy/corrigenda.yml" >&2
-echo "     \$EDITOR deploy/corrigenda.yml" >&2
-echo >&2
-echo "     Copying is not enough: the endpoint, the sites and the" >&2
-echo "     directory server in the template are examples. That file" >&2
-echo "     names this deployment, which is why it is not in git." >&2
+    echo "run: $conf does not exist." >&2
+    echo >&2
+    echo "     cp deploy/corrigenda-template.yml deploy/corrigenda.yml" >&2
+    echo "     \$EDITOR deploy/corrigenda.yml" >&2
+    echo >&2
+    echo "     Copying is not enough: the endpoint, the sites and the" >&2
+    echo "     directory server in the template are examples. That file" >&2
+    echo "     names this deployment, which is why it is not in git." >&2
     exit 1
 fi
 
