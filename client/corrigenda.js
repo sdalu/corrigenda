@@ -181,7 +181,8 @@
                           "whole picture will be sent as-is.",
             shotViewportOnly: "visible page only: this browser cannot " +
                               "photograph past the edge of the window",
-            shotReady: "captured"
+            shotReady: "captured",
+            maskNone: "nothing to mask", maskOne: "mask", maskMany: "masks"
         },
         fr: {
             open: "Débogage", close: "Fermer", cancel: "Annuler", send: "Envoyer",
@@ -243,7 +244,9 @@
                           "l'image sera envoyée telle quelle.",
             shotViewportOnly: "page visible seulement : ce navigateur ne " +
                               "photographie pas au-delà de la fenêtre",
-            shotReady: "capturée"
+            shotReady: "capturée",
+            maskNone: "rien à masquer", maskOne: "masque",
+            maskMany: "masques"
         }
     };
     const T = STRINGS[CFG.lang] || STRINGS.en;
@@ -1482,6 +1485,19 @@
             overflow-wrap: anywhere;
         }
 
+        /* Where reports go, when that is not here. A hostname broken
+           across lines is a hostname somebody mistypes, so this one
+           never breaks: it takes a line of its own and is cut with an
+           ellipsis when the panel is narrower than the name -- whole
+           in the title, and selectable like the rest of the line. */
+        .colophon .destination {
+            display: block;
+            max-inline-size: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
         h2 {
             flex: 1 1 auto;
             margin: 0;
@@ -1969,7 +1985,7 @@ input:where(:not(:checked)) + .chip {
     .shot-status {
         /* Its own line, always. Sharing the row made the strip jump
          * between one row and two as the wording changed length --
-         * "captured · 826 B · 2 ▮" fits, a refusal does not -- and the
+         * "captured · 826 B · 2 masks" fits, a refusal does not -- and the
          * controls moved under a message that had nothing to do with
          * them. */
         flex: 1 0 100%;
@@ -3595,9 +3611,17 @@ input:where(:not(:checked)) + .chip {
                 ? (SURFACES[SHOT.surface] || (() => T.surfaceUnknown))()
                 : null;
             shotStatus.classList.toggle("is-warning", !mapped);
+            /* In words, not a glyph: "0 ▮" had to be asked about, and a
+             * status line is not where anyone should need a legend. Zero
+             * is the page's own fact -- nothing there wanted covering --
+             * so it gets a sentence rather than a count of nothing. */
+            const masked = SHOT.redacted === 0
+                ? T.maskNone
+                : `${SHOT.redacted} ` +
+                  (SHOT.redacted === 1 ? T.maskOne : T.maskMany);
             shotStatus.textContent = mapped
                 ? `${T.shotReady}${surface ? ` · ${surface}` : ""} · ` +
-                  `${humanBytes(SHOT.blob.size)} · ${SHOT.redacted} ▮` +
+                  `${humanBytes(SHOT.blob.size)} · ${masked}` +
                   `${SHOT.partial ? ` · ${T.shotViewportOnly}` : ""}`
                 : `${surface ? `${surface} — ` : ""}${T.shotUnmapped}`;
         } catch (error) {
@@ -3824,10 +3848,20 @@ input:where(:not(:checked)) + .chip {
         const helper = helperVersion
             ? `add-on ${helperVersion}`
             : (extension() ? T.helperSilent : T.helperNone);
-        const where = CROSS_ORIGIN ? ` · → ${ENDPOINT.origin}` : "";
+        const colophon = $(".colophon");
 
-        $(".colophon").textContent =
-            `corrigenda ${VERSION} · ${helper}${where}`;
+        colophon.textContent = `corrigenda ${VERSION} · ${helper}`;
+        if (!CROSS_ORIGIN) return;
+
+        /* Its own line, whole or not at all: an origin is one word,
+         * and riding the version line it either wrapped mid-hostname
+         * or pushed the line to three. The ellipsis cuts it when the
+         * panel is narrower than the name; the title keeps it entire. */
+        const where = document.createElement("span");
+        where.className = "destination";
+        where.textContent = `→ ${ENDPOINT.origin}`;
+        where.title = ENDPOINT.origin;
+        colophon.append(where);
     };
 
     const syncScopes = () => {
