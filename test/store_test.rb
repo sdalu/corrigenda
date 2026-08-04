@@ -297,6 +297,30 @@ class StoreTest < CorrigendaTest
                      @store.purge({ "archived" => 90 })
     end
 
+    # The appender and the rewriter take one lock, so a report filed
+    # while a purge rewrites the index cannot have its line read into
+    # neither copy and dropped by the rename.
+    def test_index_writers_wait_for_each_other
+        @store.save(TestSupport.document)
+        lock = (@store.root / "index.jsonl.lock")
+               .open(File::RDWR | File::CREAT)
+        lock.flock(File::LOCK_EX)
+
+        saved  = nil
+        writer = Thread.new { saved = @store.save(TestSupport.document) }
+        sleep 0.05
+
+        assert_nil saved, "a save went past the held index lock"
+
+        lock.flock(File::LOCK_UN)
+        writer.join
+
+        assert_includes @store.entries(limit: nil, archived: nil)
+                              .map { it["id"] }, saved
+    ensure
+        lock&.close
+    end
+
     # An emptied month is not left behind as a directory; a month with
     # anything still in it is untouched.
     def test_purge_prunes_the_months_it_empties

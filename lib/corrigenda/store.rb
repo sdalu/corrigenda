@@ -411,13 +411,34 @@ module Corrigenda
             end
         end
 
+        # Both writers of the index -- the appender and the rewriter --
+        # take this lock. Without it, a report filed while a purge was
+        # rewriting the file had its line read into neither copy and
+        # thrown away by the rename: the directory survived, but
+        # nothing listed it again. A file beside the index rather than
+        # the index itself, because the rewrite replaces the index by
+        # rename and a lock held on the old inode would guard nothing.
+        def lock_index
+            FileUtils.mkdir_p(@root)
+            (@root / "#{INDEX}.lock").open(File::RDWR | File::CREAT) do |file|
+                file.flock(File::LOCK_EX)
+                yield
+            end
+        end
+
         # Rewritten rather than marked: a deleted report should leave
         # nothing behind, and a tombstone in the index is something. Takes
         # a list because a purge is many at once and the file should be
         # rewritten once, not once per report.
         def forget(ids)
+            return if ids.empty?
+
+            lock_index { rewrite_index(ids) }
+        end
+
+        def rewrite_index(ids)
             index = @root / INDEX
-            return if ids.empty? || !index.exist?
+            return unless index.exist?
 
             gone = ids.to_h { [it, true] }
             kept = index.readlines.reject {
@@ -429,8 +450,9 @@ module Corrigenda
         end
 
         def append_index(entry)
-            FileUtils.mkdir_p(@root)
-            (@root / INDEX).open("a") { it.puts(JSON.generate(entry)) }
+            lock_index do
+                (@root / INDEX).open("a") { it.puts(JSON.generate(entry)) }
+            end
         end
     end
 end
