@@ -463,6 +463,42 @@ const check = async (name, browser, executablePath) => {
             `900×700 around it`);
     await page.close();
 
+    // 10b. a dragged region is a place on the PAGE, not a place in the
+    //      window. It was kept in the coordinates the pointer speaks and
+    //      used at capture time, which is a panel, a scope and (without
+    //      the add-on) a share dialog later — any of them a scroll. The
+    //      same rectangle then cropped whatever had scrolled into that
+    //      part of the window instead. Nothing about the region changed
+    //      between these two captures, so the rectangle asked for must
+    //      not have changed either. The fixture is 2400px wide on
+    //      purpose, so sideways is the scroll that always exists here.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    await page.addInitScript(stub('rect'));
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.mouse.move(120, 200);
+    await page.mouse.down();
+    await page.mouse.move(320, 300, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForSelector('#corrigenda-widget .report:not([hidden])');
+    await page.waitForFunction(() => window.__captureAsks.length > 0,
+                               null, { timeout: 10000 }).catch(() => {});
+    const atRest = await page.evaluate(() => window.__captureAsks.at(-1));
+    await page.evaluate(() => scrollTo(300, 0));
+    const scrolled = (await shoot(page)).asks.at(-1);
+
+    if (!atRest || !scrolled)
+        fail(`${name}: a region capture asked for nothing`);
+    else if (Math.abs(scrolled.x - atRest.x) > 1 ||
+             Math.abs(scrolled.y - atRest.y) > 1)
+        fail(`${name}: a region moved with the scroll — asked for ` +
+             `${Math.round(atRest.x)},${Math.round(atRest.y)} and then ` +
+             `${Math.round(scrolled.x)},${Math.round(scrolled.y)}`);
+    else ok(`${name}: a dragged region keeps its place on the page ` +
+            `(${Math.round(atRest.x)},${Math.round(atRest.y)}) across a scroll`);
+    await page.close();
+
     // 11. a capture that fails says why, and goes on saying it. The
     //     reason used to be swallowed by a bare catch, and then -- once
     //     it was not -- wiped by the next redraw, which is the one a

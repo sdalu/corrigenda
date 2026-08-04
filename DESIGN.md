@@ -105,6 +105,13 @@ including staging, with no global module and no page rewriting. With no
 `location.hostname`, so the POST stays same-origin and inside that
 vhost's auth. See `deploy/`.
 
+A bookmarklet goes wherever it is pressed, and that includes documents
+no report can be filed from: the schema requires `page.url` to be
+`http` or `https`, because the review UI renders it as a link somebody
+clicks. The widget reads `location.protocol` and says so in the panel —
+one sentence, no menu — rather than collecting a message and trading it
+for a 422 about a field name.
+
 **C. Cookie-gated injection — the way back to automatic.** If the
 load-time capture proves necessary, gate the substitution on a signed
 cookie set by a login step rather than on `REMOTE_USER`, and give
@@ -356,14 +363,18 @@ timezone, `data-build`.
   estate has actually hit
 - **horizontal overflow flag**: `documentElement.scrollWidth >
   clientWidth`, plus the offending elements from a sweep of
-  `getBoundingClientRect().right > innerWidth`. Free, and it turns
-  "the page looks weird on my phone" into a named element.
+  `getBoundingClientRect().right > innerWidth` — in *document*
+  coordinates (`rect.right + scrollX`), since a reporter who scrolled
+  sideways to look at the overflow otherwise named whatever had drifted
+  past the right edge from there. Free, and it turns "the page looks
+  weird on my phone" into a named element.
 - navigation timing summary
 
 **Screenshot metadata** — when an image is attached, the report carries
-`screenshot: { scope, mapped, redacted, bytes }`, so the reviewer can
-see whether the image was croppable and how many regions were covered
-without opening it.
+`screenshot: { scope, provider, surface, mapped, partial, redacted,
+bytes }`, so the reviewer can see whether the image was croppable, which
+of the two paths took it, whether it is all of what was asked for, and
+how many regions were covered — without opening it.
 
 **Transport** — one `multipart/form-data` POST: `report.json` gzipped
 via `CompressionStream('gzip')` (Baseline in both targets), plus
@@ -564,6 +575,23 @@ the panel and restored on close, `:focus-visible` rings ≥ 3:1 against
 whatever sits behind them, targets ≥ 44px, animation behind
 `prefers-reduced-motion`, legible under `forced-colors: active`,
 `inert` on the launcher while the picker runs.
+
+The trap is a `keydown` on the panel that recomputes its focusable
+stops on every press — they change under it, since the menu becomes a
+form, a capture grows a Remove button and the scopes go disabled when
+no add-on answers, so a list taken at open time is wrong by the second
+Tab. **Restoring focus to the launcher rather than to whatever held it
+before is deliberate**, and is the one place this departs from the
+usual dialog rule: the launcher is the widget's own anchor and the way
+back in, it is where the reporter's attention already was, and the page
+element that had focus before may not exist any more — a report is
+often filed *about* the thing that was picked.
+
+Legibility under `forced-colors: active` costs one extra rule per
+state-carrying control: on/off is normally said with a fill, a
+box-shadow and a border colour, and forced colours override all three,
+so the checked channel chip and the chosen scope icon carry an
+`outline: 2px solid Highlight` there instead.
 
 House CSS rules apply inside the shadow root as everywhere else:
 `@layer` ordering, native nesting, logical properties, `is-` / `a-`

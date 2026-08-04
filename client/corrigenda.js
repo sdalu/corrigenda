@@ -27,6 +27,18 @@
         const meta = (name) =>
             document.querySelector(`meta[name="${name}"]`)?.content || null;
 
+        /* A tag is written by hand, so a limit on it arrives as
+         * whatever somebody typed -- and Number("deep") is NaN, which
+         * fails every comparison it is put in. `depth >= NaN` is false
+         * at every depth, so data-prune="deep" pruned nothing and the
+         * fragment went out whole; `html.length > NaN` is false at
+         * every length, so data-cap="64k" sent a megabyte. A number
+         * that is not one is not a limit, and takes the default. */
+        const number = (value, fallback) => {
+            const n = Number(value || fallback);
+            return Number.isFinite(n) ? n : fallback;
+        };
+
         /* Where this page says its reports go. The tag that loaded this
          * file knows when MoXoW put it there, but a bookmarklet loaded
          * it on a page that never asked for it -- and on a site that
@@ -50,8 +62,8 @@
              * browser's describes the person reporting it. The tag can
              * still say, for a deployment where that is wrong. */
             lang:     (d.lang || navigator.language || "en").slice(0, 2),
-            prune:    Number(d.prune || 3),
-            cap:      Number(d.cap || 64 * 1024)
+            prune:    number(d.prune, 3),
+            cap:      number(d.cap, 64 * 1024)
         };
     })();
 
@@ -63,6 +75,17 @@
      * page, and somebody about to press Send is entitled to read it. */
     const ENDPOINT = new URL(CFG.endpoint, location.href);
     const CROSS_ORIGIN = ENDPOINT.origin !== location.origin;
+
+    /* Whether a report from this page can be filed at all. The schema
+     * requires page.url to be http or https -- the review UI renders it
+     * as a link somebody clicks, so a javascript: or a data: address
+     * filed as a report must never become one -- and a bookmarklet goes
+     * wherever it is pressed, file:// documents and view-source
+     * included. Asked here, the answer is a sentence in the panel
+     * before anything is typed; left to the endpoint it is a 422 about
+     * a field name, after the message. */
+    const REPORTABLE = location.protocol === "http:" ||
+                       location.protocol === "https:";
 
     /* ---------------------------------------------------------------
      * Diagnostics. Installed at load, before anything else, because the
@@ -111,24 +134,17 @@
             helpPick: "pick", helpParent: "parent", helpChild: "child",
             helpSiblings: "siblings", helpConfirm: "confirm",
             helpCancel: "cancel",
-            selected: "Selected", region: "Region",
             regionCovers: "covering", across: "across",
             elements: "elements",
             message: "What is wrong?",
             include: "What gets sent",
-            preview: "Show exactly what will be sent",
             thanks: "Sent. Reference:",
             failed: "Could not send:",
+            notReportable: "Reports cannot be filed from this page: it is " +
+                           "not served over http or https.",
             fragment: "Element", rules: "CSS rules",
             computed: "Computed styles", diagnostics: "Diagnostics",
             audit: "Accessibility",
-            /* What the chip says when six of them share one row. The
-             * full name stays on the switch as its accessible name, and
-             * the popover reads that -- so nothing is lost, it is one
-             * hover away. */
-            shortFragment: "Element", shortRules: "Rules",
-            shortComputed: "Computed", shortDiagnostics: "Diag",
-            shortAudit: "A11y", shortScreenshot: "Shot",
             previewShort: "what will be sent",
             surfaceTab: "this tab", surfaceWindow: "a window",
             surfaceScreen: "the whole screen", surfaceUnknown: "unknown surface",
@@ -179,17 +195,14 @@
             helpPick: "choisir", helpParent: "parent", helpChild: "enfant",
             helpSiblings: "frères", helpConfirm: "valider",
             helpCancel: "annuler",
-            selected: "Sélectionné", region: "Région",
             regionCovers: "couvrant", across: "réparti sur",
             elements: "éléments",
             message: "Que se passe-t-il ?",
             include: "Ce qui sera envoyé",
-            preview: "Voir exactement ce qui sera envoyé",
             thanks: "Envoyé. Référence :",
             failed: "Envoi impossible :",
-            shortFragment: "Élément", shortRules: "Règles",
-            shortComputed: "Calculé", shortDiagnostics: "Diag",
-            shortAudit: "A11y", shortScreenshot: "Image",
+            notReportable: "Impossible de signaler depuis cette page : elle " +
+                           "n'est pas servie en http ou https.",
             previewShort: "ce qui sera envoyé",
             fragment: "Élément", rules: "Règles CSS",
             computed: "Styles calculés", diagnostics: "Diagnostics",
@@ -322,10 +335,22 @@
      * ------------------------------------------------------------- */
     const RULE_CAP = 40;
 
+    /* Enough of the address to open the file, and no more. The pathname
+     * alone was not enough twice over: an estate whose pages pull the
+     * same /css/site.css from two hosts named the same sheet for both,
+     * and a build that cache-busts with ?v= lost the one part of the
+     * URL that says WHICH build the reader is looking at. The host is
+     * added only when it is not this page's own, where it would be
+     * noise on every row. */
     const sheetName = (sheet) => {
         if (!sheet.href) return "(inline)";
-        try { return new URL(sheet.href, location.href).pathname; }
-        catch { return sheet.href; }
+
+        try {
+            const url = new URL(sheet.href, location.href);
+            return url.origin === location.origin
+                ? url.pathname + url.search
+                : url.host + url.pathname + url.search;
+        } catch { return sheet.href; }
     };
 
     const collectRules = (rules, el, sheet, context, out) => {
@@ -416,12 +441,27 @@
         scroll: `${Math.round(scrollX)},${Math.round(scrollY)}`
     });
 
-    /* Free, and it turns "looks weird on my phone" into a named element. */
+    /* Free, and it turns "looks weird on my phone" into a named element.
+     *
+     * Measured on the page, not on the screenful of it that happens to
+     * be showing. getBoundingClientRect answers in client coordinates,
+     * so a reporter who had scrolled sideways to LOOK at the overflow
+     * -- which is what somebody about to report it does -- named
+     * whatever had drifted past the right edge from there, and the
+     * element actually sticking out was off to the left and not in the
+     * list at all. Adding scrollX puts both sides of the comparison in
+     * the document's own coordinates, where the answer does not depend
+     * on where the window is.
+     *
+     * The width compared against is the page's, not scrollWidth:
+     * scrollWidth is defined BY the offenders, so nothing ever reaches
+     * past it and the list would always be empty. */
     const overflowReport = () => {
         const doc = document.documentElement;
         if (doc.scrollWidth <= doc.clientWidth) return { overflows: false };
         const offenders = [...document.querySelectorAll("body *")]
-            .filter((el) => el.getBoundingClientRect().right > doc.clientWidth + 1)
+            .filter((el) => el.getBoundingClientRect().right + scrollX >
+                            doc.clientWidth + 1)
             .slice(0, 8)
             .map((el) => selectorFor(el));
         return {
@@ -487,11 +527,58 @@
     const luminance = (rgb) =>
         0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
 
+    /* One pixel, kept: a canvas per colour would be a canvas per
+     * element per ancestor, and the walk up to the backdrop asks for
+     * several of them on every audit. */
+    let probeContext = null;
+
+    const probe = () => {
+        if (!probeContext) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 1;
+            canvas.height = 1;
+            probeContext = canvas.getContext("2d",
+                                             { willReadFrequently: true });
+        }
+        return probeContext;
+    };
+
+    /* Painted, not parsed. This used to read "the first three numbers
+     * in the string are the sRGB bytes", which is true of rgb() and of
+     * nothing else the platform now hands back: getComputedStyle
+     * answers oklch(0.5 0 0) on a page written in oklch, and the old
+     * reader took that for rgb(0.5, 0, 0) -- near-black -- and reported
+     * a confident 21:1 for mid grey on white. A wrong number is worse
+     * than none here, because the whole point of the field is to be
+     * quoted in a bug report.
+     *
+     * So the engine is asked instead: it is the one that resolved the
+     * colour, and a canvas will paint anything it can resolve --
+     * oklch(), color-mix(), color(display-p3 ...), whatever comes next.
+     * fillStyle keeps its previous value when a string does not parse,
+     * so it is set from two different starting points: a colour that
+     * answers back the sentinel both times is one this engine cannot
+     * read, and the caller gets null rather than an invention. */
+    const takes = (ctx, value, sentinel) => {
+        ctx.fillStyle = sentinel;
+        const before = ctx.fillStyle;
+        ctx.fillStyle = value;
+        return ctx.fillStyle !== before;
+    };
+
     const parseColour = (value) => {
-        const nums = value.match(/[\d.]+/g);
-        if (!nums || nums.length < 3) return null;
-        if (nums.length > 3 && Number(nums[3]) === 0) return null;
-        return nums.slice(0, 3).map(Number);
+        const ctx = probe();
+        if (!ctx || !value) return null;
+        if (!takes(ctx, value, "#000") && !takes(ctx, value, "#fff")) return null;
+
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+
+        /* Fully transparent is not a colour, and the backdrop walk
+         * depends on hearing that: it is what makes it keep climbing
+         * to the ancestor that actually paints something. */
+        return a === 0 ? null : [r, g, b];
     };
 
     const backdropOf = (el) => {
@@ -571,7 +658,20 @@
      * the share dialog with its warning up. */
     const HELPER_REQUIRED = 2;
 
+    /* A sandboxed iframe or a data: document has origin "null", and
+     * postMessage refuses that as a target -- it throws, and it threw
+     * inside the ask's own Promise executor, where the rejection looked
+     * like an add-on that had said no. It was not a no: the five-second
+     * timer and the entry in `waiting` were both still standing, on
+     * every ask, for the life of the document. The content script makes
+     * this same test and stays silent on such a page, so there is
+     * nobody on the other end anyway -- and "no add-on" is the true
+     * answer as well as the cheap one. */
+    const ADDRESSABLE = window.origin !== "null";
+
     const extension = () => {
+        if (!ADDRESSABLE) return null;
+
         const provided = Number(
             document.documentElement.dataset.corrigendaCapture);
 
@@ -698,7 +798,16 @@
         waiting: new Map(),
 
         ask(type, payload = {}, timeout = 15000) {
-            const id = `df-${this.next += 1}`;
+            /* Nothing above reaches here on such a page -- extension()
+             * answers null and every caller stops at that -- but the
+             * timer and the waiting entry are set BEFORE the throw, so
+             * the one place that leaks is the one place that refuses. */
+            if (!ADDRESSABLE) {
+                return Promise.reject(
+                    new Error("this document has no origin to address"));
+            }
+
+            const id = `cg-${this.next += 1}`;
             return new Promise((resolve, reject) => {
                 const giveUp = setTimeout(() => {
                     this.waiting.delete(id);
@@ -917,13 +1026,28 @@
         return boxes.length;
     };
 
+    /* A region is kept in page coordinates and used in client ones.
+     * Kept as it was dragged -- client coordinates, which is what a
+     * pointer event speaks -- it went stale the moment the page moved
+     * under it: between the drag and the shutter there is a panel to
+     * fill in, a scope to choose and, without the add-on, a share
+     * dialog to answer, and any one of those can be a scroll. The crop
+     * then landed on whatever had scrolled into that part of the
+     * window, which is a picture of the wrong thing filed as evidence.
+     * DESIGN 5 says page coordinates for the same reason, and
+     * target.region now says what DESIGN says it does. */
+    const toClient = (box) => ({
+        x: box.x - scrollX, y: box.y - scrollY,
+        width: box.width, height: box.height
+    });
+
     /* The element with its margin, in client coordinates. Two callers
      * want it and they want it for different reasons: this is what the
      * picture is cropped to, and -- where the browser lets us choose the
      * rectangle -- it is also what is asked for in the first place. */
     const elementBox = () => {
         const margin = 16;
-        const r = region || picked?.getBoundingClientRect();
+        const r = region ? toClient(region) : picked?.getBoundingClientRect();
         if (!r) return null;
 
         return { x: r.x - margin, y: r.y - margin,
@@ -1077,7 +1201,6 @@
                  * that has to be said out loud rather than quietly
                  * cropped. */
                 const { rect, scale, cut } = withinLimits(wanted);
-                SHOT.trimmed = cut;
 
                 const answer = await BRIDGE.ask("capture", { rect, scale });
                 const canvas = await drawn(answer.dataUrl);
@@ -1104,12 +1227,23 @@
                     ? given
                     : (devicePixelRatio || 1);
 
+                /* Two ways to get less than was asked for, and they had
+                 * to be answered together. `got` is measured against
+                 * `rect`, which is what withinLimits left of the
+                 * request -- so a page cut down to fit a canvas
+                 * compared its picture against the cut-down rectangle,
+                 * agreed with itself, and reported a whole capture. The
+                 * comment above promised the height was "said out loud"
+                 * and only a write-only SHOT.trimmed ever said it. It
+                 * is said here now, where the one flag the reporter and
+                 * the payload both read is decided. */
                 return {
                     canvas,
                     scale: drawnAt,
                     origin: { x: got.x - scrollX, y: got.y - scrollY },
                     surface: "browser",
-                    whole: got.width >= rect.width - 1 &&
+                    whole: !cut &&
+                           got.width >= rect.width - 1 &&
                            got.height >= rect.height - 1
                 };
             }
@@ -1197,9 +1331,12 @@
             scale: frame.scale,
             redacted: 0,
             surface: frame.surface,
-            /* Asked for the whole page and given the window: true only
-             * when the request was cut down, so the status can say so. */
-            partial: SHOT.scope === "full" && frame.whole === false,
+            /* Given less than was asked for: a browser that can only
+             * photograph the window, or a rectangle too tall for any
+             * canvas. Not tied to the "no crop" scope any more -- a
+             * viewport on a very large display is cut for the second
+             * reason too, and said nothing about it. */
+            partial: frame.whole === false,
             blob: null
         };
 
@@ -1296,8 +1433,6 @@
     }
 
     .panel {
-        container-type: inline-size;
-        container-name: panel;
         inline-size: min(21rem, calc(100vw - 1.5rem));
         max-block-size: calc(100dvh - 1.5rem);
         overflow-y: auto;
@@ -1498,7 +1633,15 @@
 
         /* Named in full: a letter works in a table of many reports,
          * where a legend sits underneath, but here the switch is the
-         * only place the choice is explained. */
+         * only place the choice is explained.
+         *
+         * The chip below carries everything a chip is -- the hue, the
+         * fill, the weight, the centring. Only what a full name in a
+         * fieldset track needs is restated here: a cell that fills its
+         * track and centres in it rather than a word that sits on a
+         * line, and the room a word like "Diagnostics" wants. The two
+         * displays are not a disagreement; they are the same token in a
+         * grid and in a sentence. */
         .chip {
             display: grid;
             place-items: center;
@@ -1506,7 +1649,6 @@
             min-block-size: 1.5rem;
             padding-inline: 0.25em;
             font-size: 0.6875rem;
-            text-align: center;
             /* A name longer than its track wraps inside the chip rather
              * than reaching past it. */
             overflow-wrap: anywhere;
@@ -1675,6 +1817,10 @@ input:where(:not(:checked)) + .chip {
         }
     }
 
+    /* What a chip is, wherever one appears: on a switch, on a menu row,
+     * and in the report list this widget's reports end up in. The hue
+     * is the channel and the fill is the chip; the shape it takes is
+     * the caller's business (see .switch above). */
     .chip {
         --hue: 260;
 
@@ -1795,10 +1941,10 @@ input:where(:not(:checked)) + .chip {
     }
 
     @media (prefers-reduced-motion: no-preference) {
-        .a-shot.is-wanted { animation: dfb-pulse 1.6s ease-in-out infinite; }
+        .a-shot.is-wanted { animation: shot-pulse 1.6s ease-in-out infinite; }
     }
 
-    @keyframes dfb-pulse {
+    @keyframes shot-pulse {
         0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--warn) 55%, transparent); }
         50%      { box-shadow: 0 0 0 0.35rem color-mix(in oklab, var(--warn) 0%, transparent); }
     }
@@ -2083,6 +2229,19 @@ input:where(:not(:checked)) + .chip {
     @layer components {
         .overlay { outline-color: Highlight; background: transparent; }
         .launcher, button { border: 1px solid ButtonText; }
+
+        /* On and off were said with a fill, a box-shadow and a border
+         * colour, and forced colours override all three: six channel
+         * chips read identically, and so did the three scope icons, so
+         * the panel could not say what it was about to send. An outline
+         * is one of the few things left alone here, so it is what
+         * carries the state -- drawn only on what is chosen, since
+         * unchecked has nothing to say and a mark on everything says
+         * nothing. */
+        .switch input:checked + .chip,
+        .scope-option input:checked + svg {
+            outline: 2px solid Highlight;
+        }
     }
 }
 `;
@@ -2139,7 +2298,13 @@ input:where(:not(:checked)) + .chip {
                 </button>
             </div>
             <form class="report" hidden>
-                <textarea name="message" required placeholder="${T.message}"
+                <!-- maxlength is the endpoint's own limit, said where
+                     it can still be obeyed: the schema refuses a
+                     message past 8192 characters, and a refusal after
+                     the send is a wall of typing lost to a 422 about a
+                     field name. -->
+                <textarea name="message" required maxlength="8192"
+                          placeholder="${T.message}"
                           aria-label="${T.message}"></textarea>
                 <fieldset class="channels" aria-label="${T.include}"></fieldset>
                 <div class="shot" hidden>
@@ -2216,10 +2381,22 @@ input:where(:not(:checked)) + .chip {
     /* MoXoW emits this first in <head> and undeferred, so that the
      * listeners above are watching before anything can fail — which
      * means there is no document.body yet. Everything is built either
-     * way; only the mounting waits. */
-    if (document.body) document.body.append(host);
-    else addEventListener("DOMContentLoaded",
-                          () => document.body.append(host), { once: true });
+     * way; only the mounting waits.
+     *
+     * And in an XML document -- an XSLT-less feed, an SVG opened on its
+     * own -- there is no <body> and there never will be one: waiting
+     * for DOMContentLoaded there arrived at the same null and threw,
+     * and a document that could have been reported on had no widget at
+     * all. The root element is a parent like any other. The readyState
+     * test is the other half of that: with the event already fired,
+     * waiting for it waits forever. */
+    const mount = () => {
+        const parent = document.body || document.documentElement;
+        if (parent) parent.append(host);
+    };
+
+    if (document.body || document.readyState !== "loading") mount();
+    else addEventListener("DOMContentLoaded", mount, { once: true });
 
     const $ = (selector) => root.querySelector(selector);
     const panel = $(".panel");
@@ -2236,18 +2413,16 @@ input:where(:not(:checked)) + .chip {
      * here is what you recognise there. The word is the accessible name
      * and the title; the letter is the compact form. */
     const CHANNELS = [
-        { key: "fragment", mark: "E", label: T.fragment, short: T.shortFragment,
+        { key: "fragment", mark: "E", label: T.fragment,
           about: T.aboutFragment },
-        { key: "rules", mark: "R", label: T.rules, short: T.shortRules,
-          about: T.aboutRules },
-        { key: "computed", mark: "C", label: T.computed, short: T.shortComputed,
+        { key: "rules", mark: "R", label: T.rules, about: T.aboutRules },
+        { key: "computed", mark: "C", label: T.computed,
           about: T.aboutComputed },
         { key: "diagnostics", mark: "D", label: T.diagnostics,
-          short: T.shortDiagnostics, about: T.aboutDiagnostics },
-        { key: "audit", mark: "A", label: T.audit, short: T.shortAudit,
-          about: T.aboutAudit },
+          about: T.aboutDiagnostics },
+        { key: "audit", mark: "A", label: T.audit, about: T.aboutAudit },
         { key: "screenshot", mark: "S", label: T.screenshot,
-          short: T.shortScreenshot, about: T.aboutScreenshot }
+          about: T.aboutScreenshot }
     ];
 
     for (const c of CHANNELS) {
@@ -2369,6 +2544,9 @@ input:where(:not(:checked)) + .chip {
                 if (on.includes("audit")) target.audit = auditOf(picked);
             }
             if (region) {
+                /* Page coordinates, as DESIGN 5 says: a rectangle that
+                 * meant something only at the scroll position it was
+                 * dragged at is not a place anybody can go back to. */
                 target.region = {
                     x: Math.round(region.x), y: Math.round(region.y),
                     width: Math.round(region.width),
@@ -2395,6 +2573,11 @@ input:where(:not(:checked)) + .chip {
                 provider: SHOT.provider,
                 surface: SHOT.surface,
                 mapped: SHOT.scale !== null,
+                /* Less than was asked for. The reviewer is looking at
+                 * an image that stops somewhere, and whether it stops
+                 * because the page stops is exactly the question they
+                 * would otherwise have to guess at. */
+                partial: SHOT.partial,
                 redacted: SHOT.redacted,
                 bytes: SHOT.blob.size
             };
@@ -2592,6 +2775,10 @@ input:where(:not(:checked)) + .chip {
 
     const regionBox = $(".region");
 
+    /* Drawn where the pointer is, remembered where the page is: the
+     * rubber band is a fixed-position box and wants client
+     * coordinates, and everything that reads the region afterwards
+     * wants page ones (see toClient). */
     const drawRegion = (a, b) => {
         const box = {
             x: Math.min(a.x, b.x), y: Math.min(a.y, b.y),
@@ -2602,15 +2789,17 @@ input:where(:not(:checked)) + .chip {
             inlineSize: `${box.width}px`, blockSize: `${box.height}px`
         });
         regionBox.hidden = false;
-        return box;
+        return { ...box, x: box.x + scrollX, y: box.y + scrollY };
     };
 
     /* What the rectangle is over, so a report about an area still names
      * something a maintainer can search for. Elements wholly containing
      * the region are skipped: <body> covers every rectangle and says
      * nothing about this one. */
-    const covered = (box) =>
-        [...document.querySelectorAll("body *")]
+    const covered = (page) => {
+        const box = toClient(page);
+
+        return [...document.querySelectorAll("body *")]
             .filter((el) => {
                 if (host.contains(el)) return false;
 
@@ -2624,6 +2813,7 @@ input:where(:not(:checked)) + .chip {
                        r.y < box.y + box.height && r.bottom > box.y;
             })
             .slice(0, 12);
+    };
 
     /* Two answers, because they are two questions. The list is the
      * evidence — what the rectangle actually covered. The nearest common
@@ -2732,8 +2922,12 @@ input:where(:not(:checked)) + .chip {
 
     /* The cursor belongs to the page, and the page says "hand" over a
      * link and "text" over a paragraph — neither of which is what you
-     * are doing. This is the one moment the widget writes into the
-     * document, and it takes it back the moment picking ends.
+     * are doing. So a rule goes into the document, and comes back out
+     * the moment picking ends. It is not the only thing the widget
+     * writes there — holdDraggables marks every link and image
+     * undraggable for the length of a selection, and a capture hides
+     * the host while the shutter is open — but all of it is borrowed
+     * for the length of a gesture and given back after it.
      *
      * !important because it has to beat whatever the site sets, and a
      * lone rule on documentElement would not: every element with its own
@@ -2783,12 +2977,34 @@ input:where(:not(:checked)) + .chip {
         undraggable = [];
     };
 
+    /* An XML document has no <head>, and appending to null throws --
+     * out of the first line of startPicking, before a single listener
+     * was attached. `picking` stayed true, the panel stayed hidden, and
+     * Escape went to the handler that ignores keys while picking: a
+     * widget that could not be cancelled or closed, on the one kind of
+     * page it had nothing else wrong with.
+     *
+     * Two answers, because the cursor is decoration and the mode is
+     * not. The rule goes on the root element where there is no head,
+     * and if the document will not take it at all the picker runs
+     * anyway with the page's own cursors -- less pleasant, and still a
+     * picker. Nothing here is allowed to throw. */
     const takeCursor = (mode) => {
-        cursorRule = document.createElement("style");
-        cursorRule.dataset.debugFeedback = "cursor";
-        cursorRule.textContent = RULES[mode];
-        document.head.append(cursorRule);
-        holdDraggables();
+        try {
+            cursorRule = document.createElement("style");
+            cursorRule.dataset.corrigenda = "cursor";
+            cursorRule.textContent = RULES[mode];
+            (document.head || document.documentElement).append(cursorRule);
+            holdDraggables();
+            return true;
+        } catch (error) {
+            console.warn("corrigenda: this document would not take the " +
+                         "picker's cursor rule; picking without it", error);
+            /* Whatever half of it landed goes back the same way the end
+             * of picking would put it back. */
+            releaseCursor();
+            return false;
+        }
     };
 
     const releaseCursor = () => {
@@ -2817,21 +3033,23 @@ input:where(:not(:checked)) + .chip {
         event.stopPropagation();
     };
 
-    const finishText = (found) => {
+    /* `gesture` says the mode ended on a pointer, which is the only
+     * case with a trailing click to swallow -- see stopSelecting. */
+    const finishText = (found, gesture = false) => {
         /* Consumed: a later report must not silently quote the words
          * from this one because they were still remembered. */
         lastSelection = null;
         picked = found.element;
         holders = found.elements || [];
         form.message.value = `« ${found.text} » `;
-        stopSelecting();
+        stopSelecting(gesture);
         panel.hidden = false;
         showForm();
     };
 
     const onSelectUp = () => {
         const found = readSelection();
-        if (found) finishText(found);
+        if (found) finishText(found, true);
     };
 
     const onSelectKey = (event) => {
@@ -2906,7 +3124,16 @@ input:where(:not(:checked)) + .chip {
         addEventListener("click", onSelectClick, true);
     };
 
-    function stopSelecting() {
+    /* The guard stopPicking has always had, and this one lacked. A
+     * click only trails a gesture that used the pointer: leaving text
+     * mode with Enter, with Escape, with "e", or never entering it at
+     * all -- the path where words were already selected before the
+     * report was opened -- has no click coming, and the guard sat there
+     * waiting for one. What it caught instead was the next click
+     * somebody made, or the Enter that fires one on a focused button:
+     * the first press after a keyboard text report did nothing at all.
+     */
+    function stopSelecting(gesture) {
         selecting = false;
         releaseCursor();
         $(".text-help").hidden = true;
@@ -2914,7 +3141,7 @@ input:where(:not(:checked)) + .chip {
         removeEventListener("keydown", onSelectKey, true);
         removeEventListener("dragstart", onDragStart, true);
         removeEventListener("click", onSelectClick, true);
-        swallowNextClick();
+        if (gesture) swallowNextClick();
     }
 
     const startPicking = () => {
@@ -3137,10 +3364,24 @@ input:where(:not(:checked)) + .chip {
             LINGER);
     };
 
+    /* A live region has to be live before the words land in it. Written
+     * while the box was still display:none and unhidden afterwards, the
+     * text was already there when the region appeared -- and a
+     * role="status" announces a CHANGE, so a screen reader had nothing
+     * to announce and the one thing this widget says out loud, the
+     * reference number, was said to nobody. Empty and visible first,
+     * worded on the next frame. */
     const notify = (text) => {
-        toast.textContent = text;
         toast.classList.remove("is-leaving");
+        toast.textContent = "";
         toast.hidden = false;
+        requestAnimationFrame(() => {
+            /* Dismissed inside that frame -- a click, or the next
+             * report -- and these words belong to nothing. */
+            if (toast.hidden) return;
+
+            toast.textContent = text;
+        });
         linger();
     };
 
@@ -3172,6 +3413,19 @@ input:where(:not(:checked)) + .chip {
         target.textContent = T.title;
         target.title = "";
         target.classList.remove("is-report");
+
+        /* Nothing to choose here, so the menu goes and the reason
+         * stays. This is a fact about the page, not about the report,
+         * and it is known before a word is typed -- said afterwards, by
+         * the endpoint, it costs a whole message and comes back as a
+         * schema error about page.url. */
+        if (!REPORTABLE) {
+            menu.hidden = true;
+            result.textContent = T.notReportable;
+            result.classList.add("is-error");
+            result.hidden = false;
+        }
+
         if (moveFocus) root.querySelector(".a-close").focus();
     };
 
@@ -3212,6 +3466,48 @@ input:where(:not(:checked)) + .chip {
     root.querySelector(".a-open").addEventListener("click", () => openPanel());
     root.querySelector(".a-close").addEventListener("click", closePanel);
     root.querySelector(".a-cancel").addEventListener("click", closePanel);
+
+    /* DESIGN 9 promises focus trapped in the panel and restored on
+     * close, and only the second half was ever built: Tab off the Send
+     * button landed in the page underneath, which is the page being
+     * reported on -- a link there navigates, and the half-written
+     * report goes with it. This is a dialog, and a dialog keeps what it
+     * was given until it hands it back.
+     *
+     * The stops are counted on every keypress rather than at open time:
+     * the menu becomes a form, a capture grows a Remove button, the
+     * scopes go disabled when no add-on answers. A list taken once is
+     * wrong by the second Tab.
+     *
+     * Restoring to the launcher on close stays as it is, and is not the
+     * usual "return it to whatever had it": the launcher is this
+     * widget's own anchor and the way back in, and it is where the
+     * reporter was before they opened this. */
+    const focusables = () =>
+        [...panel.querySelectorAll(
+            "button, [href], input, select, textarea, [tabindex]")]
+            .filter((el) => !el.disabled && el.tabIndex >= 0 &&
+                            !el.closest("[hidden]") &&
+                            el.getClientRects().length);
+
+    panel.addEventListener("keydown", (event) => {
+        if (event.key !== "Tab") return;
+
+        const stops = focusables();
+        if (!stops.length) return;
+
+        /* Inside a shadow root the focused node is the ROOT's
+         * activeElement; document.activeElement only ever says "the
+         * host element", which is true and useless. */
+        const here = root.activeElement;
+        const first = stops[0];
+        const last = stops.at(-1);
+
+        if (event.shiftKey ? here === first : here === last) {
+            event.preventDefault();
+            (event.shiftKey ? last : first).focus();
+        }
+    });
 
     for (const button of root.querySelectorAll(".a-type")) {
         button.addEventListener("click", () => {
@@ -3285,6 +3581,12 @@ input:where(:not(:checked)) + .chip {
             const { mapped, stale } = await capture(mine);
             if (stale) { live = false; return; }
             if (!SHOT.blob) { shotStatus.textContent = T.shotBig; return; }
+            /* Capture again, and again, and the blob behind every
+             * previous thumbnail is still held: an object URL keeps its
+             * blob alive until it is revoked, and a two-megabyte WebP
+             * per press adds up on a page nobody reloads. Remove does
+             * this through clearShot; recapture never did. */
+            if (shotPreview.src) URL.revokeObjectURL(shotPreview.src);
             shotPreview.src = URL.createObjectURL(SHOT.blob);
             shotPreview.hidden = false;
             $(".a-drop").hidden = false;
@@ -3404,9 +3706,22 @@ input:where(:not(:checked)) + .chip {
      * pointer or the caret. */
     const pop = $(".pop");
 
+    /* showPopover on an open popover throws InvalidStateError, and so
+     * does hidePopover on a closed one -- and the throw does not stop
+     * at the popover: it comes out of the middle of the handler that
+     * called it, so everything that handler had left to do never
+     * happened. Hover and focus interleave freely here (pointer onto a
+     * switch the caret is already on, tab away from a switch the
+     * pointer is still over) and both edges arrive twice or in the
+     * wrong order. Asking the element what state it is in costs
+     * nothing and is the only thing that survives every ordering. */
+    const hidePop = () => {
+        if (pop.matches(":popover-open")) pop.hidePopover();
+    };
+
     const showPop = (element, text) => {
         pop.textContent = text;
-        pop.showPopover();
+        if (!pop.matches(":popover-open")) pop.showPopover();
 
         const anchor = element.getBoundingClientRect();
         const box = pop.getBoundingClientRect();
@@ -3439,7 +3754,7 @@ input:where(:not(:checked)) + .chip {
     }
 
     for (const event of ["pointerleave", "focusout"]) {
-        warnButton.addEventListener(event, () => pop.hidePopover());
+        warnButton.addEventListener(event, hidePop);
     }
 
     for (const event of ["pointerenter", "focusin"]) {
@@ -3451,7 +3766,7 @@ input:where(:not(:checked)) + .chip {
 
     for (const event of ["pointerleave", "focusout"]) {
         form.addEventListener(event, (e) => {
-            if (e.target.closest?.(".switch, .scope-option")) pop.hidePopover();
+            if (e.target.closest?.(".switch, .scope-option")) hidePop();
         }, true);
     }
 
@@ -3622,9 +3937,14 @@ input:where(:not(:checked)) + .chip {
         event.target.textContent = `${pre.hidden ? "▸" : "▴"} ${T.previewShort}`;
     });
 
+    /* A variable, not form.dataset.timer: a timer id is not markup, and
+     * kept there it was written into the form as an attribute and read
+     * back out as a string for clearTimeout to coerce again. */
+    let messageTimer = null;
+
     form.message.addEventListener("input", () => {
-        clearTimeout(form.dataset.timer);
-        form.dataset.timer = setTimeout(refresh, 250);
+        clearTimeout(messageTimer);
+        messageTimer = setTimeout(refresh, 250);
     });
 
     addEventListener("keydown", (event) => {

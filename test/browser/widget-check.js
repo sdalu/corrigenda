@@ -26,6 +26,11 @@ const outcome = async (page, timeout = 8000) => {
     const box = await page.waitForSelector(
         '#corrigenda-widget .toast:not([hidden]), ' +
         '#corrigenda-widget .result:not([hidden])', { timeout });
+    // The toast appears empty and is worded on the next frame: a
+    // role="status" announces a change, so the region has to be there
+    // before the words are. Waiting for the box alone caught it blank.
+    await page.waitForFunction((el) => el.textContent.trim().length > 0,
+                               box, { timeout });
     return (await box.textContent()).trim();
 };
 
@@ -319,6 +324,39 @@ const outcome = async (page, timeout = 8000) => {
     await page.click('#corrigenda-widget .a-cancel');
     await page.evaluate(() => document.querySelector('#gallery figure')
                                       .removeAttribute('data-corrigenda-redact'));
+
+    // --- a colour the audit cannot read as bytes ---------------------
+    // The contrast field used to be "the first three numbers in the
+    // computed colour are the sRGB bytes", which is true of rgb() and of
+    // nothing else: oklch(0.5 0 0) was read as rgb(0.5, 0, 0) and mid
+    // grey on white came back as a confident 21:1 — the worst kind of
+    // wrong, since the number exists to be quoted in a bug report. The
+    // colour is painted to a canvas and read back now, and where an
+    // engine will not paint it there is no field at all.
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('p.oklch-probe');
+    await setChannel(page, 'audit', true);
+    await setChannel(page, 'screenshot', false);
+    const painted = JSON.parse(
+        await page.textContent('#corrigenda-widget .preview'));
+    const contrast = painted.target?.audit?.contrast;
+    if (contrast === undefined)
+        ok('an oklch pair this engine will not paint reports no contrast');
+    else if (!(contrast >= 1 && contrast <= 21))
+        fail('the contrast reported is not a ratio: ' + contrast);
+    else if (Math.abs(contrast - 6) > 0.5)
+        fail('mid grey on white measured ' + contrast + ', expected about 6');
+    else ok('the audit paints an oklch pair to measure it: ' + contrast + ':1');
+
+    // The endpoint refuses a message past 8192 characters, so the
+    // textarea stops there rather than losing the typing to a 422.
+    const cap = await page.getAttribute('#corrigenda-widget textarea',
+                                        'maxlength');
+    if (cap !== '8192') fail('the message box caps at ' + cap);
+    else ok('the message box carries the endpoint\'s own limit');
+
+    await page.click('#corrigenda-widget .a-cancel');
 
 // --- injected from <head>, as MoXoW emits it ---------------------
 // Undeferred and before <body> exists: the widget has to survive

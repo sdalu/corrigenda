@@ -17,3 +17,10 @@ body { font-family: system-ui, sans-serif; margin: 2rem; }
 
 /* Deliberate: proves the overflow diagnostic fires. */
 .too-wide { inline-size: 2400px; block-size: 1rem; background: #eee; }
+
+/* Deliberate: a pair the audit cannot measure by counting the numbers in
+   the string. "First three numbers are the sRGB bytes" reads oklch(0.5 0
+   0) as rgb(0.5, 0, 0) — near black — and reports a confident 21:1 for
+   what is mid grey on white. Painted and read back, the pair is about
+   6:1, which is the number the check asserts. */
+.oklch-probe { color: oklch(0.5 0 0); background: oklch(1 0 0); }
