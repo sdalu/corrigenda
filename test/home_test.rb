@@ -199,6 +199,16 @@ class HomeTest < CorrigendaTest
                          "#{grant}: the prompt never asks for a picture")
             assert_match(/beside the picture it\s+was\s+reported with/,
                          last_response.body)
+
+            # And the conditions it was taken under, which the picture
+            # itself cannot show: a comparison at another width proves
+            # nothing, and nobody can tell unless the agent says. Named
+            # without the apostrophe before it -- the prompt is escaped
+            # into the page, so `image's` is not what the body holds.
+            assert_match(/viewport\s+and\s+scheme\s+fields/,
+                         last_response.body,
+                         "#{grant}: the prompt never asks for the " \
+                         "conditions it was taken under")
         end
 
         # And does not, where it may not: an agent told to attach

@@ -73,113 +73,155 @@ class StoreTest < CorrigendaTest
         assert_empty Corrigenda::Store.new(Dir.mktmpdir).entries
     end
 
-# The trail. A state that changed and nobody can say why is the thing
-# this exists to prevent, so the store writes the entry itself rather
-# than trusting every caller to remember.
-def test_a_state_change_records_itself
-    id = @store.save(TestSupport.document)
-    @store.mark(id, "fixed", by: "sdalu")
+    # The trail. A state that changed and nobody can say why is the thing
+    # this exists to prevent, so the store writes the entry itself rather
+    # than trusting every caller to remember.
+    def test_a_state_change_records_itself
+        id = @store.save(TestSupport.document)
+        @store.mark(id, "fixed", by: "sdalu")
 
-    entry = @store.journal(id).last
+        entry = @store.journal(id).last
 
-    assert_equal "state", entry["kind"]
-    assert_equal "open → fixed", entry["note"]
-    assert_equal "sdalu", entry["by"]
-end
-
-def test_marking_the_same_state_twice_records_once
-    id = @store.save(TestSupport.document)
-    @store.mark(id, "fixed")
-    @store.mark(id, "fixed")
-
-    assert_equal 1, @store.journal(id).size
-end
-
-def test_archiving_and_unarchiving_are_both_recorded
-    id = @store.save(TestSupport.document)
-    @store.archive(id)
-    @store.archive(id, yes: false)
-
-    assert_equal ["archived", "back in the working list"],
-                 @store.journal(id).map { it["note"] }
-end
-
-# Two different facts: what the server knows, and what the caller
-# calls itself. Kept apart because the second is not identification.
-def test_a_note_keeps_the_actor_and_the_agent_apart
-    id = @store.save(TestSupport.document)
-    @store.record(id, "raised the contrast to 4.8:1",
-                  by: "sdalu", agent: "claude", refs: ["abc1234"])
-
-    entry = @store.journal(id).last
-
-    assert_equal "note", entry["kind"]
-    assert_equal "sdalu", entry["by"]
-    assert_equal "claude", entry["agent"]
-    assert_equal ["abc1234"], entry["refs"]
-end
-
-def test_an_empty_note_records_nothing
-    id = @store.save(TestSupport.document)
-
-    assert_raises(Corrigenda::StorageError) { @store.record(id, "   ") }
-    assert_empty @store.journal(id)
-end
-
-# A line can carry a picture: what the page looked like after the step,
-# to be read beside the one the report was filed with.
-def test_a_journal_line_can_carry_a_picture
-    id = @store.save(TestSupport.document)
-    entry = @store.record(id, "raised the contrast",
-                          shot: { type: "image/webp", bytes: "RIFF-after".b })
-
-    assert_equal "shot-1.webp", entry["shot"]
-    assert_equal "RIFF-after", (@store.dir_for(id) / "shot-1.webp").binread
-    assert_equal ["shot-1.webp"], @store.shots(id)
-end
-
-# Numbered from the pictures on disk, not from the length of the
-# journal: most lines carry none, and counting lines would hand the
-# same name out twice.
-def test_pictures_are_numbered_as_they_arrive
-    id = @store.save(TestSupport.document)
-    @store.record(id, "first look", shot: { type: "image/png", bytes: "PNG".b })
-    @store.record(id, "nothing to show")
-    entry = @store.record(id, "after the fix",
-                          shot: { type: "image/webp", bytes: "RIFF".b })
-
-    assert_equal "shot-2.webp", entry["shot"]
-    assert_equal %w[shot-1.png shot-2.webp], @store.shots(id)
-end
-
-def test_a_picture_of_an_unknown_kind_is_refused
-    id = @store.save(TestSupport.document)
-
-    assert_raises(Corrigenda::StorageError) do
-        @store.record(id, "a note", shot: { type: "image/gif", bytes: "GIF".b })
+        assert_equal "state", entry["kind"]
+        assert_equal "open → fixed", entry["note"]
+        assert_equal "sdalu", entry["by"]
     end
-    assert_empty @store.journal(id)
-end
 
-def test_a_picture_past_the_ceiling_is_refused
-    id = @store.save(TestSupport.document)
-    huge = { type: "image/webp",
-             bytes: "x".b * (Corrigenda::Store::MAX_SHOT + 1) }
+    def test_marking_the_same_state_twice_records_once
+        id = @store.save(TestSupport.document)
+        @store.mark(id, "fixed")
+        @store.mark(id, "fixed")
 
-    assert_raises(Corrigenda::StorageError) do
-        @store.record(id, "big", shot: huge)
+        assert_equal 1, @store.journal(id).size
     end
-    assert_empty @store.journal(id)
-end
 
-def test_the_journal_is_not_an_attachment
-    id = @store.save(TestSupport.document,
-                     files: { "screenshot.webp" => "RIFF".b })
-    @store.record(id, "looked at it")
+    def test_archiving_and_unarchiving_are_both_recorded
+        id = @store.save(TestSupport.document)
+        @store.archive(id)
+        @store.archive(id, yes: false)
 
-    assert_equal ["report.json", "screenshot.webp"],
-                 @store.attachments(id).sort
-end
+        assert_equal ["archived", "back in the working list"],
+                     @store.journal(id).map { it["note"] }
+    end
+
+    # Two different facts: what the server knows, and what the caller
+    # calls itself. Kept apart because the second is not identification.
+    def test_a_note_keeps_the_actor_and_the_agent_apart
+        id = @store.save(TestSupport.document)
+        @store.record(id, "raised the contrast to 4.8:1",
+                      by: "sdalu", agent: "claude", refs: ["abc1234"])
+
+        entry = @store.journal(id).last
+
+        assert_equal "note", entry["kind"]
+        assert_equal "sdalu", entry["by"]
+        assert_equal "claude", entry["agent"]
+        assert_equal ["abc1234"], entry["refs"]
+    end
+
+    def test_an_empty_note_records_nothing
+        id = @store.save(TestSupport.document)
+
+        assert_raises(Corrigenda::StorageError) { @store.record(id, "   ") }
+        assert_empty @store.journal(id)
+    end
+
+    # A line can carry a picture: what the page looked like after the step,
+    # to be read beside the one the report was filed with.
+    def test_a_journal_line_can_carry_a_picture
+        id = @store.save(TestSupport.document)
+        entry = @store.record(id, "raised the contrast",
+                              shot: { type: "image/webp",
+                                      bytes: "RIFF-after".b })
+
+        assert_equal "shot-1.webp", entry["shot"]
+        assert_equal "RIFF-after", (@store.dir_for(id) / "shot-1.webp").binread
+        assert_equal ["shot-1.webp"], @store.shots(id)
+    end
+
+    # Numbered from the pictures on disk, not from the length of the
+    # journal: most lines carry none, and counting lines would hand the
+    # same name out twice.
+    def test_pictures_are_numbered_as_they_arrive
+        id = @store.save(TestSupport.document)
+        @store.record(id, "first look",
+                      shot: { type: "image/png", bytes: "PNG".b })
+        @store.record(id, "nothing to show")
+        entry = @store.record(id, "after the fix",
+                              shot: { type: "image/webp", bytes: "RIFF".b })
+
+        assert_equal "shot-2.webp", entry["shot"]
+        assert_equal %w[shot-1.png shot-2.webp], @store.shots(id)
+    end
+
+    def test_a_picture_of_an_unknown_kind_is_refused
+        id = @store.save(TestSupport.document)
+
+        assert_raises(Corrigenda::StorageError) do
+            @store.record(id, "a note",
+                          shot: { type: "image/gif", bytes: "GIF".b })
+        end
+        assert_empty @store.journal(id)
+    end
+
+    def test_a_picture_past_the_ceiling_is_refused
+        id = @store.save(TestSupport.document)
+        huge = { type: "image/webp",
+                 bytes: "x".b * (Corrigenda::Store::MAX_SHOT + 1) }
+
+        assert_raises(Corrigenda::StorageError) do
+            @store.record(id, "big", shot: huge)
+        end
+        assert_empty @store.journal(id)
+    end
+
+    # The picture's claim about itself, kept beside the file name: the
+    # comparison is only worth anything if it was made under the conditions
+    # the report names, and this is where a reader finds out.
+    def test_a_picture_can_say_what_it_was_taken_at
+        id = @store.save(TestSupport.document)
+        entry = @store.record(id, "after the fix",
+                              shot: { type: "image/webp", bytes: "RIFF".b,
+                                      viewport: "390x844", scheme: "dark" })
+
+        assert_equal({ "viewport" => "390x844", "scheme" => "dark" },
+                     entry["shot_as"])
+        assert_equal entry["shot_as"], @store.journal(id).last["shot_as"]
+    end
+
+    # Nobody said is not the same as it matched, so the key is absent rather
+    # than empty: a reader who sees nothing knows to ask.
+    def test_a_picture_that_says_nothing_carries_no_claim
+        id = @store.save(TestSupport.document)
+        entry = @store.record(id, "after the fix",
+                              shot: { type: "image/webp", bytes: "RIFF".b,
+                                      scheme: "   " })
+
+        refute_includes entry.keys, "shot_as"
+    end
+
+    # A label, not prose. And refused before the file is written, so a
+    # rejected claim leaves no picture behind that no line names.
+    def test_a_claim_longer_than_a_label_is_refused
+        id = @store.save(TestSupport.document)
+
+        assert_raises(Corrigenda::StorageError) do
+            @store.record(id, "after", shot: { type: "image/webp",
+                                               bytes: "RIFF".b,
+                                               viewport: "x" * 40 })
+        end
+        assert_empty @store.journal(id)
+        assert_empty @store.shots(id)
+    end
+
+    def test_the_journal_is_not_an_attachment
+        id = @store.save(TestSupport.document,
+                         files: { "screenshot.webp" => "RIFF".b })
+        @store.record(id, "looked at it")
+
+        assert_equal ["report.json", "screenshot.webp"],
+                     @store.attachments(id).sort
+    end
 
     # Retention. The clock is not stopped for the tests: a report is aged
     # by moving the marker's mtime and by asking about a `now` further

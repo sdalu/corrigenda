@@ -4,10 +4,10 @@ require "base64"
 
 require "test_helper"
 
-    # The interface a program reads. Most of what is asserted here is what
-    # it refuses: an endpoint that acts on somebody else's bug list on the
-    # strength of a request is worth more scepticism than one that renders a
-    # page.
+# The interface a program reads. Most of what is asserted here is what
+# it refuses: an endpoint that acts on somebody else's bug list on the
+# strength of a request is worth more scepticism than one that renders a
+# page.
 class APITest < CorrigendaTest
     def app = Corrigenda::API
 
@@ -413,6 +413,62 @@ class APITest < CorrigendaTest
 
         assert_equal 201, last_response.status
         assert_equal "shot-1.png", body["shot"]
+    end
+
+    # And what it was taken at, which is the half of the comparison a
+    # picture cannot show: the same page at another width is a
+    # different page, and only the caller knows which one this is.
+    def test_a_picture_can_say_what_it_was_taken_at
+        enable("write" => true)
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "after the fix",
+                           "image" => {
+                               "data" => Base64.strict_encode64("RIFF"),
+                               "viewport" => "390x844",
+                               "scheme" => "dark"
+                           }),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 201, last_response.status
+        assert_equal({ "viewport" => "390x844", "scheme" => "dark" },
+                     body["shot_as"])
+        assert_equal body["shot_as"], store.journal(@id).last["shot_as"]
+    end
+
+    # The store refuses a picture it will not keep, and used to do it by
+    # raising through the route: a 500, which reads as the service
+    # having broken rather than as the request having been turned down
+    # for a reason the caller can act on.
+    def test_a_picture_the_store_refuses_is_answered_not_crashed
+        enable("write" => true)
+        post "/reports/#{@id}/journal",
+             JSON.generate("note" => "after",
+                           "image" => {
+                               "type" => "image/gif",
+                               "data" => Base64.strict_encode64("GIF")
+                           }),
+             { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+        assert_match(/image\/gif/, body["error"])
+        assert_empty store.journal(@id)
+    end
+
+    # The same refusal on the route that can also change a state: the
+    # state has already been set by then, and the note is what is
+    # refused, so the answer has to say which.
+    def test_a_patch_carrying_a_refused_picture_says_so
+        enable("write" => true)
+        patch "/reports/#{@id}",
+              JSON.generate("note" => "after",
+                            "image" => {
+                                "type" => "image/gif",
+                                "data" => Base64.strict_encode64("GIF")
+                            }),
+              { "CONTENT_TYPE" => "application/json" }
+
+        assert_equal 422, last_response.status
+        assert_empty store.journal(@id)
     end
 
     def test_a_picture_that_is_not_base64_is_refused

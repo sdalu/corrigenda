@@ -109,7 +109,11 @@ the screenshot the report was filed with, which is the comparison
 somebody wants before believing "fixed". Take the picture the same way
 the report's was taken (the widget's own capture, or a headless
 browser at the reported viewport); a screenshot of a different width
-proves nothing about the defect.
+proves nothing about the defect. The image takes `viewport` and
+`scheme` beside `data` — say what the picture was really taken at, and
+the report page prints it next to the conditions the report itself
+names, so a comparison made under others is visible rather than
+assumed.
 
 ## The host splits paths
 

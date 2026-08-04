@@ -208,6 +208,11 @@ def actor = ENV["SUDO_USER"] || ENV["USER"] || ENV["LOGNAME"]
 # the page looks like now, beside what it looked like when somebody
 # complained. The type comes from the name, because a file on disk has
 # no other honest source for it.
+#
+# VIEWPORT= and SCHEME= ride with it and say what it was taken at. A
+# file on disk cannot be asked that -- only whoever took it knows -- and
+# without the answer nobody reading the comparison can tell whether it
+# was made under the conditions the report names.
 SHOT_KINDS = { ".webp" => "image/webp", ".png" => "image/png",
                ".jpg" => "image/jpeg", ".jpeg" => "image/jpeg" }.freeze
 
@@ -220,7 +225,8 @@ def shot_from(path)
         abort "SHOT=#{path}: #{SHOT_KINDS.keys.join(", ")} are what this keeps"
     end
 
-    { type:, bytes: File.binread(path) }
+    { type:, bytes: File.binread(path),
+      viewport: ENV["VIEWPORT"], scheme: ENV["SCHEME"] }
 end
 
 def report_line(entry)
@@ -406,8 +412,8 @@ namespace :data do
     # Asking and answering are one task: SET= changes it, and without
     # SET= this says what it is. Reading a state should not mean
     # remembering a second task name.
-    desc "Say or set what happened " \
-         "(ID=<report> SET=fixed NOTE=\"…\" SHOT=after.webp)"
+    desc "Say or set what happened (ID=<report> SET=fixed NOTE=\"…\" " \
+         "SHOT=after.webp VIEWPORT=390x844 SCHEME=dark)"
     task :status do
         store, = deployment
         id, = report_for(store, "data:status")

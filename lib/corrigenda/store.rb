@@ -43,6 +43,12 @@ module Corrigenda
         # somebody's holiday video.
         MAX_SHOT = 8 * 1024 * 1024
 
+        # A picture's claim about itself is a label -- "390x844",
+        # "dark" -- and never a sentence. Anything longer is somebody
+        # filing prose in a field a reader scans, so it is refused
+        # rather than shown.
+        MAX_SHOT_AS = 32
+
         # Kept by this class beside a report, rather than filed with it.
         MARKERS = ["state", ARCHIVE, JOURNAL].freeze
 
@@ -173,9 +179,10 @@ module Corrigenda
         # is what the caller says it is, which is not the same fact and
         # is kept apart from it: a program naming itself is useful, and
         # it is not identification.
-        # `shot` is a picture for this line: { type:, bytes: }. It is
-        # written before the line is, so a journal never names a file
-        # that is not there.
+        # `shot` is a picture for this line: { type:, bytes: }, and
+        # optionally { viewport:, scheme: } -- what it says it was taken
+        # at. It is written before the line is, so a journal never names
+        # a file that is not there.
         def record(id, note, kind: "note", by: nil, agent: nil, refs: nil,
                    shot: nil)
             dir = dir_for(id)
@@ -189,7 +196,15 @@ module Corrigenda
             entry["by"]    = by    unless by.to_s.empty?
             entry["agent"] = agent unless agent.to_s.empty?
             entry["refs"]  = Array(refs) unless Array(refs).empty?
-            entry["shot"]  = write_shot(dir, shot) unless shot.nil?
+
+            # The claim is read before the file is written, so a
+            # viewport nobody will accept refuses the line without
+            # leaving a picture on disk that no journal mentions.
+            unless shot.nil?
+                claim = shot_as(shot)
+                entry["shot"]    = write_shot(dir, shot)
+                entry["shot_as"] = claim unless claim.empty?
+            end
 
             (dir / JOURNAL).open("a") { it.puts(JSON.generate(entry)) }
             entry
@@ -325,6 +340,27 @@ module Corrigenda
             name  = "shot-#{taken + 1}.#{ext}"
             (dir / name).binwrite(bytes)
             name
+        end
+
+        # The picture's claim about itself, kept beside the file name so
+        # a reader can see whether the comparison is like-for-like: the
+        # prompt asks for the after-picture at the viewport and colour
+        # scheme the report names, and a claim nobody records is a claim
+        # nobody checks. Empty is absent -- a field somebody left blank
+        # says nothing, and should not read as an answer.
+        def shot_as(shot)
+            %w[viewport scheme].each_with_object({}) do |key, claim|
+                value = (shot[key.to_sym] || shot[key]).to_s.strip
+                next if value.empty?
+
+                if value.length > MAX_SHOT_AS
+                    raise StorageError, "#{key}: #{value.length} characters, " \
+                                        "and #{MAX_SHOT_AS} is the limit -- " \
+                                        "this is a label, not a description"
+                end
+
+                claim[key] = value
+            end
         end
 
         def index_entry(document, id:, at:, reporter:)

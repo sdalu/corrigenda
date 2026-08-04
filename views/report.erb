@@ -249,11 +249,29 @@
                     trail carries pictures at all. %>
                 <% if entry["shot"] %>
                     <% shot = to("/#{id}/file/#{entry["shot"]}", false) %>
+                    <%# What the picture says it was taken at, and what
+                        the report says it was reported at. Printed
+                        rather than compared: a mismatch is a question
+                        for the person reading, not a verdict this page
+                        is in a position to reach. %>
+                    <% as   = entry["shot_as"] || {} %>
+                    <% took = [as["viewport"], as["scheme"]].compact %>
+                    <% saw  = [environment["viewport"],
+                               environment["scheme"] ||
+                               environment["color-scheme"]].compact %>
                     <figure class="after">
                         <a href="<%= shot %>">
                             <img class="shot" src="<%= shot %>" loading="lazy"
                                  alt="The page after: <%= entry["note"] %>">
                         </a>
+
+                        <%# `aside` rather than `where`: the muted grey
+                            of `where` is written inside `.cascade` and
+                            `.rule`, so out here the class would be a
+                            hook with nothing behind it. %>
+                        <% unless took.empty? %>
+                            <p class="aside">taken at <%= took.join(" · ") %></p>
+                        <% end %>
 
                         <% if files.include?("screenshot.webp") %>
                             <details>
@@ -263,12 +281,14 @@
                                         <img class="shot" loading="lazy"
                                              src="<%= to("/#{id}/file/screenshot.webp", false) %>"
                                              alt="The page as reported">
-                                        <figcaption>as reported</figcaption>
+                                        <figcaption>as reported<%=
+                                            " — #{saw.join(" · ")}" unless saw.empty? %></figcaption>
                                     </figure>
                                     <figure>
                                         <img class="shot" src="<%= shot %>" loading="lazy"
                                              alt="The page after: <%= entry["note"] %>">
-                                        <figcaption><%= short_stamp(entry["at"]) %></figcaption>
+                                        <figcaption><%= short_stamp(entry["at"]) %><%=
+                                            " — #{took.join(" · ")}" unless took.empty? %></figcaption>
                                     </figure>
                                 </div>
                             </details>

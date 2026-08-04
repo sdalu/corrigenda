@@ -890,6 +890,18 @@ components:
                         The picture this line carries, as a file name to
                         fetch from /reports/{id}/file/{name}. Absent on
                         a line that carried none.
+                shot_as:
+                    type: object
+                    description: >
+                        What that picture claims it was taken at. Absent
+                        when nobody said, which is not the same as it
+                        having matched: the review page shows this
+                        beside the report's own environment, so a
+                        comparison made under other conditions is
+                        visible rather than silent.
+                    properties:
+                        viewport: { type: string, examples: ["390x844"] }
+                        scheme: { type: string, examples: [dark] }
 
         NewJournalEntry:
             type: object
@@ -910,6 +922,16 @@ components:
                 looks like now. Base64 in this body rather than
                 multipart, and a whole `data:` URL is accepted in `data`
                 as well — 8 MB decoded is the ceiling.
+
+                ---
+
+                🤖 **For AI:** State in `viewport` and `scheme` what
+                the picture was really taken at, not what you meant to
+                take it at. The review page prints them beside the
+                conditions the report itself names, so a comparison made
+                at another width or in the other colour scheme is
+                visible to whoever reads it rather than silently
+                standing in for one that was not made.
             required: [data]
             properties:
                 data:
@@ -920,3 +942,19 @@ components:
                     type: string
                     enum: [image/webp, image/png, image/jpeg]
                     default: image/webp
+                viewport:
+                    type: string
+                    maxLength: 32
+                    description: >
+                        The viewport the picture was taken at. A label
+                        rather than prose — the report's own is in its
+                        `environment`, and this is what to compare with
+                        it.
+                    examples: ["390x844"]
+                scheme:
+                    type: string
+                    maxLength: 32
+                    description: >
+                        The colour scheme it was taken under, in the
+                        same words the report uses — `light`, `dark`.
+                    examples: [dark]

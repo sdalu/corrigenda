@@ -450,17 +450,19 @@
 <<~SAY.chomp
     Record what you did on the report as you go, and attach a screenshot of
     the page after your change — taken at the viewport and colour scheme the
-    report names — so what you did can be seen beside the picture it was
-    reported with. Do not mark anything fixed until you have checked the
-    defect is gone under those same conditions. If a report needs a decision
-    rather than a change, leave it open and tell me.
+    report names, and say so in the image's viewport and scheme fields — so
+    what you did can be seen beside the picture it was reported with. Do
+    not mark anything fixed until you have checked the defect is gone
+    under those same conditions. If a report needs a decision rather than
+    a change, leave it open and tell me.
 SAY
             elsif api_allows?("journal")
 <<~SAY.chomp
     Record what you find and what you tried on each report as you go, with a
     screenshot of the page after any change — taken at the viewport and
-    colour scheme the report names — so it can be seen beside the picture it
-    was reported with. You cannot change a report's state here: say what you
+    colour scheme the report names, and say so in the image's viewport
+    and scheme fields — so it can be seen beside the picture it was
+    reported with. You cannot change a report's state here: say what you
     believe it should be and I will set it.
 SAY
             else

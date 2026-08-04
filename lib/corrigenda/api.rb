@@ -97,7 +97,28 @@ module Corrigenda
                     type, data = url[1], url[2]
                 end
 
-                { type: type || "image/webp", bytes: decoded(data) }
+                shot = { type: type || "image/webp", bytes: decoded(data) }
+                return shot unless given.is_a?(Hash)
+
+                # What the caller says the picture was taken at, carried
+                # through rather than checked here: the store is what
+                # files a claim beside the file name, so it is also what
+                # decides whether one is a label or an essay.
+                shot.merge(viewport: given["viewport"],
+                           scheme: given["scheme"])
+            end
+
+            # The store is where a picture is judged -- the kinds it
+            # keeps, the ceiling, the length of what the picture claims
+            # about itself -- and it says no by raising. Uncaught that
+            # is a 500, which tells a client the service broke when what
+            # happened is that its request was refused for a reason it
+            # can act on. So the refusal comes back as one, in the
+            # store's own words.
+            def record!(id, note, **carried)
+                store.record(id, note, **carried)
+            rescue StorageError => e
+                fail_with(422, e.message)
             end
 
             def decoded(data)
@@ -349,10 +370,10 @@ module Corrigenda
             # and asking for a second call is how a trail ends up with
             # states nobody explained.
             if changes["note"]
-                store.record(id, changes["note"], by: remote_user,
-                                                  agent: changes["agent"],
-                                                  refs: changes["refs"],
-                                                  shot: shot_from(changes))
+                record!(id, changes["note"], by: remote_user,
+                                             agent: changes["agent"],
+                                             refs: changes["refs"],
+                                             shot: shot_from(changes))
             end
 
             json(described(id, store.read(id)))
@@ -379,10 +400,10 @@ module Corrigenda
             note = body_params["note"].to_s
             fail_with(422, "a journal entry needs a note") if note.strip.empty?
 
-            entry = store.record(id, note, by: remote_user,
-                                           agent: body_params["agent"],
-                                           refs: body_params["refs"],
-                                           shot: shot_from(body_params))
+            entry = record!(id, note, by: remote_user,
+                                      agent: body_params["agent"],
+                                      refs: body_params["refs"],
+                                      shot: shot_from(body_params))
             json(entry, status: 201)
         end
 

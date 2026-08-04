@@ -104,7 +104,11 @@ A note can carry a picture: `SHOT=` files it beside the report, and the
 report's page shows it on that line of the trail with the original
 screenshot beside it on request. That is the comparison worth having
 before anyone believes a report is fixed — the same page, before and
-after, rather than a sentence saying so.
+after, rather than a sentence saying so. `VIEWPORT=` and `SCHEME=` ride
+with `SHOT=` and say what that picture was really taken at; the page
+prints them beside the conditions the report names, so a comparison
+made at another width is one a reader can see rather than one they have
+to trust.
 
 The listing carries a six-character column for what a report holds —
 `E` element, `R` css rules, `C` computed styles, `D` diagnostics,
