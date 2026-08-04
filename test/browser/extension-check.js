@@ -24,7 +24,9 @@ const fail = (message) => { console.log('FAIL ' + message); process.exitCode = 1
 // grants: 'rect' answers with the rectangle asked for (Firefox's
 // captureTab), 'viewport' always answers with the viewport (Chrome's
 // captureVisibleTab), 'refuse' fails the way a sleeping background page
-// does.
+// does, and 'scaleless' grants the rectangle but does not echo the
+// scale back — an add-on older than the field, or one that simply omits
+// it. The client has to have an answer of its own for that.
 // Announces the marker and then says nothing at all -- an add-on
 // installed but not granted for this page, or a background half that is
 // asleep, revoked or mid-update. The marker is on the element either
@@ -79,8 +81,11 @@ const stub = (grants, helper = 2, granted = true) => `
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "#cfd8dc";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        reply({ type: "captured", dataUrl: canvas.toDataURL("image/png"),
-                rect, scale: m.scale });
+
+        const answer = { type: "captured", rect,
+                         dataUrl: canvas.toDataURL("image/png") };
+        if ("${grants}" !== "scaleless") answer.scale = m.scale;
+        reply(answer);
     });
 `;
 
@@ -249,6 +254,38 @@ const check = async (name, browser, executablePath) => {
         '#corrigenda-widget').shadowRoot.querySelector('.shot-preview').hidden);
     if (!gone) fail(`${name}: a removed screenshot came straight back`);
     else ok(`${name}: removing a screenshot keeps it removed`);
+
+    //    ... for this report, and only this one. A refusal is an answer
+    //    about the picture in front of somebody, not a decision about
+    //    every report they will ever file: dismissing the panel and
+    //    opening the next one is a fresh ask, which the code said in a
+    //    comment and then did not do.
+    await page.click('#corrigenda-widget .a-cancel');
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    const again = await unasked(page);
+    if (!again.captured)
+        fail(`${name}: one Remove stopped the add-on capturing ever again`);
+    else ok(`${name}: the next report after a Remove is a fresh ask`);
+    await page.close();
+
+    // 7b. an add-on that grants the rectangle but says nothing about the
+    //     scale it drew at. The fallback read a name nothing defines, so
+    //     the first such reply would have thrown a ReferenceError out of
+    //     the one place holding a picture -- and the panel would have
+    //     shown the share dialog's excuse for it.
+    page = await instance.newPage({ viewport: { width: 900, height: 700 } });
+    const thrown = [];
+    page.on('pageerror', (e) => thrown.push(e.message));
+    await open(page, 'scaleless');
+    const quiet = await shoot(page);
+    if (thrown.length)
+        fail(`${name}: a reply without a scale threw: ${thrown.join('; ')}`);
+    else if (!quiet.captured)
+        fail(`${name}: a reply without a scale captured nothing: ${quiet.status}`);
+    else ok(`${name}: a capture with no scale in it falls back to the ` +
+            `device ratio — ${quiet.status}`);
     await page.close();
 
     // 8. without the add-on nothing happens on its own: getDisplayMedia

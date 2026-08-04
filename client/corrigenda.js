@@ -55,6 +55,15 @@
         };
     })();
 
+    /* Where a report actually goes, resolved once. Three readers want
+     * it: the POST, the sentence that explains a refused one, and the
+     * line under the title -- and that last one is the reason it is
+     * resolved this early. The page chooses its own endpoint, so the
+     * destination is not a fact about this widget but a fact about the
+     * page, and somebody about to press Send is entitled to read it. */
+    const ENDPOINT = new URL(CFG.endpoint, location.href);
+    const CROSS_ORIGIN = ENDPOINT.origin !== location.origin;
+
     /* ---------------------------------------------------------------
      * Diagnostics. Installed at load, before anything else, because the
      * errors worth reporting are the ones that already happened.
@@ -275,15 +284,37 @@
     };
 
     /* A selector can rot when the markup moves; this is what lets a
-     * human (or a fuzzy match) find the thing again anyway. */
-    const fingerprint = (el) => ({
-        tag: el.localName,
-        id: el.id || null,
-        classes: [...el.classList],
-        text: (el.textContent || "").trim().slice(0, 80),
-        index: el.parentElement
-            ? [...el.parentElement.children].indexOf(el) : 0
-    });
+     * human (or a fuzzy match) find the thing again anyway.
+     *
+     * The words are the only part of it that is content rather than
+     * structure, and they were the one part that asked nobody: eighty
+     * characters of element text went out whatever the report said, so
+     * a page that marks a block data-corrigenda-redact had it quoted
+     * here after the sanitiser had carefully removed it from the
+     * fragment, and a reporter who switched the element channel off
+     * still sent its text. Marked, the words are named and not quoted;
+     * with the element channel off there is no fingerprint text at all.
+     *
+     * closest(), not hasAttribute: the marker goes on the container --
+     * the account panel, the invoice -- and the secret is the text of
+     * something inside it. */
+    const fingerprint = (el, withText) => {
+        const print = {
+            tag: el.localName,
+            id: el.id || null,
+            classes: [...el.classList],
+            index: el.parentElement
+                ? [...el.parentElement.children].indexOf(el) : 0
+        };
+
+        if (withText) {
+            print.text = el.closest("[data-corrigenda-redact]")
+                ? "[redacted]"
+                : (el.textContent || "").trim().slice(0, 80);
+        }
+
+        return print;
+    };
 
     /* ---------------------------------------------------------------
      * Which CSS actually applied. The highest-value field in the whole
@@ -503,7 +534,15 @@
      * reported.
      * ------------------------------------------------------------- */
     const SHOT = { blob: null, scale: null, redacted: 0, scope: "element",
-                   surface: null, partial: false };
+                   surface: null, partial: false, provider: null };
+
+    /* Which report the picture being taken belongs to. A capture is the
+     * slowest thing this widget does and the only one that outlives the
+     * panel that started it, so every one of them takes a number on the
+     * way in and is thrown away if the number has moved on by the time
+     * it comes back. clearShot() moves it -- and closePanel goes
+     * through clearShot, so dismissing the panel moves it too. */
+    let shotAge = 0;
 
     /* An extension, if one is installed, can photograph this tab through
      * tabs.captureTab: a rectangle in PAGE coordinates, which may lie
@@ -775,21 +814,107 @@
     const SECRETS = "input:not([type=checkbox]):not([type=radio]), " +
                     "textarea, select, [data-corrigenda-redact]";
 
+    const px = (value) => parseFloat(value) || 0;
+
+    /* Where a frame's own viewport begins, in the coordinates of the
+     * document that holds it: its border box, moved in by whatever the
+     * border and the padding take. What is measured inside the frame is
+     * measured against that origin and against nothing else. */
+    const frameOrigin = (frame) => {
+        const r = frame.getBoundingClientRect();
+        const style = getComputedStyle(frame);
+        return { x: r.x + px(style.borderLeftWidth) + px(style.paddingLeft),
+                 y: r.y + px(style.borderTopWidth) + px(style.paddingTop) };
+    };
+
+    /* A rectangle kept inside another one. A frame scrolled halfway
+     * down has secrets whose boxes sit above its own, and painting
+     * those where the arithmetic puts them would black out whatever the
+     * page has beside the frame -- a bar in the wrong place, which this
+     * file refuses to draw anywhere else either. */
+    const clipTo = (box, clip) => {
+        if (!clip) return box;
+
+        const x = Math.max(box.x, clip.x);
+        const y = Math.max(box.y, clip.y);
+        return { x, y,
+                 width: Math.min(box.x + box.width, clip.x + clip.width) - x,
+                 height: Math.min(box.y + box.height, clip.y + clip.height) - y };
+    };
+
+    /* Everything that must be covered, in the top document's client
+     * coordinates. The count this produces is shown to the reporter and
+     * stored in the payload as the number of things that were masked,
+     * so it has to be the whole truth -- and one querySelectorAll on the
+     * document is not: it stops at every shadow boundary and at every
+     * frame border. A password field inside a component, or inside an
+     * embedded form, was photographed in full while the panel said the
+     * masking was done.
+     *
+     * So the walk descends. An open shadow root lays out in its host's
+     * own coordinate space and needs no offset; a same-origin frame
+     * measures against its own viewport and is moved by the frame's
+     * content-box origin. Offsets compose on the way down, so a frame
+     * inside a frame arrives in the right place.
+     *
+     * Two things stay out of reach, and they are treated differently
+     * because only one of them can be. A cross-origin frame is covered
+     * whole: from outside, "there is a password in there" and "there is
+     * not" are the same silence, and the only honest answer to a
+     * silence is the opaque rectangle. A closed shadow root cannot even
+     * be found -- nothing here can mask it, and DESIGN §6.2 says so
+     * rather than letting the count imply otherwise. */
+    const secretBoxes = (node, offset, clip, out) => {
+        for (const el of node.querySelectorAll("*")) {
+            /* The widget's own shadow root holds a textarea and a
+             * select's worth of controls, and it is not in the picture
+             * anyway -- it hides itself before the shutter. */
+            if (el === host || host.contains(el)) continue;
+
+            if (el.matches(SECRETS)) {
+                const r = el.getBoundingClientRect();
+                const box = clipTo({ x: r.x + offset.x, y: r.y + offset.y,
+                                     width: r.width, height: r.height }, clip);
+                if (box.width >= 1 && box.height >= 1) out.push(box);
+            }
+
+            if (el.shadowRoot) secretBoxes(el.shadowRoot, offset, clip, out);
+
+            if (el.localName !== "iframe" && el.localName !== "frame") continue;
+
+            const r = el.getBoundingClientRect();
+            const box = clipTo({ x: r.x + offset.x, y: r.y + offset.y,
+                                 width: r.width, height: r.height }, clip);
+            if (box.width < 1 || box.height < 1) continue;
+
+            /* null cross-origin in every current engine, and older ones
+             * threw; a frame that has not loaded yet answers null too,
+             * and is just as uninspectable. */
+            let inner = null;
+            try { inner = el.contentDocument; } catch { inner = null; }
+
+            if (!inner) { out.push(box); continue; }
+
+            const start = frameOrigin(el);
+            secretBoxes(inner,
+                        { x: start.x + offset.x, y: start.y + offset.y },
+                        box, out);
+        }
+    };
+
     /* Opaque, not blurred: a blur over short low-entropy text can be
      * undone, a filled rectangle cannot. */
     const redact = (canvas, scale, origin) => {
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "#000";
-        let count = 0;
-        for (const el of document.querySelectorAll(SECRETS)) {
-            if (host.contains(el)) continue;
-            const r = el.getBoundingClientRect();
-            if (r.width < 1 || r.height < 1) continue;
-            ctx.fillRect((r.x - origin.x) * scale, (r.y - origin.y) * scale,
-                         r.width * scale, r.height * scale);
-            count += 1;
+        const boxes = [];
+        secretBoxes(document, { x: 0, y: 0 }, null, boxes);
+
+        for (const box of boxes) {
+            ctx.fillRect((box.x - origin.x) * scale, (box.y - origin.y) * scale,
+                         box.width * scale, box.height * scale);
         }
-        return count;
+        return boxes.length;
     };
 
     /* The element with its margin, in client coordinates. Two callers
@@ -965,9 +1090,23 @@
                  * as though it held the whole document. */
                 const got = answer.rect || rect;
 
+                /* What it says it drew at, when it says anything usable.
+                 * The fallback used to be `dpr`, which is not a name
+                 * anything here defines: the first reply without a scale
+                 * in it -- an older add-on, a capture path that forgot
+                 * to echo it -- would have thrown a ReferenceError out
+                 * of the one place that had a picture in its hands.
+                 * Zero and NaN are the same failure and take the same
+                 * answer, because everything downstream multiplies by
+                 * this and would place the crop and every mask nowhere. */
+                const given = Number(answer.scale);
+                const drawnAt = Number.isFinite(given) && given > 0
+                    ? given
+                    : (devicePixelRatio || 1);
+
                 return {
                     canvas,
-                    scale: answer.scale || dpr,
+                    scale: drawnAt,
                     origin: { x: got.x - scrollX, y: got.y - scrollY },
                     surface: "browser",
                     whole: got.width >= rect.width - 1 &&
@@ -996,19 +1135,26 @@
     const provider = () =>
         (extension() ? PROVIDERS.extension : PROVIDERS.display);
 
-    const capture = async () => {
+    const capture = async (mine) => {
         /* The widget must not photograph itself: it is fixed over the
          * page it is reporting on, and would sit in the middle of the
          * evidence. visibility rather than display, so nothing reflows
          * underneath and the shot matches what you were looking at. */
         host.style.visibility = "hidden";
+        /* Which of the two took it, decided once and remembered: the
+         * fallback below can change the answer halfway through, and
+         * asking provider() again afterwards would report where the
+         * next capture would go rather than where this picture came
+         * from. It ends up in the payload (§6.2). */
+        const chosen = provider();
+        let from = chosen.name;
         let frame;
         try {
-            frame = await provider().grab();
+            frame = await chosen.grab();
         } catch (error) {
             /* An extension that is asleep, revoked or mid-update must
              * not take the screenshot away with it. */
-            if (provider() !== PROVIDERS.extension) throw error;
+            if (chosen !== PROVIDERS.extension) throw error;
 
             /* Kept, because the next thing that happens is a share
              * dialog, and if that is cancelled the browser's word for it
@@ -1039,28 +1185,46 @@
                 helperAnswers = false;
                 syncScopes();
 
+                from = PROVIDERS.display.name;
                 frame = await PROVIDERS.display.grab();
             }
         } finally {
             host.style.visibility = "";
         }
 
-        SHOT.scale = frame.scale;
-        SHOT.redacted = 0;
-        SHOT.surface = frame.surface;
-        /* Asked for the whole page and given the window: true only when
-         * the request was cut down, so the status can say so. */
-        SHOT.partial = SHOT.scope === "full" && frame.whole === false;
+        const taken = {
+            provider: from,
+            scale: frame.scale,
+            redacted: 0,
+            surface: frame.surface,
+            /* Asked for the whole page and given the window: true only
+             * when the request was cut down, so the status can say so. */
+            partial: SHOT.scope === "full" && frame.whole === false,
+            blob: null
+        };
 
         if (frame.scale === null) {
             /* Cannot place anything: send the frame untouched and say so. */
-            SHOT.blob = await encode(frame.canvas);
-            return { mapped: false };
+            taken.blob = await encode(frame.canvas);
+        } else {
+            taken.redacted = redact(frame.canvas, frame.scale, frame.origin);
+            taken.blob = await encode(
+                cropped(frame.canvas, frame.scale, frame.origin));
         }
 
-        SHOT.redacted = redact(frame.canvas, frame.scale, frame.origin);
-        SHOT.blob = await encode(cropped(frame.canvas, frame.scale, frame.origin));
-        return { mapped: true };
+        /* Everything above takes time -- a share dialog somebody has to
+         * answer, a document-sized PNG through two message hops, a WebP
+         * encoded three times over -- and the panel does not wait. If it
+         * was dismissed, or the shot removed, while this was happening,
+         * then this picture belongs to a report that no longer exists,
+         * and it used to be written into SHOT anyway: the next report
+         * opened, said nothing about a screenshot, and carried the
+         * previous one's image up with it. Dropped here, before it can
+         * be committed, rather than untangled afterwards. */
+        if (mine !== shotAge) return { stale: true };
+
+        Object.assign(SHOT, taken);
+        return { mapped: frame.scale !== null };
     };
 
     /* ---------------------------------------------------------------
@@ -2104,12 +2268,13 @@ input:where(:not(:checked)) + .chip {
 
     const NEEDS_ELEMENT = ["fragment", "rules", "computed", "audit"];
 
-    /* An idea has no element, and neither has a cancelled pick. Offering
-     * to send its HTML, its rules or its contrast is offering nothing:
-     * the switches go unavailable rather than quietly collecting
-     * undefined. */
+    /* An idea has no element, and neither has a cancelled pick — nor a
+     * region whose covered elements share no ancestor worth naming.
+     * Offering to send its HTML, its rules or its contrast is offering
+     * nothing: the switches go unavailable rather than quietly
+     * collecting undefined. */
     const syncElementChannels = () => {
-        const has = Boolean(picked || region);
+        const has = Boolean(picked);
         for (const input of root.querySelectorAll(".channels input")) {
             if (!NEEDS_ELEMENT.includes(input.value)) continue;
 
@@ -2186,17 +2351,23 @@ input:where(:not(:checked)) + .chip {
             capture: Object.fromEntries(CHANNELS.map((c) => [c.key, on.includes(c.key)]))
         };
 
-        if (picked) {
-            const target = {
-                selector: selectorFor(picked),
-                xpath: xpathFor(picked),
-                fingerprint: fingerprint(picked),
-                rect: rectOf(picked)
-            };
-            if (on.includes("fragment")) target.html = fragmentHtml(picked);
-            if (on.includes("rules")) Object.assign(target, matchedRules(picked));
-            if (on.includes("computed")) target.computed = computedStyles(picked);
-            if (on.includes("audit")) target.audit = auditOf(picked);
+        if (picked || region) {
+            const target = {};
+
+            /* A region that covers elements with nothing in common below
+             * <body> has no element to describe, and `picked` is null
+             * there on purpose (see commonAncestor). The rectangle and
+             * what it covered are still the report. */
+            if (picked) {
+                target.selector = selectorFor(picked);
+                target.xpath = xpathFor(picked);
+                target.fingerprint = fingerprint(picked, on.includes("fragment"));
+                target.rect = rectOf(picked);
+                if (on.includes("fragment")) target.html = fragmentHtml(picked);
+                if (on.includes("rules")) Object.assign(target, matchedRules(picked));
+                if (on.includes("computed")) target.computed = computedStyles(picked);
+                if (on.includes("audit")) target.audit = auditOf(picked);
+            }
             if (region) {
                 target.region = {
                     x: Math.round(region.x), y: Math.round(region.y),
@@ -2215,6 +2386,13 @@ input:where(:not(:checked)) + .chip {
         if (on.includes("screenshot") && SHOT.blob) {
             payload.screenshot = {
                 scope: SHOT.scope,
+                /* Where the pixels came from, said plainly, because the
+                 * two paths are not equally trustworthy: the add-on's
+                 * capture is asked for and delivered through the page,
+                 * so a hostile page can answer in its place. The
+                 * reviewer cannot detect that; they can at least be
+                 * told which kind of image they are looking at (§6.2). */
+                provider: SHOT.provider,
                 surface: SHOT.surface,
                 mapped: SHOT.scale !== null,
                 redacted: SHOT.redacted,
@@ -2324,10 +2502,26 @@ input:where(:not(:checked)) + .chip {
         return { text, element: node, elements: selectedElements(range) };
     };
 
+    /* Stamped with the page it was made on. This listener lives as long
+     * as the document does, and in a single-page application the
+     * document outlives the page: words selected before a route change
+     * were still sitting here afterwards, and "Text is wrong" quoted
+     * them into a report about a screen they were never on -- with a
+     * URL, in the same payload, saying somewhere else entirely. A
+     * remembered selection is only good for the address it was made at.
+     */
     document.addEventListener("selectionchange", () => {
         const found = readSelection();
-        if (found) lastSelection = found;
+        if (found) lastSelection = { ...found, url: location.href };
     });
+
+    const remembered = () => {
+        if (!lastSelection) return null;
+        if (lastSelection.url === location.href) return lastSelection;
+
+        lastSelection = null;
+        return null;
+    };
 
     /* ---------------------------------------------------------------
      * Picker
@@ -2435,15 +2629,30 @@ input:where(:not(:checked)) + .chip {
      * evidence — what the rectangle actually covered. The nearest common
      * ancestor is the thing to open, and giving it to the element
      * channels keeps the matched rules and computed styles meaningful
-     * for an area selection instead of switching them off. */
+     * for an area selection instead of switching them off.
+     *
+     * Unless the answer is <body>, and then it is not an answer. A
+     * rectangle dragged across a header and a footer, or across two
+     * columns, has no ancestor below the page itself -- and adopting
+     * <body> there handed the element channels the whole document: the
+     * fragment channel serialised every node on the page (capped at 64
+     * KB, so what arrived was the first 64 KB of the site, truncated
+     * mid-tag), the rules and computed styles described <body>, and the
+     * mini-audit measured the contrast of the page against itself. None
+     * of that is about the rectangle somebody dragged. The covers list
+     * is the evidence in that case, and it is enough. */
     const commonAncestor = (elements) => {
-        if (!elements.length) return document.body;
+        if (!elements.length) return null;
 
-        return elements.reduce((a, b) => {
+        const shared = elements.reduce((a, b) => {
             let node = a;
             while (node && !node.contains(b)) node = node.parentElement;
-            return node || document.body;
+            return node;
         });
+
+        return !shared || shared === document.body ||
+               shared === document.documentElement
+            ? null : shared;
     };
 
     const candidate = (event) => {
@@ -2637,7 +2846,7 @@ input:where(:not(:checked)) + .chip {
         if (event.key === "Enter") {
             event.preventDefault();
             event.stopPropagation();
-            const found = readSelection() || lastSelection;
+            const found = readSelection() || remembered();
             if (found) finishText(found);
             return;
         }
@@ -2973,8 +3182,30 @@ input:where(:not(:checked)) + .chip {
         region = null;
         holders = [];
         type = null;
+        /* Dismissed is dismissed. Three things used to survive it and
+         * each of them made the next report a little bit the last one's:
+         * a selection made before this report was opened, still ready to
+         * be quoted into the next one; `refused`, which meant one press
+         * of Remove switched off automatic capture for the rest of the
+         * page's life, though its own comment promised "opening the next
+         * report is a fresh ask"; and `shotError`, which held the scope
+         * line hostage to a failure nobody could see any more. */
+        lastSelection = null;
+        refused = false;
+        shotError = null;
         clearShot();
         form.reset();
+        /* SHOT.scope is not a form control, so form.reset() put the
+         * radios back to the markup's default and left the scope on
+         * whatever the last report chose: the next one showed "element"
+         * and cropped the whole surface. The radio is the part somebody
+         * can see, so the radio decides -- and syncScopes then takes the
+         * crops away again if this browser cannot do them, which is the
+         * other half of keeping the two in step. */
+        SHOT.scope = root.querySelector(".scope input:checked")?.value ||
+                     DEFAULT_SCOPE;
+        syncScopes();
+        showScope();
         $(".launcher").focus();
     };
 
@@ -2990,8 +3221,9 @@ input:where(:not(:checked)) + .chip {
             if (type === "idea") { showForm(); return; }
 
             /* Text already selected needs no mode at all. */
-            if (type === "content" && lastSelection) {
-                finishText(lastSelection);
+            const already = type === "content" ? remembered() : null;
+            if (already) {
+                finishText(already);
                 return;
             }
 
@@ -3005,10 +3237,18 @@ input:where(:not(:checked)) + .chip {
     const shotPreview = $(".shot-preview");
 
     function clearShot() {
+        /* Whatever is still being encoded belongs to the report this
+         * clears, and must not arrive in the next one. */
+        shotAge += 1;
         SHOT.blob = null;
         SHOT.scale = null;
         SHOT.redacted = 0;
         SHOT.partial = false;
+        SHOT.provider = null;
+        /* The capture that was in flight will not reach its own finally
+         * -- it is stale by the time it lands -- so the button is given
+         * back here, where nothing is happening by definition. */
+        $(".a-shot").disabled = false;
         shotStatus.textContent = "";
         shotStatus.classList.remove("is-warning");
         shotPreview.hidden = true;
@@ -3028,12 +3268,22 @@ input:where(:not(:checked)) + .chip {
      * there. Same routine either way: what differs is who asked. */
     const takeShot = async () => {
         const button = $(".a-shot");
+        /* Which report this picture is for. Everything below runs after
+         * an await, so nothing it touches may be touched at all once the
+         * number has moved. */
+        const mine = shotAge;
+        /* Decided before the failure path clears the shot, which moves
+         * the number itself: what the finally must know is whether this
+         * capture was still wanted when it landed, not what clearing it
+         * did afterwards. */
+        let live = true;
         button.disabled = true;
         shotError = null;
         bridgeError = null;
         shotStatus.textContent = "…";
         try {
-            const { mapped } = await capture();
+            const { mapped, stale } = await capture(mine);
+            if (stale) { live = false; return; }
             if (!SHOT.blob) { shotStatus.textContent = T.shotBig; return; }
             shotPreview.src = URL.createObjectURL(SHOT.blob);
             shotPreview.hidden = false;
@@ -3049,6 +3299,15 @@ input:where(:not(:checked)) + .chip {
                   `${SHOT.partial ? ` · ${T.shotViewportOnly}` : ""}`
                 : `${surface ? `${surface} — ` : ""}${T.shotUnmapped}`;
         } catch (error) {
+            /* Failed for a report nobody is looking at any more: the
+             * console still gets it, the panel is not told about a
+             * capture it never asked for. */
+            if (mine !== shotAge) {
+                live = false;
+                console.warn("corrigenda: a dismissed capture failed", error);
+                return;
+            }
+
             /* Said, not swallowed. This used to be a bare `catch` and a
              * fixed sentence, which meant a capture that failed for a
              * reason the browser had explained arrived as "no
@@ -3081,8 +3340,10 @@ input:where(:not(:checked)) + .chip {
             ].filter(Boolean).join(" ");
             shotStatus.textContent = shotError;
         } finally {
-            button.disabled = false;
-            refresh();
+            if (live) {
+                button.disabled = false;
+                refresh();
+            }
         }
     };
 
@@ -3235,12 +3496,23 @@ input:where(:not(:checked)) + .chip {
      * than served, so the two move separately and a report that came
      * out oddly is usually a question about which pair was in play.
      */
+    /* And where it goes, when that is somewhere else. The endpoint is
+     * the page's to choose -- data-endpoint on the tag, or a
+     * link[rel=corrigenda] the page carries -- and the POST goes out
+     * with credentials, so a page can address the report, and the
+     * reporter's session, at an origin they never picked. Nothing in a
+     * script can fix that: the widget is a guest and the page is the
+     * host. What it can do is stop being quiet about it, in the line
+     * that already says what is running. Same origin says nothing,
+     * because there is nothing there to say. */
     const sayWhatIsRunning = () => {
         const helper = helperVersion
             ? `add-on ${helperVersion}`
             : (extension() ? T.helperSilent : T.helperNone);
+        const where = CROSS_ORIGIN ? ` · → ${ENDPOINT.origin}` : "";
 
-        $(".colophon").textContent = `corrigenda ${VERSION} · ${helper}`;
+        $(".colophon").textContent =
+            `corrigenda ${VERSION} · ${helper}${where}`;
     };
 
     const syncScopes = () => {
@@ -3378,7 +3650,7 @@ input:where(:not(:checked)) + .chip {
      * quoted at all, because a page that renders is never an
      * explanation. */
     const failure = async (response) => {
-        const where = new URL(CFG.endpoint, location.href).href;
+        const where = ENDPOINT.href;
         const type = response.headers.get("content-type") || "";
         let detail = "";
 
@@ -3402,10 +3674,12 @@ input:where(:not(:checked)) + .chip {
      *
      * Same-origin stays same-origin: "include" would also attach
      * credentials on a redirect off-site, and there is no reason to
-     * widen the common case for the sake of the rare one. */
-    const CROSS_ORIGIN =
-        new URL(CFG.endpoint, location.href).origin !== location.origin;
-
+     * widen the common case for the sake of the rare one.
+     *
+     * (CROSS_ORIGIN is resolved at the top of this file, beside the
+     * endpoint itself: the panel names the destination origin under the
+     * title before anything is sent, and needed the answer long before
+     * the transport did.) */
     const post = async (body, headers) => {
         const response = await fetch(CFG.endpoint, {
             method: "POST",

@@ -179,6 +179,12 @@ Devtools-like, with refinements devtools does not need and this does:
 - **Region select** (drag a rectangle): many visual complaints have no
   single culprit element ("too much space here", "these do not line
   up"). Stored as page coordinates plus the intersecting elements.
+  Their nearest common ancestor becomes the element the fragment,
+  rules, computed styles and audit describe — *unless* that ancestor is
+  `<body>` or `<html>`, which is what a rectangle across a header and a
+  footer produces. There the element channels have nothing to describe
+  and go unavailable; the list of covered elements is the evidence.
+  Adopting `<body>` shipped the whole page as the "element fragment".
 - **Two-element mode**: pick A then B, for "these should be aligned /
   the same size". Nearly free once the picker exists.
 
@@ -234,6 +240,17 @@ outright.
   the image is encoded. **Opaque fill, not blur**: a blur over short,
   low-entropy text can be undone, a filled rectangle cannot. The count
   is shown to the reporter and recorded in the payload.
+- **The search for them goes through boundaries**, because a count that
+  is shown as complete has to be: open shadow roots are descended into
+  (they lay out in their host's coordinate space, so no offset is
+  needed) and so are same-origin frames, whose rects are offset by the
+  frame's content-box origin and clipped to it, composing for a frame
+  inside a frame. **A cross-origin frame is covered whole** — its
+  contents cannot be inspected, and from outside "there is a password
+  in there" and "there is not" are the same silence. **A closed shadow
+  root cannot be reached at all, so anything inside one is photographed
+  unmasked and uncounted; the widget cannot see it and does not claim
+  to.**
 - **Output** — WebP, quality stepped 0.8 → 0.6 → 0.45 until the result
   is under the 2 MB cap, longest edge capped at 1600px.
 - **Annotation** — drawing rectangles/arrows on the shot: not built.
@@ -251,6 +268,17 @@ Guessing the offset would paint black bars in the wrong places, and the
 reporter would believe their password field was covered when it was
 not. A visible "this was not cropped or masked" is the only honest
 outcome, so the failure is surfaced rather than silently approximated.
+
+**Where the picture came from is recorded, because the two sources are
+not equally trustworthy.** `payload.screenshot.provider` is `extension`
+or `display`: **an extension-path image is page-assisted — it is asked
+for and delivered over `postMessage` through the page, so a hostile
+page can answer in the add-on's place and hand the widget a picture of
+its choosing, and nothing in a script running on that page can tell the
+difference.** A `display` image came from the browser's own share
+dialog and no page code touched it. The widget cannot make the first
+case safe; it can name it, so a reviewer weighing a screenshot knows
+which kind is in front of them.
 
 ### 6.3 DOM snapshot — sub-options
 
@@ -299,7 +327,11 @@ a good report should require the reporter to do almost nothing.
   `nth-of-type` chain up to the nearest id'd ancestor), an XPath
   fallback, and a *fingerprint* (tag, classes, first ~80 chars of
   text, sibling index) so the element remains findable after markup
-  drift
+  drift. The text is the only part of it that is content rather than
+  structure, so it is the only part that asks: `[redacted]` when the
+  element or an ancestor carries `data-corrigenda-redact`, and absent
+  altogether when the element fragment channel is off — otherwise the
+  fingerprint quietly undid both.
 - sanitised `outerHTML`
 - `getBoundingClientRect`, scroll offsets, curated `getComputedStyle`
   (display, position, box metrics, font, colours, overflow)

@@ -87,7 +87,15 @@ const check = async (name, browser, executablePath) => {
     // them. The common ancestor is where to open the page; it is not an
     // answer to which elements the words were in.
     await open(page, 'content');
-    await page.evaluate(() => {
+    // The widget remembers a selection when the browser announces one,
+    // and the announcement is a queued task rather than a return value.
+    // The mousedown below collapses the selection, and if it lands
+    // first the two changes coalesce into a single event that says
+    // nothing is selected — the widget then has nothing to quote and
+    // this reads as a broken Enter key. So the announcement is waited
+    // for. The widget's own listener was registered at load and
+    // therefore runs before this one.
+    await page.evaluate(() => new Promise((announced) => {
         const card = document.querySelector('.index-simplex .content');
         const range = document.createRange();
         range.setStart(card.querySelector('h3').firstChild, 0);
@@ -95,7 +103,9 @@ const check = async (name, browser, executablePath) => {
         range.setEnd(prose, 12);
         getSelection().removeAllRanges();
         getSelection().addRange(range);
-    });
+        document.addEventListener('selectionchange', () => announced(),
+                                  { once: true });
+    }));
     await page.mouse.move(10, 10);
     await page.mouse.down();
     await page.mouse.up();

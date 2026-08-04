@@ -135,9 +135,14 @@ const outcome = async (page, timeout = 8000) => {
     const shotStatus = await page.textContent('#corrigenda-widget .shot-status');
     if (!/captured/.test(shotStatus)) fail('capture status: ' + shotStatus);
     else ok('screenshot captured: ' + shotStatus.trim());
-    // fixture has a password field and a text field; both must be covered
-    if (!/2 /.test(shotStatus)) fail('expected 2 redactions: ' + shotStatus);
-    else ok('both form fields redacted before upload');
+    // Four secrets, and two of them are the point: a querySelectorAll on
+    // the document sees the fixture's password and text fields and stops
+    // at both boundaries below them — the input inside <secret-box>'s
+    // open shadow root, and the password inside the same-origin frame.
+    // The count is shown to the reporter as the whole truth, so it has
+    // to have crossed both.
+    if (!/\b4 /.test(shotStatus)) fail('expected 4 redactions: ' + shotStatus);
+    else ok('redaction reaches through a shadow root and a same-origin frame');
 
     await page.screenshot({ path: SHOTS + '/corrigenda-shot.png' });
     await page.fill('#corrigenda-widget textarea', 'With a screenshot');
@@ -183,6 +188,137 @@ const outcome = async (page, timeout = 8000) => {
     const sixth = await outcome(page);
     if (!/Sent\. Reference:/.test(sixth)) fail('report 6 rejected: ' + sixth);
     else ok('report 6 accepted (content, from a selection)');
+
+    // --- report 7: the scope radio and the crop must agree -----------
+    // SHOT.scope is not a form control, so form.reset() on dismissal put
+    // the radios back to "the picked element" and left the scope where
+    // the last report had dragged it: the panel said one thing and the
+    // crop did another, one report later. The radio is what a person can
+    // see, so the radio is what the payload has to match.
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await page.click('#corrigenda-widget .scope-option[data-scope="full"]');
+    await page.click('#corrigenda-widget .a-shot');
+    await page.waitForSelector('#corrigenda-widget .shot-preview:not([hidden])');
+    await page.click('#corrigenda-widget .a-cancel');
+
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    const restarted = await page.evaluate(() => {
+        const r = document.querySelector('#corrigenda-widget').shadowRoot;
+        const radio = r.querySelector('.scope input:checked');
+        return { scope: radio?.value, name: radio?.ariaLabel,
+                 status: r.querySelector('.shot-status').textContent.trim() };
+    });
+
+    // The status line is the only place SHOT.scope is legible before a
+    // capture: it prints the name of whatever the crop will use.
+    if (restarted.scope !== 'element')
+        fail('the second report does not start on the element crop: ' +
+             restarted.scope);
+    else if (restarted.status !== restarted.name)
+        fail(`the radio says "${restarted.name}" and the crop says ` +
+             `"${restarted.status}"`);
+    else ok('the scope radio and the crop agree on a second report');
+
+    await page.click('#corrigenda-widget .a-shot');
+    await page.waitForSelector('#corrigenda-widget .shot-preview:not([hidden])');
+    const scoped = JSON.parse(
+        await page.textContent('#corrigenda-widget .preview'));
+    if (scoped.screenshot?.scope !== 'element')
+        fail('the payload was cropped to ' + scoped.screenshot?.scope);
+    else ok('and the payload records the scope the radio shows');
+
+    // What took the picture, recorded: no add-on here, so the share
+    // dialog did, and an image from that path is one no page code could
+    // have substituted (DESIGN 6.2).
+    if (scoped.screenshot?.provider !== 'display')
+        fail('the screenshot provider is ' +
+             JSON.stringify(scoped.screenshot?.provider));
+    else ok('the payload says which path took the picture (display)');
+
+    await page.click('#corrigenda-widget .a-cancel');
+
+    // --- a capture that lands after the panel was dismissed ----------
+    // The share dialog, the frame and the WebP encoding are seconds of
+    // work that outlive the panel that asked for them. A shot that
+    // arrived late used to be written into SHOT anyway, and the next
+    // report — about something else entirely — carried it up.
+    {
+        const slow = await browser.newPage({ viewport: { width: 900, height: 700 } });
+        await slow.addInitScript(() => {
+            navigator.mediaDevices.getDisplayMedia = async () => {
+                await new Promise((done) => setTimeout(done, 1200));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(innerWidth * devicePixelRatio);
+                canvas.height = Math.round(innerHeight * devicePixelRatio);
+                canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+                return canvas.captureStream(10);
+            };
+        });
+        await slow.goto(URL, { waitUntil: 'load' });
+        await slow.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+        await slow.click('#corrigenda-widget .a-type[value="visual"]');
+        await slow.click('figcaption.caption');
+        await slow.click('#corrigenda-widget .a-shot');
+        await slow.waitForTimeout(200);            // the shutter is open
+        // Escape, not the Cancel button: the widget makes itself
+        // invisible while the shutter is open, so a click would wait
+        // politely for it to come back — which is exactly the race this
+        // is trying to lose. The keyboard does not wait.
+        await slow.keyboard.press('Escape');
+        await slow.waitForTimeout(2500);           // and it lands here, for nobody
+
+        await slow.click('#corrigenda-widget .launcher');
+        await slow.click('#corrigenda-widget .a-type[value="visual"]');
+        await slow.click('figcaption.caption');
+        const carried = await slow.evaluate(() => {
+            const r = document.querySelector('#corrigenda-widget').shadowRoot;
+            return { shown: !r.querySelector('.shot-preview').hidden,
+                     payload: r.querySelector('.preview').textContent };
+        });
+
+        if (carried.shown)
+            fail('a dismissed capture reappeared in the next report');
+        else if (/"screenshot"\s*:\s*\{/.test(carried.payload))
+            fail('the next report carries the dismissed capture');
+        else ok('a capture landing after the panel is dismissed is dropped');
+        await slow.close();
+    }
+
+    // --- the fingerprint's text is content, and asks like content ----
+    // The marker is set here rather than in the fixture because it is
+    // also a redaction selector, and the count above is an assertion.
+    // A page marks the container; the words are in its children, which
+    // is why the widget asks closest() and not hasAttribute().
+    await page.evaluate(() =>
+        document.querySelector('#gallery figure')
+                .setAttribute('data-corrigenda-redact', ''));
+    await page.click('#corrigenda-widget .launcher');
+    await page.click('#corrigenda-widget .a-type[value="visual"]');
+    await page.click('figcaption.caption');
+    await setChannel(page, 'screenshot', false);
+    const marked = JSON.parse(
+        await page.textContent('#corrigenda-widget .preview'));
+    if (marked.target?.fingerprint?.text !== '[redacted]')
+        fail('marked text left the page as ' +
+             JSON.stringify(marked.target?.fingerprint?.text));
+    else ok('a marked ancestor redacts the fingerprint text');
+
+    // And with the element channel off, nothing was asked for at all —
+    // the fingerprint used to ship 80 characters regardless.
+    await setChannel(page, 'fragment', false);
+    const noFragment = JSON.parse(
+        await page.textContent('#corrigenda-widget .preview'));
+    if ('text' in (noFragment.target?.fingerprint || { text: null }))
+        fail('the fingerprint carries text with the element channel off');
+    else ok('no element channel, no fingerprint text');
+
+    await page.click('#corrigenda-widget .a-cancel');
+    await page.evaluate(() => document.querySelector('#gallery figure')
+                                      .removeAttribute('data-corrigenda-redact'));
 
 // --- injected from <head>, as MoXoW emits it ---------------------
 // Undeferred and before <body> exists: the widget has to survive

@@ -56,6 +56,16 @@ const check = async (name, browser, executablePath, args) => {
 
     await page.goto(`${PAGE}/fixture.html`, { waitUntil: 'load' });
     await page.waitForSelector('#corrigenda-widget .menu:not([hidden])');
+
+    // The page names the endpoint and the POST carries credentials, so
+    // the destination is the page's choice and not the reporter's. That
+    // cannot be fixed from inside a script the page loaded; what can be
+    // done is to stop it being invisible. The colophon has the room.
+    const colophon = await page.textContent('#corrigenda-widget .colophon');
+    if (!colophon.includes(ENDPOINT))
+        fail(`${name}: the panel does not say where this goes: ${colophon}`);
+    else ok(`${name}: the panel names the destination origin — ${colophon.trim()}`);
+
     await page.click('#corrigenda-widget .a-type[value="idea"]');
     await page.waitForSelector('#corrigenda-widget .report:not([hidden])');
     await page.fill('#corrigenda-widget textarea',

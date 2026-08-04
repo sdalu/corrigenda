@@ -34,6 +34,26 @@
     <label>Name <input type="text" name="name" value="Stephane"></label>
 </form>
 
+<!-- Two secrets a querySelectorAll on the document cannot see: one
+     behind a shadow boundary, one behind a frame border. Both are the
+     shapes a real site has (a component, an embedded form), and the
+     redaction count is what proves the masking went through them. -->
+<secret-box></secret-box>
+<iframe src="/embedded.html" title="An embedded form"
+        width="300" height="80" style="border: 1px solid #ccc"></iframe>
+
+<script>
+class SecretBox extends HTMLElement {
+    connectedCallback() {
+        // open, deliberately: a closed root cannot be reached at all,
+        // and DESIGN 6.2 says so rather than pretending otherwise.
+        this.attachShadow({ mode: "open" }).innerHTML =
+            '<label>Token <input type="text" name="token" value="s3cr3t"></label>';
+    }
+}
+customElements.define("secret-box", SecretBox);
+</script>
+
 <script src="/.corrigenda/corrigenda.js"
         data-endpoint="/report/" data-site="fixture.test" defer></script>
 </body>

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Embedded form</title>
+<style>
+    body { font: 0.8rem system-ui, sans-serif; margin: 0.5rem; }
+</style>
+</head>
+<body>
+<!-- Same origin as the page that frames it, so its contents can be
+     read and masked one by one. The widget never loads in here: what
+     is being tested is whether the top page's redaction walk crosses
+     the border, not whether a frame can report on itself. -->
+<form>
+    <label>Card <input type="password" name="card" value="4111111111111111"></label>
+</form>
+</body>
+</html>
