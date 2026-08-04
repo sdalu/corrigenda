@@ -9,7 +9,7 @@ openapi: 3.1.0
 
 info:
     title: Corrigenda
-    version: 0.1.0
+    version: 0.2.0
     summary: Page-defect reports, for a reader that is a program
     description: |
         Reports about what a rendered page got wrong: the element, the
