@@ -162,8 +162,22 @@ conf = <<~APACHE
             # /var/run rather than their /tmp: /tmp is
             # world-writable, and a socket there can be raced by any local
             # user before the service binds it.
-            ProxyPass        unix:#{socket}|http://127.0.0.1/
-            ProxyPassReverse unix:#{socket}|http://127.0.0.1/
+            #
+            # The URL after the pipe is mod_proxy's worker key, and workers
+            # are global to the server -- not scoped to the vhost, nor to
+            # this Location. Spelling it http://127.0.0.1/ therefore made
+            # this macro collide with every other unix-socket ProxyPass
+            # written the same obvious way: they shared ONE worker holding
+            # ONE socket, and whichever was parsed first won for all of
+            # them. That is not theoretical -- it served this app at
+            # tools.sdalu.com/grafana/, whose own socket did not even exist.
+            # A vhost that opts into this macro must not have its other
+            # backends captured, so the key is unique and, being unresolved
+            # (the socket does the routing), the name only has to be
+            # distinct rather than real. Every use of the macro shares this
+            # key deliberately: they all address the same socket.
+            ProxyPass        unix:#{socket}|http://corrigenda.invalid/
+            ProxyPassReverse unix:#{socket}|http://corrigenda.invalid/
         </Location>
 
         # The widget itself, and only the widget. Every page that injects
