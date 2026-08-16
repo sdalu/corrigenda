@@ -169,8 +169,8 @@ conf = <<~APACHE
             # this macro collide with every other unix-socket ProxyPass
             # written the same obvious way: they shared ONE worker holding
             # ONE socket, and whichever was parsed first won for all of
-            # them. That is not theoretical -- it served this app at
-            # tools.sdalu.com/grafana/, whose own socket did not even exist.
+            # them. That is not theoretical -- it served this app under a
+            # neighbouring /grafana/, whose own socket did not even exist.
             # A vhost that opts into this macro must not have its other
             # backends captured, so the key is unique and, being unresolved
             # (the socket does the routing), the name only has to be
