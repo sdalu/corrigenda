@@ -199,6 +199,30 @@ conf = <<~APACHE
             # one URL so the service's own answer is the only answer.
             ExpiresActive Off
         </Location>
+
+        # What an agent reads BEFORE it can be given anything. llms.txt
+        # is a discovery convention -- a fixed spelling a client looks
+        # for and nowhere else -- so behind a login it can only be found
+        # by something that already has credentials, which is the one
+        # client that did not need to discover it. The manual under
+        # /agent/ follows it, or the front door would link to a locked
+        # room.
+        #
+        # Neither says anything about THIS deployment: the manual names
+        # no socket, no site and no store on purpose, and llms.txt names
+        # the mount and whether an interface exists. The widget above is
+        # already public and every page carrying it names this endpoint
+        # in its own markup, so the reports, the review UI and the
+        # interface are what the login is for -- and they stay behind it.
+        <Location #{mount}/llms.txt>
+            AuthType None
+            Require all granted
+        </Location>
+
+        <Location #{mount}/agent/>
+            AuthType None
+            Require all granted
+        </Location>
     </Macro>
 APACHE
 

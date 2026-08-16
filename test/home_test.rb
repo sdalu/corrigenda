@@ -64,9 +64,10 @@ class HomeTest < CorrigendaTest
         assert_includes last_response.body, %(href="/signing")
     end
 
-    # The one public path: every page that injects the widget fetches it,
-    # visitors included. Apache lets this through unauthenticated, and a
-    # cache header keeps a busy site from asking for it every time.
+    # Public, as llms.txt and the manual are: every page that injects
+    # the widget fetches it, visitors included. Apache lets this through
+    # unauthenticated, and a cache header keeps a busy site from asking
+    # for it every time.
     def test_the_widget_is_cacheable
         get "/corrigenda.js"
 
@@ -141,7 +142,7 @@ class HomeTest < CorrigendaTest
         assert_predicate last_response, :ok?
         assert_includes last_response.body, "# Corrigenda"
         assert_includes last_response.body,
-                        "(/.corrigenda/agent-usage.md)"
+                        "(/.corrigenda/agent/usage.md)"
         assert_includes last_response.body,
                         "(/.corrigenda/api/openapi.json)"
     ensure
@@ -186,7 +187,7 @@ class HomeTest < CorrigendaTest
 
         refute_includes prompt, "a.example.com"
         refute_includes prompt, "state=open"
-        assert_includes prompt, "/agent-usage.md"
+        assert_includes prompt, "/agent/usage.md"
     ensure
         TestSupport.configure
     end
@@ -287,7 +288,7 @@ class HomeTest < CorrigendaTest
     # agent fetches matches the service it is talking to — and holds
     # what the prompt stopped carrying.
     def test_it_serves_the_agent_manual
-        get "/agent-usage.md"
+        get "/agent/usage.md"
 
         assert_predicate last_response, :ok?
         assert_includes last_response.body, "state=open"
@@ -326,7 +327,7 @@ class HomeTest < CorrigendaTest
     # the picture itself cannot show — a comparison at another width
     # proves nothing, and nobody can tell unless the agent says.
     def test_the_manual_asks_for_the_picture_and_its_conditions
-        get "/agent-usage.md"
+        get "/agent/usage.md"
 
         assert_includes last_response.body,
                         "beside the screenshot it was filed"

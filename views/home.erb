@@ -306,8 +306,7 @@
                         <td><code>/corrigenda.js</code></td>
                         <th scope="row">Anyone</th>
                         <td>The widget. Every page carrying it fetches it,
-                        visitors included, so this is the one path here that
-                        asks for no login.</td>
+                        visitors included, so it asks for no login.</td>
                     </tr>
                     <tr>
                         <td><code>/report/</code></td>
@@ -333,18 +332,22 @@
                         say is that there is none. %>
                     <tr>
                         <td><code>/llms.txt</code></td>
-                        <th scope="row">Signed in</th>
+                        <th scope="row">Anyone</th>
                         <td>What this is, for an agent that arrives knowing
-                        only the convention. It points at the manual below,
-                        and at the interface where there is one.</td>
+                        only the convention. Public, because a file nothing
+                        can find without credentials is a discovery file
+                        that discovers nothing — it names the mount and
+                        says where the login begins.</td>
                     </tr>
                     <tr>
-                        <td><code>/agent-usage.md</code></td>
-                        <th scope="row">Signed in</th>
+                        <td><code>/agent/usage.md</code></td>
+                        <th scope="row">Anyone</th>
                         <td>The manual for an agent working the reports: the
                         loop, what <em>fixed</em> means, what to write on each
                         one. Served from the checkout this service runs from,
-                        so it is the version that is answering.</td>
+                        so it is the version that is answering — and
+                        <code>/agent/</code> is where anything else written
+                        for one will go.</td>
                     </tr>
                     <%# Listed only where they answer: with no api: key in the
                         config every path under /api is a 404, and a table that
@@ -469,7 +472,7 @@
     # The manual travels the same pipe as the interface: an agent that
     # can reach one can reach the other, so the prompt can point at it
     # instead of restating the protocol it carries.
-    manual = "curl --unix-socket #{socket} http://localhost/agent-usage.md"
+    manual = "curl --unix-socket #{socket} http://localhost/agent/usage.md"
 
 
     # Wrapped where it is written: this ends up inside a <pre>, and a
@@ -581,9 +584,8 @@ and the schema of its JSON interface, which answers under
 and carries a note addressed to you on every operation. Every path in
 that schema is written from there, not from the root of the host.
 
-Whether it asks you to log in depends on how it is reached from where
-you are: if a request comes back 401, use the credentials I give you —
-and if I have not given you any, ask me rather than stopping.<%= api_needs_token? ? " Either way, every request there needs the token I give you." : "" %>
+That first file is readable without a login and says where the login
+begins.<%= api_needs_token? ? " Beyond it, every request needs the token I give you." : "" %>
 
 <%= doing %></pre>
         <button type="button" class="a-copy">Copy</button>

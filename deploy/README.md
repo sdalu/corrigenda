@@ -52,6 +52,19 @@ CORS preflight carries no credentials and cannot be given any, so
 gating it turns every cross-origin report into a 401 the page never
 sees the reason for.
 
+Three paths are public, and the macro carves each one out after the
+Location that gates the rest — a longer Location wins, and merging is
+in order of appearance. `/corrigenda.js` is the widget, which every
+page carrying it fetches, visitors included. `/llms.txt` and
+everything under `/agent/` are what an agent reads *before* anyone can
+give it credentials: a discovery file behind a login is only found by
+a client that did not need to discover it, and the manual has to
+follow it or the front door links to a locked room. Neither describes
+this deployment — the manual names no socket, no site and no store,
+and `llms.txt` names the mount and says where the login begins. The
+reports, the review UI and the JSON interface are what the login is
+for, and they stay behind it.
+
 The result is **not** tracked: it is three fields of the config in
 Apache's syntax, and a copy of a config is exactly the drift the
 generator exists to prevent. `./run` writes it at every start, so the

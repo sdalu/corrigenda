@@ -18,8 +18,9 @@ with the socket it actually listens on, a site it actually accepts
 reports about, and what you are allowed to do there. Start from that
 prompt when you are handed one; what follows is the part that is true
 of every deployment and so cannot drift. A running deployment serves
-this very file at `/agent-usage.md`, beside a `/llms.txt` that points
-to it — nothing here needs a checkout.
+this very file at `/agent/usage.md`, indexed by an `/llms.txt` at the
+mount that points to it — nothing here needs a checkout. Anything else
+written for an agent will join it under `/agent/`.
 
 ## Finding your footing
 

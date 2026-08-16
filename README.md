@@ -208,8 +208,11 @@ The protocol itself — the review loop, what *fixed* means, the journal
 voice, what is never the agent's to do — is written once, in
 [AGENT-USAGE.md](AGENT-USAGE.md), so a prompt can stay short and the
 deployment's own page can stay the authority on its specifics. A
-running service serves it at `/agent-usage.md`, which is where the
+running service serves it at `/agent/usage.md`, which is where the
 prompt sends the agent — only the socket is needed, no checkout.
+`/agent/` is the directory for anything written for one; `llms.txt`
+stays at the mount, because a convention with a fixed spelling is only
+found where it is looked for.
 
 Nothing expires unless the config says it should:
 

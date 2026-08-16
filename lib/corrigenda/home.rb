@@ -183,15 +183,31 @@ module Corrigenda
                     "> shows, filed with their evidence — the element, the",
                     "> rules that styled it, a screenshot."]
 
+            # This file and the manual are the public half; everything
+            # they point at is not. An agent that arrives here with no
+            # credentials would otherwise meet a 401 and read it as a
+            # wall -- so the file that IS reachable is where the way
+            # past it is written. Not in the person's voice: whoever
+            # set the agent to work is not the one talking here.
+            login = [
+                "This file and the manual are readable by anyone; the",
+                "interface and the reports are not. If a request comes",
+                "back 401, use the credentials whoever set you to work",
+                "gave you — and if you were given none, ask them rather",
+                "than stopping."
+            ]
+
             body =
                 if api_offered?
                     ["> The JSON interface under #{mount("/api/")}",
                      "> describes itself: start with a GET there — it says",
                      "> what routes exist and what this deployment allows.",
                      "",
+                     *login,
+                     "",
                      "## Docs",
                      "",
-                     "- [agent-usage.md](#{mount("/agent-usage.md")}): " \
+                     "- [usage.md](#{mount("/agent/usage.md")}): " \
                      "the protocol for working reports, written for you",
                      "- [openapi.json](#{mount("/api/openapi.json")}): " \
                      "the interface in full, with a note addressed " \
@@ -207,7 +223,15 @@ module Corrigenda
         # The protocol the landing page's prompt no longer restates:
         # written once, in AGENT-USAGE.md, and handed out by the
         # service so an agent with only the socket needs no checkout.
-        get "/agent-usage.md" do
+        #
+        # Under /agent/ because that is where anything written FOR one
+        # belongs, and there will be more of it than this -- a state
+        # vocabulary, worked examples, per-site instructions. llms.txt
+        # is the exception that stays at the mount: it is a convention
+        # with a fixed spelling, and a client that knows it looks there
+        # and nowhere else. So the index is at the root and what it
+        # indexes is in the directory, which is the usual shape.
+        get "/agent/usage.md" do
             send_file MANUAL, type: "text/plain; charset=utf-8"
         end
 
