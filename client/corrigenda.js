@@ -2589,6 +2589,22 @@ input:where(:not(:checked)) + .chip {
 
     const build = () => {
         const on = enabled();
+
+        /* An idea is a sentence somebody wants read, not a measurement:
+         * "could this carry a date?" is answered the same way whoever
+         * wrote it was using a 4K screen or a phone, in French or in
+         * Finnish, at nine in the morning in any timezone -- and that
+         * block is the widest thing this tool collects about the person
+         * rather than about the page. So an idea that asked for nothing
+         * sends nothing but its message and the page it is about.
+         *
+         * The moment a switch IS on it goes back: a screenshot with no
+         * viewport beside it, or computed styles with no colour scheme,
+         * are evidence nobody can place. Asking for evidence is asking
+         * for the conditions it was taken under, and the other kinds of
+         * report ask by default. */
+        const bare = type === "idea" && on.length === 0;
+
         const payload = {
             schema: 1,
             type,
@@ -2599,7 +2615,7 @@ input:where(:not(:checked)) + .chip {
                 build: CFG.build
             },
             message: form.message.value,
-            environment: environment(),
+            ...(bare ? {} : { environment: environment() }),
             capture: Object.fromEntries(CHANNELS.map((c) => [c.key, on.includes(c.key)]))
         };
 

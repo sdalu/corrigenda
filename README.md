@@ -48,6 +48,17 @@ Three ways, in the order they cost you anything:
    add-on takes the picture through the browser's own capture API
    instead. See [extension/README.md](extension/README.md).
 
+What a report carries follows the kind it is. A defect arrives with the
+evidence around it — the element, the rules, what the browser was
+complaining about, and the conditions it was all seen under. An **idea**
+does not: a suggestion or a question is a sentence somebody wants read,
+and one that asked for nothing sends nothing but its message and the
+page it is about — no browser, no viewport, no language or timezone.
+Switch a channel on and the conditions come back with it, because
+evidence nobody can place is not evidence. If the idea turns out to be
+about something on the page, the element switches are also the way to
+point at it: press one and the picker opens.
+
 A screenshot is optional, and you choose how much of the page it holds.
 Cropping to the picked element keeps a 16-pixel margin around it — a
 defect is usually a relationship with whatever sits next to the
