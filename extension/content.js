@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * The bridge. The widget is an ordinary page script and cannot see the
  * extension; the extension can see the page but has no interface. This

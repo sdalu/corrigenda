@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * The privileged half. It does exactly one thing: photograph the tab a
  * request came from, and say what it actually photographed.

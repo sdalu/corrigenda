@@ -34,6 +34,13 @@ for target in $targets; do
     cp background.js content.js "$out/"
     cp "manifest.$target.json" "$out/manifest.json"
 
+    # The package is installed in a browser, where nothing else from
+    # this repository follows it. A WebExtension manifest has no field
+    # for a licence -- an invented key is a warning at review time --
+    # so the file itself rides along, beside the sources that carry the
+    # SPDX line.
+    cp ../LICENSE "$out/"
+
     if [ "$target" = firefox ]; then
         cp icon.svg "$out/"
     else

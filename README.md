@@ -244,3 +244,16 @@ sanitiser and the CORS dance only exist in a browser — see
 | [extension/README.md](extension/README.md) | the add-on: build, install, permissions |
 | [test/browser/README.md](test/browser/README.md) | the browser checks and what each covers |
 | [CLAUDE.md](CLAUDE.md) | conventions and host quirks, for agents working in this repo |
+
+## Licence
+
+MIT — [LICENSE](LICENSE).
+
+`SPDX-License-Identifier: MIT` is carried by the files that travel
+away from this repository on their own: `client/corrigenda.js`, which
+any site may serve to its visitors, and the add-on's `background.js`
+and `content.js`, which end up installed in a browser. The package
+takes a copy of the licence with it for the same reason — a
+WebExtension manifest has no field to name one. Everything else is
+covered by the file above, where a reader who has the repository will
+look.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * corrigenda.js — page-defect reporting widget.
  * Design and endpoint: DESIGN.md, beside this file's repository
