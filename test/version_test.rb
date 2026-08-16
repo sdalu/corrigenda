@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require "English"
 require "json"
+require "shellwords"
 
 require "test_helper"
 
@@ -102,5 +104,54 @@ class VersionTest < CorrigendaTest
                          "extension/dist/#{target} was built before the " \
                          "version was raised -- run extension/build"
         end
+    end
+
+    # ----------------------------------------------------------------
+    # The tag, which is the one place the number lives that is not a
+    # file: git keeps it, and a release is only findable by it. Tags
+    # here are bare -- 0.3.0, not v0.3.0 -- so the tag and the constant
+    # are the same string and can simply be compared.
+
+    def git(command)
+        out = `git -C #{ROOT.shellescape} #{command} 2>/dev/null`
+        $CHILD_STATUS.success? ? out.strip : nil
+    end
+
+    # Read out of the COMMIT rather than out of the working tree: a
+    # version being raised is uncommitted for a minute, and that minute
+    # is not a failure. What is asserted is what was recorded.
+    def version_at(ref)
+        git("show #{ref}:lib/corrigenda.rb")&.[](/VERSION\s*=\s*"([^"]+)"/, 1)
+    end
+
+    # The mistake this catches is tagging the wrong commit: the number
+    # in the tag is what a person will quote, and the code behind it has
+    # to be the code that says so. Silent where there is nothing to
+    # check -- a checkout with no tags, a fetch that skipped them, HEAD
+    # somewhere between releases.
+    def test_a_tagged_commit_carries_the_version_its_tag_names
+        skip "not a git checkout" unless File.directory?(File.join(ROOT, ".git"))
+
+        tag = git("describe --tags --exact-match HEAD")
+        skip "HEAD is not a release" if tag.nil? || tag.empty?
+
+        assert_equal tag, version_at("HEAD"),
+                     "tag #{tag} is on a commit that calls itself " \
+                     "#{version_at("HEAD")}"
+    end
+
+    # And the other direction, which catches the tag that was moved on
+    # or never moved: if a tag with this version's name exists at all,
+    # it must name the commit that introduced it.
+    def test_a_tag_named_for_this_version_points_at_it
+        skip "not a git checkout" unless File.directory?(File.join(ROOT, ".git"))
+
+        tag = Corrigenda::VERSION
+        skip "#{tag} is not tagged yet" if
+            git("rev-parse -q --verify refs/tags/#{tag}").nil?
+
+        assert_equal tag, version_at(tag),
+                     "tag #{tag} points at a commit that calls itself " \
+                     "#{version_at(tag)}"
     end
 end
