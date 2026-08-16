@@ -76,6 +76,17 @@
     const ENDPOINT = new URL(CFG.endpoint, location.href);
     const CROSS_ORIGIN = ENDPOINT.origin !== location.origin;
 
+    /* The service's own page, which is the endpoint's mount rather
+     * than the endpoint: reports are POSTed to <mount>/report/, and a
+     * person following the destination line wants what is AT that
+     * host -- the review UI, the add-on, what this thing is -- not the
+     * URL that only answers a POST. Undone the same way it was made
+     * (see CFG.endpoint above); a page that named some other endpoint
+     * outright keeps it, because linking somewhere it did not name
+     * would be a guess about a host this widget is only a guest on. */
+    const SERVICE = new URL(
+        ENDPOINT.pathname.replace(/\/report\/?$/, "/"), ENDPOINT);
+
     /* Whether a report from this page can be filed at all. The schema
      * requires page.url to be http or https -- the review UI renders it
      * as a link somebody clicks, so a javascript: or a data: address
@@ -171,6 +182,7 @@
             aboutAudit: "contrast, target size, missing alt",
             aboutScreenshot: "an image you capture and crop",
             capture: "Capture…", recapture: "Capture again", drop: "Remove",
+            pickFirst: "no element yet — click to pick one",
             scopeElement: "The picked element",
             scopeViewport: "The visible page",
             scopeFull: "No crop — all you shared",
@@ -234,6 +246,7 @@
             aboutAudit: "contraste, taille de cible, alt manquant",
             aboutScreenshot: "une image que vous capturez et recadrez",
             capture: "Capturer…", recapture: "Recapturer", drop: "Retirer",
+            pickFirst: "pas encore d'élément — cliquez pour en choisir un",
             scopeElement: "L'élément sélectionné",
             scopeViewport: "La page visible",
             scopeFull: "Sans recadrage — tout le partage",
@@ -1489,13 +1502,25 @@
            across lines is a hostname somebody mistypes, so this one
            never breaks: it takes a line of its own and is cut with an
            ellipsis when the panel is narrower than the name -- whole
-           in the title, and selectable like the rest of the line. */
+           in the title, and selectable like the rest of the line.
+
+           It is also the way there, and stays discreet about it: no
+           rule under it and none on hover, the colour of the line it
+           sits in rather than a browser's blue. What answers is the
+           cursor and the ink under the pointer — this is a colophon,
+           and a fact that happens to be reachable, not an invitation
+           to leave the page. */
         .colophon .destination {
             display: block;
             max-inline-size: 100%;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+            color: inherit;
+            cursor: pointer;
+            text-decoration: none;
+
+            &:hover { color: var(--ink); }
         }
 
         h2 {
@@ -1636,6 +1661,21 @@
                 background: transparent;
                 box-shadow: inset 0 0 0 1px var(--line);
                 opacity: 0.55;
+            }
+        }
+
+        /* Unavailable because nothing is picked YET — and the switch
+         * is also the way to change that, so it invites instead of
+         * refusing. The drained chip stays (the channel really is
+         * off); the cursor and the hover say the door is open, and
+         * the hint on the row explains what a press will do. */
+        &.is-pickable {
+            cursor: pointer;
+
+            &:hover .chip,
+            input:focus-visible + .chip {
+                box-shadow: inset 0 0 0 1px var(--accent);
+                opacity: 0.8;
             }
         }
 
@@ -2043,6 +2083,7 @@ input:where(:not(:checked)) + .chip {
         padding-inline: 0.45rem;
         font-size: 0.8125rem;
     }
+
 
     /* A fact about the browser, not about this report: it sits in the
      * header, out of the way, and explains itself on hover or focus
@@ -2463,15 +2504,29 @@ input:where(:not(:checked)) + .chip {
      * region whose covered elements share no ancestor worth naming.
      * Offering to send its HTML, its rules or its contrast is offering
      * nothing: the switches go unavailable rather than quietly
-     * collecting undefined. */
+     * collecting undefined.
+     *
+     * But the switch is also where a reader looks when they want
+     * exactly that — so with nothing picked AT ALL it stays live and
+     * becomes the way to pick: drained like any off channel, its hint
+     * saying why, and the channel it names comes back checked once
+     * something is chosen (see the change listener). Only the region
+     * case stays truly dead: there the elements are already decided
+     * and a pick would discard them. */
     const syncElementChannels = () => {
         const has = Boolean(picked);
+        const pickable = !has && !region;
         for (const input of root.querySelectorAll(".channels input")) {
             if (!NEEDS_ELEMENT.includes(input.value)) continue;
 
-            input.disabled = !has;
+            input.disabled = !has && !pickable;
             if (!has) input.checked = false;
-            input.closest(".switch").classList.toggle("is-unavailable", !has);
+            const row = input.closest(".switch");
+            row.classList.toggle("is-unavailable", !has);
+            row.classList.toggle("is-pickable", pickable);
+            row.dataset.about = pickable
+                ? T.pickFirst
+                : CHANNELS.find((c) => c.key === input.value).about;
         }
     };
 
@@ -2523,6 +2578,12 @@ input:where(:not(:checked)) + .chip {
      * which elements is this about? */
     let holders = [];
     let picking = false;
+    /* Whether the pick was started from the open form rather than from
+     * the menu: it decides where a cancelled pick goes back to. The
+     * channel switch that started it rides along, to be checked once
+     * the pick lands — it asked for its channel, not only an element. */
+    let pickingFromForm = false;
+    let pendingChannel = null;
     let dragFromPoint = null;
     let dragged = false;
 
@@ -3192,18 +3253,41 @@ input:where(:not(:checked)) + .chip {
         hideGhosts();
         panel.hidden = false;
 
-        /* Cancelled: back to the menu it was started from. Landing on
-         * the form with nothing picked offers to send a report about
-         * an element the reporter just declined to choose. */
+        /* Cancelled: back to where it was started from. From the menu,
+         * that is the menu — landing on the form with nothing picked
+         * offers to send a report about an element the reporter just
+         * declined to choose. From the open form it is the form: an
+         * idea was already being written there, and cancelling an
+         * optional pick must not cost the words. */
         if (!keep) {
             picked = null;
             region = null;
             holders = [];
+            if (pickingFromForm) {
+                pickingFromForm = false;
+                pendingChannel = null;
+                showForm();
+                return;
+            }
             openPanel(false);
             return;
         }
 
+        pickingFromForm = false;
         showForm();
+
+        /* The switch that started this pick gets what it asked for.
+         * Through the input and its change event, so the usual
+         * accounting (shot sync, totals) runs — and only for an
+         * element: a region pick decided the elements differently,
+         * and the switch stays off rather than half-honoured. */
+        if (pendingChannel && picked) {
+            const input = root.querySelector(
+                `.channels input[value="${pendingChannel}"]`);
+            input.checked = true;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        pendingChannel = null;
     }
 
     /* ---------------------------------------------------------------
@@ -3257,7 +3341,11 @@ input:where(:not(:checked)) + .chip {
     const header = root.querySelector("header");
 
     header.addEventListener("pointerdown", (event) => {
-        if (event.target.closest("button")) return;
+        /* Controls in the header are not handles. The link to the
+         * service is the second of them: this handler captures the
+         * pointer and preventDefaults, which is a press that never
+         * becomes a click on the thing under it. */
+        if (event.target.closest("button, a")) return;
 
         dragFrom = { x: event.clientX - offset.x, y: event.clientY - offset.y };
         header.setPointerCapture(event.pointerId);
@@ -3794,7 +3882,21 @@ input:where(:not(:checked)) + .chip {
         }, true);
     }
 
-    root.querySelector(".channels").addEventListener("change", () => {
+    root.querySelector(".channels").addEventListener("change", (event) => {
+        /* A switch that needs an element, flipped while there is
+         * nothing to describe, is the reporter asking for the element:
+         * the toggle becomes the pick, and stopPicking checks this
+         * channel on the way back. An idea starts here on purpose —
+         * half-way through writing one it often turns out to be ABOUT
+         * something on the page. */
+        const input = event.target;
+        if (NEEDS_ELEMENT.includes(input.value) && !picked && !region) {
+            input.checked = false;
+            pendingChannel = input.value;
+            pickingFromForm = true;
+            startPicking();
+            return;
+        }
         syncShot();
         refresh();
     });
@@ -3857,10 +3959,23 @@ input:where(:not(:checked)) + .chip {
          * and riding the version line it either wrapped mid-hostname
          * or pushed the line to three. The ellipsis cuts it when the
          * panel is narrower than the name; the title keeps it entire. */
-        const where = document.createElement("span");
+        /* A link, and the only one in this panel: the origin was
+         * already the answer to "where does this go", and somebody
+         * reading it usually wants the next question answered too.
+         *
+         * In a new tab, always: this panel holds a report somebody is
+         * part-way through writing, and navigating the page it is
+         * reporting on would take both away. rel because the widget is
+         * a guest on a page it does not trust. The title carries the
+         * whole target, which is also what makes an ellipsised origin
+         * readable. */
+        const where = document.createElement("a");
         where.className = "destination";
+        where.href = SERVICE.href;
+        where.target = "_blank";
+        where.rel = "noopener noreferrer";
         where.textContent = `→ ${ENDPOINT.origin}`;
-        where.title = ENDPOINT.origin;
+        where.title = SERVICE.href;
         colophon.append(where);
     };
 
