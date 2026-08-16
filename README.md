@@ -23,6 +23,20 @@ send. The switches are what turns a complaint into evidence, and they
 are yours to change before it goes: the panel says how many kilobytes
 that adds up to, and will show you the whole payload first.
 
+**It pairs well with an agent.** Evidence is the difference between a
+report somebody has to reproduce first and one a program can act on: a
+selector and an XPath to find the element again, every rule that
+matched it with the stylesheet and cascade layer it came from, the
+computed values, the errors and failed loads, the viewport and colour
+scheme it was all seen under. Point an AI at the JSON interface and it
+can read what came in, reproduce the defect under the conditions the
+report names, fix it where the rule lives, and write down what it did
+with an after-picture beside the original. It can claim `proposed`;
+calling something *fixed* stays a person's word, after their own look.
+Nothing needs installing for that — the service serves the manual and
+the schema an agent reads. [For a program](#for-a-program), and
+[AGENT-USAGE.md](AGENT-USAGE.md).
+
 ## Quick start
 
 Ruby 3.4 and bundler. Three lines and the widget is in front of you:
