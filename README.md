@@ -12,6 +12,17 @@ feedback box: the reporter is already logged in, reports land on disk,
 and somebody reads them when they choose to. No mail, no queue, no
 moderation.
 
+<img src="doc/widget.png" width="360"
+     alt="The widget's panel over a page: the title bar names the picked
+          element and its size, a typed sentence describes the defect,
+          and six switches say what will be sent — element, CSS rules,
+          computed styles, diagnostics, accessibility, screenshot.">
+
+Pick the thing that is wrong, say what is wrong with it, and press
+send. The switches are what turns a complaint into evidence, and they
+are yours to change before it goes: the panel says how many kilobytes
+that adds up to, and will show you the whole payload first.
+
 ## What it is made of
 
 A widget (one JavaScript file, CSS inlined, living in a shadow root), a
@@ -87,6 +98,11 @@ To see the widget without any of that:
     ./run -f -p 9393     # then open http://127.0.0.1:9393/fixture.html
 
 ## Reading what came in
+
+![The review listing: five reports, each a row giving when it was filed,
+its kind, the page, a summary, coloured letters for what it carries, who
+sent it, its state as a coloured control, and an archived
+switch.](doc/review.png)
 
 The review UI is at `/review` behind the same login as the endpoint.
 A report is triaged from its row in the listing as well as from its own
