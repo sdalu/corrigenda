@@ -40,6 +40,11 @@ module Corrigenda
         # and a second drawing is a second thing to keep in step.
         ICON = File.expand_path("../../extension/icon.svg", __dir__)
 
+        # The agent manual. Served from the checkout the service runs
+        # from, so the copy an agent fetches is definitionally the
+        # version of the service it is talking to.
+        MANUAL = File.expand_path("../../AGENT-USAGE.md", __dir__)
+
         # Swagger UI, vendored rather than fetched from a CDN: this page
         # is behind a login, and a viewer that pulls a megabyte and a
         # half from somebody else's server on every visit is a third
@@ -161,6 +166,49 @@ module Corrigenda
 
             cache_control :public, max_age: 31_536_000, immutable: true
             send_file File.join(VIEWER_DIR, params[:asset]), type:
+        end
+
+        # llms.txt (llmstxt.org): a small curated markdown file at a
+        # mount root, for an agent that arrives knowing only the
+        # convention. Generated rather than shipped so it can only say
+        # what this deployment's config says — a hand-written copy is a
+        # second description of the interface, one config edit away
+        # from pointing at a dead route. It stays a pointer: the schema
+        # it links to carries the real instructions, one per operation.
+        get "/llms.txt" do
+            content_type "text/plain; charset=utf-8"
+
+            head = ["# Corrigenda", "",
+                    "> A defect-report service: reports about what a page",
+                    "> shows, filed with their evidence — the element, the",
+                    "> rules that styled it, a screenshot."]
+
+            body =
+                if api_offered?
+                    ["> The JSON interface under #{mount("/api/")}",
+                     "> describes itself: start with a GET there — it says",
+                     "> what routes exist and what this deployment allows.",
+                     "",
+                     "## Docs",
+                     "",
+                     "- [agent-usage.md](#{mount("/agent-usage.md")}): " \
+                     "the protocol for working reports, written for you",
+                     "- [openapi.json](#{mount("/api/openapi.json")}): " \
+                     "the interface in full, with a note addressed " \
+                     "to an AI on every operation"]
+                else
+                    ["> Its JSON interface is switched off here: reports",
+                     "> are read by people, in the review UI."]
+                end
+
+            (head + body).join("\n") << "\n"
+        end
+
+        # The protocol the landing page's prompt no longer restates:
+        # written once, in AGENT-USAGE.md, and handed out by the
+        # service so an agent with only the socket needs no checkout.
+        get "/agent-usage.md" do
+            send_file MANUAL, type: "text/plain; charset=utf-8"
         end
 
         get "/corrigenda.js" do

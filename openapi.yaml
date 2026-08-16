@@ -100,9 +100,11 @@ info:
         check -- what you changed, where, and how you verified it --
         and put commits or paths in `refs`. Work that changed nothing
         is worth a line too: what you reproduced, what you ruled out.
-        `fixed` means the defect is gone where it was reported, not
-        that a commit exists; `wontfix` is a person's decision, so
-        leave it open and say so instead.
+        When you believe the defect is gone, set `proposed`: it is the
+        claim before the confirmation, and it is what tells a reviewer
+        to look. `fixed` and `wontfix` are a person's decisions — set
+        `fixed` only when the person driving you has explicitly said
+        to.
 
         **A session, end to end:**
 
@@ -115,9 +117,10 @@ info:
         curl -s $SOCK $BASE/reports/<id>                      # the evidence
         curl -s $SOCK -o shot.webp $BASE/reports/<id>/file/screenshot.webp
 
-        # ...fix it in the site's repository, then say so and why:
+        # ...fix it in the site's repository, then claim it and say why
+        # (proposed, not fixed: a person confirms, and archives then):
         curl -s $SOCK -X PATCH -H 'Content-Type: application/json' \
-             -d '{"state": "fixed", "archived": true,
+             -d '{"state": "proposed",
                   "note": "raised .caption line-height to 1.5; contrast 4.8:1",
                   "agent": "claude", "refs": ["a1b2c3d"]}' \
              $BASE/reports/<id>
@@ -350,10 +353,12 @@ paths:
                 it sets the state, archives, and records why, in one
                 request. Send a `note` a person can check — what you
                 changed, where, and how you verified it — and put
-                commits or paths in `refs`. `fixed` means the defect is
-                gone where it was reported, not that a commit exists.
-                `wontfix` is a person's decision: leave it open and say
-                so instead.
+                commits or paths in `refs`. When you believe the defect
+                is gone, set `proposed` — verified under the conditions
+                the report names, it is still a claim awaiting a
+                person's look. `fixed` and `wontfix` are their
+                decisions: set `fixed` only when explicitly told to,
+                and leave `wontfix` alone entirely.
             requestBody:
                 required: true
                 content:
@@ -708,10 +713,12 @@ components:
 
         State:
             type: string
-            enum: [open, fixed, wontfix]
+            enum: [open, proposed, fixed, wontfix]
             description: >
-                What happened to the defect. Archived is not a fourth
-                state: a report is archived *and* fixed, or archived and
+                What happened to the defect. `proposed` is the claim
+                before the confirmation — the work looks done, a person
+                has not yet agreed. Archived is not a fifth state: a
+                report is archived *and* fixed, or archived and
                 wontfix.
 
         Service:

@@ -80,11 +80,17 @@ To see the widget without any of that:
 The review UI is at `/review` behind the same login as the endpoint.
 A report is triaged from its row in the listing as well as from its own
 page. Two controls, because they answer two questions: a list of
-**open, fixed or wontfix** says what happened to the defect — it shows
-the state the report is in, in that state's colour, and the button
-beside it applies what you pick — and an **archived** switch says
+**open, proposed, fixed or wontfix** says what happened to the defect —
+it shows the state the report is in, in that state's colour, and the
+button beside it applies what you pick — and an **archived** switch says
 whether anybody still wants it in front of them. A morning's reports do
 not mean opening each one.
+
+`proposed` is the claim before the confirmation: whoever did the work —
+usually an agent — believes the defect gone, and the report waits for
+your look before anyone calls it fixed. A blue row in the listing is
+work claiming to be done; the journal beside it says what was done and
+shows the after-picture to check it by.
 
 Archiving keeps everything: the switch goes back the other way, from
 the archived list or from the report. Deleting is on the report's own
@@ -130,6 +136,9 @@ that knows nothing else can start there.
 It describes itself: [openapi.yaml](openapi.yaml), served at
 `/api/openapi.json` and rendered at `/apidocs`, where the masthead
 grows an **API** tab on a deployment that has switched it on.
+`llms.txt` at the mount is the convention-shaped pointer to the same
+thing, for an agent that arrives knowing nothing else; generated, so
+it says the interface is off rather than linking a dead route.
 
 Reading needs nothing further. Changing anything is listed, one grant
 at a time:
@@ -173,11 +182,20 @@ Three things worth keeping if you write your own: point it at
 it means "I changed something", which is a different claim and the
 one you will be reading later; and ask for the picture, since a
 screenshot taken after the work sits beside the one the report came
-with and settles the claim without you opening the site.
+with and settles the claim without you opening the site. An agent
+handed no prompt at all still has a front door: `llms.txt` at the
+mount says what this is and points at the schema.
 
 An agent given `write: [journal]` and nothing else is a good way to
 start: it tells you what it found and what it tried, and every state
 on the board still moved because a person moved it.
+
+The protocol itself — the review loop, what *fixed* means, the journal
+voice, what is never the agent's to do — is written once, in
+[AGENT-USAGE.md](AGENT-USAGE.md), so a prompt can stay short and the
+deployment's own page can stay the authority on its specifics. A
+running service serves it at `/agent-usage.md`, which is where the
+prompt sends the agent — only the socket is needed, no checkout.
 
 Nothing expires unless the config says it should:
 
@@ -204,6 +222,7 @@ sanitiser and the CORS dance only exist in a browser — see
 | [DESIGN.md](DESIGN.md) | what it captures and why, the payload, the storage model — the reasoning under all of it |
 | [HISTORY.md](HISTORY.md) | approaches taken and abandoned, and the failures that shaped what is here |
 | [openapi.yaml](openapi.yaml) | the JSON interface in full — the only description of it, rendered at `/apidocs` |
+| [AGENT-USAGE.md](AGENT-USAGE.md) | using a deployment as an agent: the review loop, the journal, what is never yours |
 | [deploy/README.md](deploy/README.md) | installing it, the Apache wiring, retention in cron |
 | [extension/README.md](extension/README.md) | the add-on: build, install, permissions |
 | [test/browser/README.md](test/browser/README.md) | the browser checks and what each covers |

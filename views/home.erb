@@ -437,6 +437,15 @@
                 "curl #{endpoint || "<this endpoint>"}/api/"
             end
 
+    # The manual travels the same pipe as the interface: an agent that
+    # can reach one can reach the other, so the prompt can point at it
+    # instead of restating the protocol it carries.
+    manual = if socket
+                 "curl --unix-socket #{socket} http://localhost/agent-usage.md"
+             else
+                 "curl #{endpoint || "<this endpoint>"}/agent-usage.md"
+             end
+
 
     # Wrapped where it is written: this ends up inside a <pre>, and a
     # paragraph that runs to three hundred characters is one somebody
@@ -446,24 +455,24 @@
     #  margin for that reason: indented to sit under `doing =` they wrapped
     #  at 55 characters while the rest of the prompt wrapped at 70, and the
     #  paragraph looked like it had been pasted in from somewhere else.
+    # Only the grant, in each variant: the discipline that goes with it
+    # — the journal voice, the after-picture, what a fixed claim needs
+    # — is the manual's, written once. What stays is what the manual
+    # cannot say: which changes THIS deployment allows, and the words
+    # between the person and their agent — "tell me", "I will set it".
     doing = if api_allows?("state")
 <<~SAY.chomp
-    Record what you did on the report as you go, and attach a screenshot of
-    the page after your change — taken at the viewport and colour scheme the
-    report names, and say so in the image's viewport and scheme fields — so
-    what you did can be seen beside the picture it was reported with. Do
-    not mark anything fixed until you have checked the defect is gone
-    under those same conditions. If a report needs a decision rather than
-    a change, leave it open and tell me.
+    You may add to a report's journal and set its state here. Claim
+    proposed, never fixed, when you believe a defect is gone — the manual
+    says what that claim needs, and fixed is mine to confirm after a
+    look. If a report needs a decision rather than a change, leave it
+    open and tell me.
 SAY
             elsif api_allows?("journal")
 <<~SAY.chomp
-    Record what you find and what you tried on each report as you go, with a
-    screenshot of the page after any change — taken at the viewport and
-    colour scheme the report names, and say so in the image's viewport
-    and scheme fields — so it can be seen beside the picture it was
-    reported with. You cannot change a report's state here: say what you
-    believe it should be and I will set it.
+    You may add to a report's journal but not change its state: record
+    your work as the manual says, then tell me what you believe the state
+    should be and I will set it.
 SAY
             else
 <<~SAY.chomp
@@ -489,21 +498,15 @@ JSON interface answers under /api:
 
     <%= reach %>
 
-Start with that: it says what routes exist and which changes this
-deployment allows. GET /api/openapi.json is the full schema, and it
-carries a note addressed to you on every operation — read it before
-deciding how to use anything.
+The protocol for working its reports — the loop, what fixed means,
+what to write on each report — is the manual the service itself
+serves. Read it first:
 
-GET /api/sites says which sites this deployment takes reports about and
-how many are open for each. Work through the open ones:
-GET /api/reports?state=open, with &amp;site= added if I have asked you
-for one site rather than all of them.
+    <%= manual %>
 
-For each one: read the report, look at its screenshot, reproduce the
-defect at the viewport and colour scheme it names, then fix it where the
-rule lives. Each report names the stylesheet and the cascade layer every
-matching rule came from; prefer changing it there over adding an
-override somewhere else.
+Then GET /api/ says which changes this deployment allows, and the full
+schema, GET /api/openapi.json, carries a note addressed to you on
+every operation — read it before deciding how to use anything.
 
 <%= doing %></pre>
         <button type="button" class="a-copy">Copy</button>
@@ -518,7 +521,9 @@ override somewhere else.
     claim and the one you will be reading later; and ask for the
     picture, since a screenshot taken after the work sits beside the one
     the report came with and settles the claim without you opening the
-    site.
+    site. An agent handed no prompt at all still has a front door:
+    <a href="<%= mount("/llms.txt") %>"><code>llms.txt</code></a> at
+    this mount says what this is and points at the schema.
 </p>
 <% end %>
 

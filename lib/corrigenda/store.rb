@@ -13,7 +13,12 @@ module Corrigenda
     # volume is tens per month and this survives a year of neglect.
     class Store
         INDEX  = "index.jsonl"
-        STATES = %w[open fixed wontfix].freeze
+        # `proposed` is the claim before the confirmation: whoever did
+        # the work — usually an agent — says the defect looks gone, and
+        # a person moves it to `fixed` once they have looked. It exists
+        # so that "fixed" stays a word somebody stops checking behind,
+        # and so a reviewer can see at a glance what awaits them.
+        STATES = %w[open proposed fixed wontfix].freeze
 
         # The shape of an id this store mints, for anything that must
         # refuse one before asking the disk. The review UI and the API

@@ -125,6 +125,31 @@ class HomeTest < CorrigendaTest
         TestSupport.configure
     end
 
+    # llms.txt is how an agent that knows only the convention finds its
+    # footing: generated from the config, so what it links exists, and
+    # carrying the mount so the link works from where it was fetched.
+    def test_llms_txt_points_at_the_interface_when_there_is_one
+        TestSupport.configure("api" => true)
+        get "/llms.txt", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
+
+        assert_predicate last_response, :ok?
+        assert_includes last_response.body, "# Corrigenda"
+        assert_includes last_response.body,
+                        "(/.corrigenda/agent-usage.md)"
+        assert_includes last_response.body,
+                        "(/.corrigenda/api/openapi.json)"
+    ensure
+        TestSupport.configure
+    end
+
+    def test_llms_txt_says_when_the_interface_is_off
+        get "/llms.txt"
+
+        assert_predicate last_response, :ok?
+        assert_includes last_response.body, "switched off"
+        refute_includes last_response.body, "openapi.json"
+    end
+
     # The prompt is on the page rather than in the README because this
     # page knows the answers: the socket this service listens on, a site
     # it accepts reports about, and what an agent may do here.
@@ -144,11 +169,10 @@ class HomeTest < CorrigendaTest
         TestSupport.configure
     end
 
-    # It names no site. An estate has as many as it has, and taking one
-    # off the top of the list tells an agent to work on whichever
-    # happened to be written first; the filter is the useful thing to
-    # teach instead.
-    def test_the_prompt_teaches_the_filter_rather_than_naming_a_site
+    # It names no site, and no longer restates the protocol either:
+    # the loop lives in the manual the service serves, written once,
+    # and the prompt's job is to say where it is.
+    def test_the_prompt_points_at_the_manual_rather_than_restating_it
         TestSupport.configure("api" => true,
                               "sites" => %w[a.example.com b.example.com])
         get "/"
@@ -156,15 +180,27 @@ class HomeTest < CorrigendaTest
                      .to_s
 
         refute_includes prompt, "a.example.com"
-        assert_includes prompt, "state=open"
-        assert_includes prompt, "site="
+        refute_includes prompt, "state=open"
+        assert_includes prompt, "/agent-usage.md"
     ensure
         TestSupport.configure
     end
 
+    # Served from the checkout the service runs from, so the copy an
+    # agent fetches matches the service it is talking to — and holds
+    # what the prompt stopped carrying.
+    def test_it_serves_the_agent_manual
+        get "/agent-usage.md"
+
+        assert_predicate last_response, :ok?
+        assert_includes last_response.body, "state=open"
+        assert_includes last_response.body, "not code review"
+    end
+
     # And what it tells the agent to do follows what the deployment
     # actually allows, so a prompt cannot promise a permission the
-    # endpoint will refuse.
+    # endpoint will refuse. Only the grant: the discipline that goes
+    # with it lives in the manual, asserted below.
     def test_the_prompt_says_what_the_agent_may_do
         TestSupport.configure("api" => true)
         get "/"
@@ -177,47 +213,41 @@ class HomeTest < CorrigendaTest
         # Wrapped where it is written, so the assertion has to be too:
         # the prompt lives inside a <pre> and its lines are chosen for
         # reading, not for matching.
-        assert_match(/cannot\s+change a report/, last_response.body)
+        assert_match(/not change its\s+state/, last_response.body)
 
         TestSupport.configure("api" => { "write" => true })
         get "/"
 
-        assert_match(/Do\s+not mark anything fixed/, last_response.body)
+        assert_match(/set its\s+state here/, last_response.body)
     ensure
         TestSupport.configure
     end
 
     # A picture of the page after the work is the half of a claim that
-    # can be checked, so every prompt that may write at all asks for one.
-    def test_the_prompt_asks_for_the_picture_wherever_it_may_write
+    # can be checked. The ask lived in every write-granted variant of
+    # the prompt; it lives in the manual now, once, with the conditions
+    # the picture itself cannot show — a comparison at another width
+    # proves nothing, and nobody can tell unless the agent says.
+    def test_the_manual_asks_for_the_picture_and_its_conditions
+        get "/agent-usage.md"
+
+        assert_includes last_response.body,
+                        "beside the screenshot it was filed"
+        assert_match(/`viewport` and `scheme`/, last_response.body)
+    end
+
+    # Both write-granted prompts hand the discipline to the manual by
+    # name rather than restating it; the read-only one has nothing to
+    # hold the agent to.
+    def test_the_write_prompts_lean_on_the_manual
         ["journal", "state"].each do |grant|
             TestSupport.configure("api" => { "write" => [grant] })
             get "/"
 
-            assert_match(/screenshot of\s+the page after/,
+            assert_match(/[Tt]he manual\s+says/,
                          last_response.body,
-                         "#{grant}: the prompt never asks for a picture")
-            assert_match(/beside the picture it\s+was\s+reported with/,
-                         last_response.body)
-
-            # And the conditions it was taken under, which the picture
-            # itself cannot show: a comparison at another width proves
-            # nothing, and nobody can tell unless the agent says. Named
-            # without the apostrophe before it -- the prompt is escaped
-            # into the page, so `image's` is not what the body holds.
-            assert_match(/viewport\s+and\s+scheme\s+fields/,
-                         last_response.body,
-                         "#{grant}: the prompt never asks for the " \
-                         "conditions it was taken under")
+                         "#{grant}: the prompt never names the manual")
         end
-
-        # And does not, where it may not: an agent told to attach
-        # something it will be refused for is an agent that reports a
-        # failure.
-        TestSupport.configure("api" => true)
-        get "/"
-
-        refute_match(/screenshot of\s+the page after/, last_response.body)
     ensure
         TestSupport.configure
     end

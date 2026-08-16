@@ -63,47 +63,22 @@ and you want to drive the same page yourself.
 
 ## Reading the reports as a program
 
-If the deployment's config carries an `api:` key, the service answers
-JSON under `/api` — the listing, one report in full, and the screenshot
-as bytes. On this host, reach it through the socket rather than through
-Apache, which saves needing a login:
+Driving a deployment — listing reports, the review loop, the journal
+voice, what is never the agent's to do — is
+[AGENT-USAGE.md](AGENT-USAGE.md)'s
+subject, kept out of this file so the agent fixing a site never needs
+the dev conventions, and the agent working here is not handed the
+operator's. Read it before touching the store or the API, even from a
+dev session. What stays here is only what is true of this checkout's
+host: reach the deployment through its socket rather than through
+Apache, which saves needing a login —
 
     curl --unix-socket /var/run/corrigenda/corrigenda.sock \
          http://localhost/api/reports
 
-`GET /api/` describes itself: the routes, whether writes are allowed,
-the id format. In full, with a note to an agent on every operation:
-[openapi.yaml](openapi.yaml), served at `/api/openapi.json` and
-rendered at `/apidocs`. Every change asks for its own grant —
-`state`, `archive`, `journal` — and answers 403 without it; `sites`
-in the config bounds any of them to particular hostnames, as
-anchored regular expressions. There is no delete at all, which stays
-in the review UI, where it asks twice.
-
-Without the key every path there is a 404, so the first thing to check
-when it seems missing is the config and not the code. From a terminal
-`rake data:list` and friends read the same store with no service at
-all.
-
-**Say what you did.** Every report carries a journal, appended and
-never rewritten; state changes write their own line, and the reason is
-yours to add — `PATCH` with a `note`, or `rake data:status ID=… SET=…
-NOTE="…"`. A person reads that trail to decide whether to believe the
-state, so write for them: what changed, where, and how you checked it.
-Work that changed nothing is worth a line too.
-
-**And show it.** A line can carry a picture — `image: {data: "<base64
-or a data: URL>"}` beside the note, or `SHOT=after.webp` on the rake
-task. It is filed as `shot-N.webp` and the review page puts it beside
-the screenshot the report was filed with, which is the comparison
-somebody wants before believing "fixed". Take the picture the same way
-the report's was taken (the widget's own capture, or a headless
-browser at the reported viewport); a screenshot of a different width
-proves nothing about the defect. The image takes `viewport` and
-`scheme` beside `data` — say what the picture was really taken at, and
-the report page prints it next to the conditions the report itself
-names, so a comparison made under others is visible rather than
-assumed.
+— and remember that without an `api:` key in the config every path
+under `/api` is a 404, so the first thing to check when it seems
+missing is the config and not the code.
 
 ## Guards that will fail a commit
 
