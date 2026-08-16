@@ -866,6 +866,17 @@
            a form with no way to submit it. */
         &.is-live button { display: none; }
 
+        /* Unless the control holds a choice the server has not been
+           sent: `selected` is what the page rendered, `:checked` what
+           the select holds now, and while they differ the press comes
+           back and the box goes dashed. A keyboard-made choice waits
+           for Enter or a blur, and a reload in that window would drop
+           it without a word — this is the word. */
+        &.is-live:has(option[selected]:not(:checked)) {
+            button { display: revert; }
+            select { border-style: dashed; }
+        }
+
         /* In a table row, where the same control is read down a page.
            At this type size the box fell under the 24px target floor;
            the row stays dense, the target does not shrink with it. */
@@ -1447,8 +1458,12 @@
     change sets `wontfix` on a report while somebody is still reading
     past it to `fixed`. So how the choice was made decides when it is
     applied: a pointer has finished choosing when the list closes, a
-    keyboard has finished when the reader leaves it (or presses Enter,
-    which submits the form by itself). %>
+    keyboard has finished when the reader leaves it or presses Enter —
+    handled in the script, because Firefox, unlike Chrome, never
+    submits a form from a closed select on its own. A choice that has
+    not been applied yet brings the Set button back (the pending rule
+    in the sheet), so it is visible rather than silently lost to a
+    reload that arrives before any of that. %>
 <script>
 (() => {
     "use strict";
@@ -1463,15 +1478,28 @@
         let pointer = false;
         let applied = list.value;
 
-        list.addEventListener("pointerdown", () => { pointer = true; });
-        list.addEventListener("keydown", () => { pointer = false; });
-
         const apply = () => {
             if (list.value === applied) return;
 
             applied = list.value;
             form.requestSubmit();
         };
+
+        list.addEventListener("pointerdown", () => { pointer = true; });
+
+        /* Enter is applied HERE, not left to the engine: Firefox
+           never submits a form from a closed select on Enter --
+           Chrome does -- so the keyboard's commit gesture did
+           nothing there, and the choice sat unsent until a blur
+           that a reload does not provide. preventDefault so Chrome
+           does not also submit natively and race this one. */
+        list.addEventListener("keydown", (event) => {
+            pointer = false;
+            if (event.key === "Enter") {
+                event.preventDefault();
+                apply();
+            }
+        });
 
         list.addEventListener("change", () => { if (pointer) apply(); });
         list.addEventListener("blur", apply);
