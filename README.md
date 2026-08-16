@@ -23,6 +23,43 @@ send. The switches are what turns a complaint into evidence, and they
 are yours to change before it goes: the panel says how many kilobytes
 that adds up to, and will show you the whole payload first.
 
+## Quick start
+
+Ruby 3.4 and bundler. Three lines and the widget is in front of you:
+
+    bundle install
+    cp deploy/corrigenda-template.yml deploy/corrigenda.yml
+    ./run -f -p 9393
+
+Open <http://127.0.0.1:9393/fixture.html>. The widget opens on its own
+menu — it was loaded on purpose, so the menu is what you came for —
+and **Debug** in the corner is the way back in after closing it. File a
+report about the test page: pick a kind, pick an element, type a
+sentence, send. It lands in `/var/tmp/corrigenda-fixture` and shows up
+at <http://127.0.0.1:9393/review/>. The template needs no editing for
+this — `-f` serves the fixture page and drops the site allowlist, which
+is why it is a playground and not a deployment.
+
+Three things it does not do yet, in the order you will want them:
+
+1. **Put the widget on a real site.** The landing page at the mount
+   carries a bookmarklet — drag it to the toolbar and it loads the
+   widget on whatever page you are looking at, no install on the site
+   at all. Below in [Getting a report in](#getting-a-report-in).
+2. **Answer somewhere permanent.** Edit `deploy/corrigenda.yml` — the
+   store, the endpoint, who may reach it — and let `deploy/macro`
+   write the Apache configuration from it rather than writing it
+   twice. [deploy/README.md](deploy/README.md) has the wiring.
+3. **Let a program read the reports.** `api: true` in the config, and
+   `/api` answers JSON that describes itself. [For a
+   program](#for-a-program), and the manual an agent is handed is
+   [AGENT-USAGE.md](AGENT-USAGE.md).
+
+Whatever you change, this says whether it still works:
+
+    bundle exec rake test           the endpoint, ~2 seconds
+    bundle exec rake test:browser   the widget, in real browsers
+
 ## What it is made of
 
 A widget (one JavaScript file, CSS inlined, living in a shadow root), a
@@ -78,24 +115,20 @@ screen the stored image shows that margin at the screen's own scale, so
 it looks like more than sixteen. Form fields are blacked out before the
 image is encoded, and nothing off-screen is ever captured.
 
-## Running it
+## Running it for real
 
-Ruby 3.4, Sinatra 4.2, Puma 8. Gems install into `vendor/`.
+Ruby 3.4, Sinatra 4.2, Puma 8. Gems install into `vendor/`. The
+[quick start](#quick-start) above is the same thing with the editing
+skipped; this is the line that was skipped:
 
-    bundle install
-    cp deploy/corrigenda-template.yml deploy/corrigenda.yml
     $EDITOR deploy/corrigenda.yml      # the store, the endpoint, who may reach it
-    ./run
+    ./run                              # no -f: the configured socket, the real store
 
 The config is the deployment: where reports are written, the socket
 Apache proxies to, which sites may be reported on, how long a report is
 kept. It is not tracked, and the Apache configuration is generated from
 it rather than written twice — [deploy/README.md](deploy/README.md) has
 the whole wiring, including why the service starts by hand.
-
-To see the widget without any of that:
-
-    ./run -f -p 9393     # then open http://127.0.0.1:9393/fixture.html
 
 ## Reading what came in
 
