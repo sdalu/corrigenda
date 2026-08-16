@@ -176,15 +176,18 @@ paragraph that says what the agent is allowed to do there. Copy it
 from the page rather than from here, where it could only say
 `<site>`.
 
-Three things worth keeping if you write your own: point it at
-`/api/` first, so it learns what it may do rather than discovering a
-403 halfway through; say what *fixed* means to you — otherwise
+Three things worth keeping if you write your own: point it at the
+interface's own root first, so it learns what it may do rather than
+discovering a 403 halfway through — and write that address in full,
+because only the socket sees this app unmounted; through the web it is
+`<endpoint>/api/`, and a bare `/api/` is a path on the host's root
+where nothing answers. Say what *fixed* means to you — otherwise
 it means "I changed something", which is a different claim and the
-one you will be reading later; and ask for the picture, since a
+one you will be reading later. And ask for the picture, since a
 screenshot taken after the work sits beside the one the report came
 with and settles the claim without you opening the site. An agent
 handed no prompt at all still has a front door: `llms.txt` at the
-mount says what this is and points at the schema.
+mount says what this is and points at both the manual and the schema.
 
 An agent given `write: [journal]` and nothing else is a good way to
 start: it tells you what it found and what it tried, and every state

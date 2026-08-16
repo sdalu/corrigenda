@@ -1346,6 +1346,33 @@
         min-inline-size: 0;
     }
 
+    /* Which prompt, and which prompt this is. The caption is not a
+       heading: it qualifies the block under it and disappears into the
+       margin colour, so the prompt itself stays the thing on the page.
+       Both are there without JavaScript, each under its own caption;
+       the select only ever hides one. */
+    .prompt-pick {
+        margin-block: 0.75rem 0.4rem;
+        font-size: 0.9375rem;
+        color: var(--muted);
+
+        select {
+            font: inherit;
+            color: var(--ink);
+            background: var(--panel);
+            border: 1px solid var(--rule);
+            border-radius: 3px;
+            padding: 0.15rem 0.3rem;
+        }
+    }
+
+    .prompt-note {
+        max-inline-size: var(--measure);
+        margin-block: 0 0.3rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+    }
+
     .bookmarklet-source,
     .prompt {
         inline-size: 100%;

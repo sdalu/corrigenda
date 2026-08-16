@@ -9,6 +9,12 @@ class HomeTest < CorrigendaTest
         TestSupport.configure
     end
 
+    # The prompts on the page, in the order they are written: the local
+    # one first where there is a socket, the remote one always.
+    def prompts
+        last_response.body.scan(%r{<pre class="prompt">(.*?)</pre>}m).flatten
+    end
+
     def test_the_mount_point_is_a_page_not_a_404
         get "/"
 
@@ -173,15 +179,106 @@ class HomeTest < CorrigendaTest
     # the loop lives in the manual the service serves, written once,
     # and the prompt's job is to say where it is.
     def test_the_prompt_points_at_the_manual_rather_than_restating_it
-        TestSupport.configure("api" => true,
+        TestSupport.configure("api" => true, "socket" => "/var/run/x/y.sock",
                               "sites" => %w[a.example.com b.example.com])
         get "/"
-        prompt = last_response.body[%r{<pre class="prompt">(.*?)</pre>}m, 1]
-                     .to_s
+        prompt = prompts.first.to_s
 
         refute_includes prompt, "a.example.com"
         refute_includes prompt, "state=open"
         assert_includes prompt, "/agent-usage.md"
+    ensure
+        TestSupport.configure
+    end
+
+    # Where the agent runs decides what its prompt may assume, so there
+    # are two: the socket is behind no login and can be handed commands,
+    # while everything else arrives through Apache needing credentials
+    # this page cannot supply — that one is pointed at llms.txt and left
+    # to read its way in.
+    def test_a_deployment_with_a_socket_offers_both_prompts
+        TestSupport.configure("api" => true, "socket" => "/var/run/x/y.sock",
+                              "endpoint" => "https://tools.example.com/.c")
+        get "/"
+        here, away = prompts
+
+        assert_equal 2, prompts.size, "wanted a local prompt and a remote one"
+        assert_includes here, "--unix-socket /var/run/x/y.sock"
+        assert_includes away, "https://tools.example.com/.c/llms.txt"
+        refute_includes away, "--unix-socket",
+                        "the remote prompt cannot reach the socket"
+
+        # And every path it names is written from the mount. Only the
+        # socket sees this app unmounted: through Apache a bare /api
+        # is a path on the host's root, where nothing answers.
+        away.scan(%r{\S*/api\S*}).each do
+            assert_match %r{\Ahttps://tools\.example\.com/\.c/api}, it,
+                         "the remote prompt names an unmounted /api"
+        end
+        # The element, not the class name: the script that drives it
+        # names the same class and is on the page either way.
+        assert_includes last_response.body, %(<select class="a-prompt-pick")
+    ensure
+        TestSupport.configure
+    end
+
+    # The paths table is the page's account of what answers here, and
+    # it went one release without llms.txt or the manual in it. Asserted
+    # against the routes themselves rather than against a list written
+    # twice: a route added and not described is the failure, and only
+    # this direction catches it.
+    #
+    # NOT_LISTED is the deliberate silence. Each is a path a person has
+    # no reason to visit -- an icon, the page they are already on, an
+    # asset of the viewer, a page reached from the box that needs it.
+    NOT_LISTED = ["/", "/icon.svg", "/signing", "/apidocs/:asset"].freeze
+
+    def test_the_paths_table_describes_every_route_this_page_serves
+        TestSupport.configure("api" => true,
+                              "endpoint" => "https://tools.example.com/.c")
+        get "/"
+        listed = last_response.body.scan(%r{<td><code>(/[^<]*)</code></td>})
+                                   .flatten
+
+        Corrigenda::Home.routes["GET"].map { it[0].to_s }.each do |route|
+            next if NOT_LISTED.include?(route)
+
+            # /extension/:target is written for a reader, not as a
+            # pattern: the table says /extension/… and means the same.
+            wanted = route.sub(%r{/:[a-z]+\z}, "/…")
+
+            assert_includes listed, wanted,
+                            "#{route} answers but the table never says so"
+        end
+    ensure
+        TestSupport.configure
+    end
+
+    # And the advice under the prompts names paths too, and they are read
+    # by somebody about to write their own prompt — so they carry the
+    # mount. A bare /api/ quoted there is the same defect as in a
+    # prompt, one paragraph further down the page.
+    def test_the_advice_under_the_prompts_names_mounted_paths
+        TestSupport.configure("api" => true, "socket" => "/var/run/x/y.sock")
+        get "/", {}, { "HTTP_X_FORWARDED_PREFIX" => "/.corrigenda" }
+        aside = last_response.body[%r{<p class="aside">(.*?)</p>}m, 1].to_s
+
+        assert_includes aside, "<code>/.corrigenda/api/</code>"
+        assert_includes aside, "/.corrigenda/llms.txt"
+    ensure
+        TestSupport.configure
+    end
+
+    # And no chooser where there is nothing to choose between: without a
+    # socket the service is reached the same way from everywhere.
+    def test_without_a_socket_there_is_one_prompt_and_no_chooser
+        TestSupport.configure("api" => true,
+                              "endpoint" => "https://tools.example.com/.c")
+        get "/"
+
+        assert_equal 1, prompts.size
+        assert_includes prompts.first, "https://tools.example.com/.c/llms.txt"
+        refute_includes last_response.body, %(<select class="a-prompt-pick")
     ensure
         TestSupport.configure
     end

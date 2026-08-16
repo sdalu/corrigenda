@@ -326,6 +326,26 @@
                         <td>The add-on packages, the signing notes, and this
                         page.</td>
                     </tr>
+                    <%# Not under the api: key, deliberately. These two are
+                        prose about a service rather than a way into its
+                        reports, so they answer on a deployment that offers
+                        no interface at all -- where what llms.txt has to
+                        say is that there is none. %>
+                    <tr>
+                        <td><code>/llms.txt</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>What this is, for an agent that arrives knowing
+                        only the convention. It points at the manual below,
+                        and at the interface where there is one.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/agent-usage.md</code></td>
+                        <th scope="row">Signed in</th>
+                        <td>The manual for an agent working the reports: the
+                        loop, what <em>fixed</em> means, what to write on each
+                        one. Served from the checkout this service runs from,
+                        so it is the version that is answering.</td>
+                    </tr>
                     <%# Listed only where they answer: with no api: key in the
                         config every path under /api is a 404, and a table that
                         names one would be describing a different deployment. %>
@@ -431,20 +451,25 @@
     # The token, if there is one, is deliberately absent: it is the one
     # thing on this page that would be a secret, and a page behind a
     # login is still not where a secret should be printed.
-    reach = if socket
-                "curl --unix-socket #{socket} http://localhost/api/"
-            else
-                "curl #{endpoint || "<this endpoint>"}/api/"
-            end
+    # Two ways in, and they are not the same prompt. An agent with a
+    # shell ON this host reaches the socket, which is behind nothing:
+    # it can be handed commands to run and needs no credentials. An
+    # agent anywhere else arrives through Apache, where every request
+    # is a login it has to be given -- so that one is kept short and
+    # spends its words on where to start reading rather than on curl
+    # lines that would each need a --user this page cannot supply.
+    #
+    # The socket one is offered only where there is a socket. Without
+    # one the service is reached the same way from everywhere, and a
+    # chooser with a single answer is a control that asks a question
+    # it has already answered.
+    base  = (endpoint || "<this endpoint>").sub(%r{/+\z}, "")
+    reach = "curl --unix-socket #{socket} http://localhost/api/"
 
     # The manual travels the same pipe as the interface: an agent that
     # can reach one can reach the other, so the prompt can point at it
     # instead of restating the protocol it carries.
-    manual = if socket
-                 "curl --unix-socket #{socket} http://localhost/agent-usage.md"
-             else
-                 "curl #{endpoint || "<this endpoint>"}/agent-usage.md"
-             end
+    manual = "curl --unix-socket #{socket} http://localhost/agent-usage.md"
 
 
     # Wrapped where it is written: this ends up inside a <pre>, and a
@@ -486,15 +511,36 @@ SAY
 <p>
     No plugin and no integration: the interface describes itself, so an
     agent with a shell and this prompt has enough. It is written for
-    this deployment — the socket below is the one this service is
-    listening on, and the last paragraph says what it is allowed to do
+    this deployment — the address below is one this service really
+    answers on, and the last paragraph says what it is allowed to do
     here<%= api_needs_token? ? ", less the token, which you give it yourself" : "" %>.
 </p>
 
+<% if socket %>
+<%# A chooser rather than one prompt, because where the agent runs
+    decides what the prompt can assume. Hidden until the script
+    reveals it: without JavaScript both prompts are on the page with
+    their captions, which reads perfectly well, and a select that
+    switches nothing would not. %>
+<p class="prompt-pick" hidden>
+    <label>The agent runs
+        <select class="a-prompt-pick" aria-label="Where the agent runs">
+            <option value="here">on this host</option>
+            <option value="away">somewhere else</option>
+        </select>
+    </label>
+</p>
+<% end %>
+
 <div class="source">
-    <div class="block">
+    <% if socket %>
+    <div class="block" data-prompt="here">
+        <p class="prompt-note">
+            On this host, through the socket — no login to arrange,
+            so it can be handed commands to run.
+        </p>
 <pre class="prompt">There is a defect-report service on this host called Corrigenda. Its
-JSON interface answers under /api:
+JSON interface answers under /api, on a socket that is behind no login:
 
     <%= reach %>
 
@@ -511,19 +557,52 @@ every operation — read it before deciding how to use anything.
 <%= doing %></pre>
         <button type="button" class="a-copy">Copy</button>
     </div>
+    <% end %>
+
+    <div class="block" data-prompt="away">
+        <% if socket %>
+        <p class="prompt-note">
+            From anywhere else, over https — usually behind the login,
+            though how it is reached decides that, so it is pointed at
+            where to start reading rather than handed commands.
+        </p>
+        <% end %>
+<pre class="prompt">There is a defect-report service called Corrigenda at
+<%= base %>/. Start by reading
+
+    <%= base %>/llms.txt
+
+which says what it is and points at two things: the manual for working
+its reports — the loop, what fixed means, what to write on each one —
+and the schema of its JSON interface, which answers under
+
+    <%= base %>/api/
+
+and carries a note addressed to you on every operation. Every path in
+that schema is written from there, not from the root of the host.
+
+Whether it asks you to log in depends on how it is reached from where
+you are: if a request comes back 401, use the credentials I give you —
+and if I have not given you any, ask me rather than stopping.<%= api_needs_token? ? " Either way, every request there needs the token I give you." : "" %>
+
+<%= doing %></pre>
+        <button type="button" class="a-copy">Copy</button>
+    </div>
 </div>
 
 <p class="aside">
-    Three things worth keeping if you write your own: point it at
-    <code>/api/</code> first, so it learns what it may do rather than
+    Three things worth keeping if you write your own: point it at the
+    interface's own root first — <code><%= mount("/api/") %></code>
+    through the web, plain <code>/api/</code> down the socket, which is
+    the app unmounted — so it learns what it may do rather than
     discovering a 403 halfway through; say what <em>fixed</em> means to
     you — otherwise it means “I changed something”, which is a different
     claim and the one you will be reading later; and ask for the
     picture, since a screenshot taken after the work sits beside the one
     the report came with and settles the claim without you opening the
     site. An agent handed no prompt at all still has a front door:
-    <a href="<%= mount("/llms.txt") %>"><code>llms.txt</code></a> at
-    this mount says what this is and points at the schema.
+    <a href="<%= mount("/llms.txt") %>"><code><%= mount("/llms.txt") %></code></a>
+    says what this is and points at both the manual and the schema.
 </p>
 <% end %>
 
@@ -590,6 +669,24 @@ every operation — read it before deciding how to use anything.
            this page is served over plain http on a development run — so
            the button says what happened either way rather than
            appearing to work. */
+        /* One prompt at a time, once there is something to switch
+           with. The captions stay: they say the same thing the option
+           does, and the block that is on screen should identify
+           itself whether it got there by choosing or by default. */
+        var choice = document.querySelector(".a-prompt-pick");
+        if (choice) {
+            var only = function () {
+                document.querySelectorAll(".block[data-prompt]")
+                    .forEach(function (block) {
+                        block.hidden = block.dataset.prompt !== choice.value;
+                    });
+            };
+
+            choice.closest(".prompt-pick").hidden = false;
+            choice.addEventListener("change", only);
+            only();
+        }
+
         document.querySelectorAll(".a-copy").forEach(function (button) {
             button.addEventListener("click", function () {
                 var source = button.closest(".block").querySelector("pre");
