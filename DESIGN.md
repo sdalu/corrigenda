@@ -157,7 +157,9 @@ the report carries the errors and failed loads from before anyone
 noticed. `data-endpoint` overrides the link, which is what a page that
 advertises nothing needs, or one pointed at a test instance;
 `data-build` should carry the deployed git commit, so every report maps
-to a deploy.
+to a deploy. The widget opens its panel as soon as it loads, which is
+right when it was loaded on purpose; `data-start="closed"` leaves only
+the launcher, for an app that carries the tag on every start.
 
 ## 5. The widget
 

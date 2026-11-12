@@ -64,7 +64,12 @@
              * still say, for a deployment where that is wrong. */
             lang:     (d.lang || navigator.language || "en").slice(0, 2),
             prune:    number(d.prune, 3),
-            cap:      number(d.cap, 64 * 1024)
+            cap:      number(d.cap, 64 * 1024),
+            /* A page that loads the widget at every start -- an app,
+             * rather than a page being worked on -- would otherwise
+             * open the panel over itself each time. Only the one word
+             * changes it: anything else is the default, open. */
+            closed:   d.start === "closed"
         };
     })();
 
@@ -4251,8 +4256,10 @@ input:where(:not(:checked)) + .chip {
 
     /* Loaded on purpose — by a bookmarklet, or by a tag on a page being
      * worked on — so the menu is what you came for. The launcher stays
-     * as the way back after closing. */
-    openPanel(false);
+     * as the way back after closing. A tag that says data-start=closed
+     * is the page saying otherwise, and then the launcher is all there
+     * is until somebody presses it. */
+    if (!CFG.closed) openPanel(false);
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
