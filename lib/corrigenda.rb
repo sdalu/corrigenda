@@ -15,7 +15,7 @@ module Corrigenda
     #
     # The add-on has a version of its own: it is installed rather than
     # served, so a browser can be carrying any of them.
-    VERSION = "0.3.1"
+    VERSION = "0.3.2"
 
     class Error        < StandardError; end
     class PayloadError < Error; end

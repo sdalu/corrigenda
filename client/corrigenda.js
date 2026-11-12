@@ -19,7 +19,7 @@
      * number, and a test refuses to let them drift. It goes on the
      * host element as well, where a live page can be asked which
      * widget it is actually running. */
-    const VERSION = "0.3.1";
+    const VERSION = "0.3.2";
 
     const SCRIPT = document.currentScript;
 
