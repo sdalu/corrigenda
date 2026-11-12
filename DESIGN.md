@@ -587,6 +587,18 @@ back in, it is where the reporter's attention already was, and the page
 element that had focus before may not exist any more — a report is
 often filed *about* the thing that was picked.
 
+A page's modal `<dialog>` is the one thing that can take the floor from
+the widget: it sits in the top layer, above any z-index, and makes the
+rest of the document inert. So while one is open the host lives
+**inside the topmost modal dialog**, and goes back to `<body>` when it
+closes; a `MutationObserver` on `open` follows them, and focus inside
+the panel is carried across the move. Making the host a popover above
+the dialog was the other way, and does not work: the top layer puts it
+in sight, but it stays inert — no click, no focus. Inside the dialog,
+`position: fixed` still means the viewport unless the page gives the
+dialog a transform or a filter, in which case the launcher sits in the
+dialog's corner for as long as that lasts.
+
 Legibility under `forced-colors: active` costs one extra rule per
 state-carrying control: on/off is normally said with a fill, a
 box-shadow and a border colour, and forced colours override all three,

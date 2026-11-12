@@ -526,6 +526,11 @@
 
     const fragmentHtml = (el) => {
         const clone = el.cloneNode(true);
+        /* While a modal dialog is open the widget lives in it, so an
+         * element picked there can carry the host along -- an empty
+         * div that is not the page's, and a child counted by the
+         * pruning below. */
+        clone.querySelector("#corrigenda-widget")?.remove();
         scrub(clone, 0);
         const html = clone.outerHTML;
         return html.length > CFG.cap
@@ -2447,14 +2452,64 @@ input:where(:not(:checked)) + .chip {
      * and a document that could have been reported on had no widget at
      * all. The root element is a parent like any other. The readyState
      * test is the other half of that: with the event already fired,
-     * waiting for it waits forever. */
+     * waiting for it waits forever.
+     *
+     * A modal <dialog> is the other place the widget has to live. It
+     * sits in the top layer, above every z-index, and it makes the rest
+     * of the document inert: a widget under <body> was neither seen nor
+     * clickable while one was open. Making the host a popover shown
+     * after the dialog puts it above in the top layer, but the inertness
+     * holds there too -- Chromium 154 let neither a click nor focus
+     * through. Inside the dialog it is neither covered nor inert, and
+     * position: fixed keeps it on the viewport, unless the page gives
+     * the dialog a transform or a filter: then the dialog is the
+     * containing block and the launcher sits in its corner instead. So
+     * the host follows the topmost modal dialog in and out.
+     *
+     * There is no event for showModal and no way to ask for the
+     * top-layer order, so the open attribute is watched and the order
+     * kept as seen. childList is watched too: a page that removes an
+     * open dialog, or rewrites what is in it, takes the host along. */
+    const modals = [];
+
     const mount = () => {
-        const parent = document.body || document.documentElement;
-        if (parent) parent.append(host);
+        for (const d of document.querySelectorAll("dialog:modal"))
+            if (!modals.includes(d)) modals.push(d);
+        for (let i = modals.length - 1; i >= 0; i--)
+            if (!modals[i].matches("dialog:modal")) modals.splice(i, 1);
+
+        const parent = modals.at(-1) || document.body ||
+                       document.documentElement;
+        if (!parent || host.parentNode === parent) return;
+
+        /* A move is a removal, and a removal drops focus: somebody
+         * typing in the panel when the page's dialog closed would be
+         * typing into nothing. */
+        const here = root.activeElement;
+        parent.append(host);
+        here?.focus({ preventScroll: true });
     };
 
-    if (document.body || document.readyState !== "loading") mount();
-    else addEventListener("DOMContentLoaded", mount, { once: true });
+    /* Most of what a live page mutates is neither a dialog nor the
+     * host, so a record that cannot have moved either is let through
+     * without a query. It starts with the first mount and not before:
+     * while <head> is still loading, the host is not connected yet by
+     * design, and every record would have mounted it on <html>. */
+    const watch = new MutationObserver((records) => {
+        if (records.some((r) => r.type === "attributes") ||
+            !host.isConnected || modals.some((d) => !d.isConnected))
+            mount();
+    });
+
+    const start = () => {
+        mount();
+        watch.observe(document, { subtree: true, childList: true,
+                                  attributes: true,
+                                  attributeFilter: ["open"] });
+    };
+
+    if (document.body || document.readyState !== "loading") start();
+    else addEventListener("DOMContentLoaded", start, { once: true });
 
     const $ = (selector) => root.querySelector(selector);
     const panel = $(".panel");
