@@ -61,6 +61,23 @@ see is not the same as being correct, and `extension-check.js` was what
 made the difference visible. Detection is live now: the widget asks,
 and until something answers it behaves as though there were no add-on.
 
+## Nested rules were matched without their parents
+
+The rules channel asked `element.matches()` of every style rule's
+selector as written, and a nested rule's selector is written relative
+to its parent. On its own, `&` is `:scope`, which in `matches()` is the
+element being asked about — so `.room { &:first-child }` was asked as
+`&:first-child` and matched every first child on the page. A report on
+climat's `<main>` listed twenty component rules from places it was not
+in. The comment beside the call said such selectors throw and are
+skipped; in neither engine did they throw.
+
+Each nested selector is now written out in full before it is asked,
+`&` replaced by `:is(<the parent's full selector>)`. Reports filed
+before November 2026 can still carry the false rules: a nested rule in
+one of them is worth checking against its context before it is
+believed.
+
 ## The name was DebugFeedback
 
 Until 2026-08-03 the tool was called DebugFeedback, which said what it

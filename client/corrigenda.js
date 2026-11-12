@@ -375,15 +375,61 @@
         } catch { return sheet.href; }
     };
 
-    const collectRules = (rules, el, sheet, context, out) => {
+    /* A selector list split at its own commas and not at the ones
+     * inside :is(a, b) or [title="a, b"]. */
+    const selectorList = (text) => {
+        const parts = [];
+        let depth = 0, quote = null, start = 0;
+
+        for (let i = 0; i < text.length; i += 1) {
+            const c = text[i];
+            if (quote) {
+                if (c === "\\") i += 1;
+                else if (c === quote) quote = null;
+            } else if (c === '"' || c === "'") quote = c;
+            else if (c === "(" || c === "[") depth += 1;
+            else if (c === ")" || c === "]") depth -= 1;
+            else if (c === "," && depth === 0) {
+                parts.push(text.slice(start, i).trim());
+                start = i + 1;
+            }
+        }
+
+        parts.push(text.slice(start).trim());
+        return parts;
+    };
+
+    /* A nested rule's selector is relative to the rule it sits in, and
+     * matches() has no idea of that: given on its own, "&" is :scope,
+     * which in matches() is the element being asked about. So
+     * ".room { &:first-child }" was asked as "&:first-child" and
+     * matched every first child on the page -- a report on <main>
+     * listed twenty such rules from components it was not in. It was
+     * thought to throw, and to be skipped; it did not throw. Each
+     * selector is therefore written out in full before it is asked:
+     * "&" becomes the parent's own full selector, and a nested
+     * selector without one is a descendant of it, which is what the
+     * nesting spec makes of it. An "&" inside an attribute value would
+     * be replaced too, and is rare enough to leave wrong. */
+    const fullSelector = (selector, parent) => {
+        if (!parent) return selector;
+
+        return selectorList(selector).map((part) =>
+            part.includes("&") ? part.replaceAll("&", `:is(${parent})`)
+                               : `:is(${parent}) ${part}`
+        ).join(", ");
+    };
+
+    const collectRules = (rules, el, sheet, context, out, parent = null) => {
         for (const rule of rules) {
             if (out.length >= RULE_CAP) return;
 
             if (rule instanceof CSSStyleRule) {
+                const full = fullSelector(rule.selectorText, parent);
                 let hit = false;
-                /* Nested rules carry "&", which matches() cannot
-                 * evaluate standalone — they are skipped, not crashed on. */
-                try { hit = el.matches(rule.selectorText); } catch { hit = false; }
+                /* A selector this engine cannot parse is not a match,
+                 * and not a reason to lose every rule after it. */
+                try { hit = el.matches(full); } catch { hit = false; }
                 if (hit) {
                     out.push({
                         href: sheetName(sheet),
@@ -394,15 +440,19 @@
                 }
                 if (rule.cssRules) {
                     collectRules(rule.cssRules, el, sheet,
-                                 context.concat(rule.selectorText), out);
+                                 context.concat(rule.selectorText), out,
+                                 full);
                 }
             } else if (rule.cssRules) {
                 const label = rule.conditionText
                     ? `@${rule.constructor.name.replace(/^CSS|Rule$/g, "")
                           .toLowerCase()} ${rule.conditionText}`
                     : (rule.name ? `@layer ${rule.name}` : null);
+                /* An @media inside a style rule is still inside it: its
+                 * rules nest under the same parent. */
                 collectRules(rule.cssRules, el, sheet,
-                             label ? context.concat(label) : context, out);
+                             label ? context.concat(label) : context, out,
+                             parent);
             }
         }
     };
